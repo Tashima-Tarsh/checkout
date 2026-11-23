@@ -3,8 +3,6 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#ffffff"><meta name="description" content="PDEP direct P2P and P2M UPI checkout">
-<meta name="application-name" content="PDEP Checkout"><link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" type="image/svg+xml" href="/static/pdep-mark.svg">
 <link rel="stylesheet" href="/static/style.css?v=share-light-v05">
 <title>PDEP · Checkout</title>
 </head>
@@ -43,12 +41,11 @@
           <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div><p id="timer" class="timer"></p>
         </div></div>
         <details id="evidencePanel" class="evidence-panel"><summary>📲 Attach mobile evidence <span>SMS · App share · Receipt</span></summary>
-          <div class="evidence-help">Use an app's Share action to send a receipt to an installed PDEP web app, then enter the one-time code here. Or paste a message / attach a file manually. Evidence is not automatic payment confirmation.</div>
+          <div class="evidence-help">Copy text from the payment app or an SMS and paste it here, or choose a receipt file directly from your phone. Evidence is not automatic payment confirmation.</div>
           <div class="field"><label for="evidenceSource">Source</label><select id="evidenceSource"><option value="app_share">Shared app receipt text</option><option value="sms_paste">Copied SMS</option><option value="notification_paste">Copied notification</option><option value="receipt_upload">Receipt file</option></select></div>
           <div class="field"><label for="evidenceText">Paste shared content</label><textarea id="evidenceText" maxlength="8192" rows="2" placeholder="Paste receipt / debit alert text here (optional)"></textarea></div>
           <div class="field"><label for="evidenceFile">Or choose receipt file</label><input id="evidenceFile" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"></div>
           <button id="submitEvidence" type="button" class="secondary full">Attach evidence</button>
-          <div class="claim-fields"><div class="field"><label for="shareCode">One-time PDEP share code</label><input id="shareCode" autocomplete="off" maxlength="32" placeholder="Paste code from PDEP share target"></div><button id="claimShare" type="button" class="secondary">Link shared item</button></div>
           <p class="evidence-status" id="evidenceStatus" aria-live="polite">No mobile evidence submitted.</p>
         </details>
       </div>
