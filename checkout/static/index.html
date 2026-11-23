@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0c1425">
   <meta name="description" content="Browser-only P2P/P2M UPI payment initiation research checkout">
   <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=a088c54">
+  <link rel="stylesheet" href="/static/style.css?v=pdep-v04">
 </head>
 <body>
 <main class="shell">
@@ -22,7 +22,7 @@
           <label for="mode">Payment type</label>
           <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
         </div>
-        <div class="field">
+        <div class="field" id="destinationRow" hidden>
           <label for="destinationType">Payee selection</label>
           <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
         </div>
@@ -79,6 +79,6 @@
   </footer>
   <div class="sr-only" id="log" aria-live="polite">No payment session yet.</div>
 </main>
-<script src="/static/app.js?v=a088c54"></script>
+<script src="/static/app.js?v=pdep-v04"></script>
 </body>
 </html>
