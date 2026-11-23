@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {inspectVerifierOutput} from './tlsn_output_inspector.mjs';
+const b64 = s => Buffer.from(s).toString('base64');
+const context={expectedSessionId:'fixture-session',expectedHost:'example.com',expectedRequestLine:'GET /test HTTP/1.1'};
+const sample={sessionId:'fixture-session',server_name:'example.com',redactedTranscript:{sent:b64('GET /test HTTP/1.1\r\nHost: example.com\r\n\r\n'),recv:b64('HTTP/1.1 200 OK\r\n\r\n{}')}};
+const check=output=>inspectVerifierOutput({...context,output});
+test('controlled fixture matches shape only',()=>assert.deepEqual(check(sample),{accepted:true,status:'RESEARCH_TRANSCRIPT_SHAPE_MATCH',financialDebitVerified:false}));
+test('wrong session rejected',()=>assert.equal(check({...sample,sessionId:'wrong'}).reason,'SESSION_MISMATCH'));
+test('wrong host rejected',()=>assert.equal(check({...sample,server_name:'wrong.example'}).reason,'HOST_MISMATCH'));
+test('wrong request rejected',()=>assert.equal(check({...sample,redactedTranscript:{...sample.redactedTranscript,sent:b64('GET /other HTTP/1.1\r\n')}}).reason,'REQUEST_MISMATCH'));
+test('non-success response rejected',()=>assert.equal(check({...sample,redactedTranscript:{...sample.redactedTranscript,recv:b64('HTTP/1.1 403 Forbidden\r\n')}}).reason,'RESPONSE_STATUS_UNCONFIRMED'));
+test('invalid base64 rejected',()=>assert.equal(check({...sample,redactedTranscript:{...sample.redactedTranscript,recv:'?'}}).reason,'INVALID_TRANSCRIPT'));
