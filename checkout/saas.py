@@ -53,9 +53,12 @@ def get_appearance(connection):
     row = connection.execute(select(checkout_settings).where(
         checkout_settings.c.id == 1
     )).mappings().one_or_none()
-    return dict(DEFAULTS) if row is None else {
-        key: row[key] for key in DEFAULTS
-    }
+    if row is None:
+        return dict(DEFAULTS)
+    result = {key: row[key] for key in DEFAULTS}
+    if result["theme"] not in THEMES:
+        result["theme"] = "light"
+    return result
 
 
 @router.get("/api/appearance")
