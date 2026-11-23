@@ -20,5 +20,5 @@ Upload:
 
 **Do not deploy these examples as real values.** When testing locally, allowlist your actual network IP.
 
-## Security boundary
+Optional merchant server-to-server session API allowlisting: `PDEP_SESSION_CREATE_IP_ALLOWLIST=203.0.113.15/32`. Leave this unset for public browser checkout, because customers have dynamic source IPs. Never use attacker-supplied X-Forwarded-For without a configured trusted proxy.\n\n## Security boundary
 Client browser return, forged UTR, spoofed callbacks, rooted device claims and synthetic Ed25519 issuer fixtures never produce financially_verified=true. No real payer-side authenticated debit proof source has been integrated.
