@@ -54,6 +54,17 @@ creation_limits = Table(
     Column("count", Integer, nullable=False),
 )
 
+# A single operator-owned tenant's persistent UI appearance.
+checkout_settings = Table(
+    "checkout_settings", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("brand_name", String(40), nullable=False),
+    Column("headline", String(70), nullable=False),
+    Column("accent", String(7), nullable=False),
+    Column("theme", String(20), nullable=False),
+    Column("logo_letter", String(1), nullable=False),
+)
+
 # Operator-managed routing inventory; never used as debit evidence.
 vpa_routes = Table(
     "checkout_vpa_routes", metadata,

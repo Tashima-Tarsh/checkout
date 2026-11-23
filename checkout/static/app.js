@@ -74,20 +74,22 @@ async function refresh() {
     refreshPending = false;
   }
 }
-$('mode').addEventListener('change', () => {
-  $('mccRow').hidden = $('mode').value !== 'P2M';
-});
-$('destinationType').addEventListener('change', () => {
-  const routed = $('destinationType').value === 'route';
+function syncPaymentFields() {
+  const personal = $('mode').value === 'P2P';
+  // P2P is direct by default. Do not require a merchant routing group or MCC.
+  if (personal) $('destinationType').value = 'direct';
+  $('destinationRow').hidden = personal;
+  const routed = !personal && $('destinationType').value === 'route';
   $('vpaRow').hidden = routed;
   $('routeRow').hidden = !routed;
   $('vpa').required = !routed;
   $('routeKey').required = routed;
-  $('mccRow').hidden = $('mode').value !== 'P2M' || routed;
-});
-$('mode').addEventListener('change', () => {
-  if ($('destinationType').value === 'route') $('mccRow').hidden = true;
-});
+  $('mccRow').hidden = personal || routed;
+  $('mcc').disabled = personal || routed;
+}
+$('mode').addEventListener('change', syncPaymentFields);
+$('destinationType').addEventListener('change', syncPaymentFields);
+syncPaymentFields();
 $('form').addEventListener('submit', async event => {
   event.preventDefault();
   const submit = event.submitter || $('create');
@@ -174,3 +176,22 @@ setInterval(updateTimer, 1000);
 setInterval(() => {
   if (session?.state !== 'EXPIRED' && document.visibilityState === 'visible') refresh();
 }, 5000);
+
+
+// Operator-controlled visual preferences are fetched read-only.
+// Never use theme configuration as payment verification or authenticated merchant identity.
+async function loadAppearance() {
+  try {
+    const data = await api('/api/appearance');
+    const accent = /^#[0-9A-F]{6}$/i.test(data.accent || '') ? data.accent : '#4985FF';
+    const theme = ['midnight', 'aurora', 'light'].includes(data.theme) ? data.theme : 'midnight';
+    document.documentElement.style.setProperty('--accent', accent);
+    document.documentElement.dataset.theme = theme;
+    $('brandName').textContent = data.brand_name;
+    $('brandIcon').textContent = data.logo_letter;
+    $('checkoutHeadline').textContent = data.headline;
+  } catch (error) {
+    log('Appearance unavailable; using defaults.');
+  }
+}
+loadAppearance();

@@ -4,25 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0c1425">
-  <meta name="description" content="Browser-only P2P/P2M UPI payment initiation research checkout">
+  <meta name="description" content="P2P and P2M browser-based UPI checkout initiation">
   <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=a088c54">
+  <link rel="stylesheet" href="/static/style.css?v=pdep-v04">
 </head>
 <body>
 <main class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="PDEP home"><span class="brandmark">P</span><span>PDEP <small>CHECKOUT</small></span></a>
-    <span class="environment"><span class="dot"></span> RESEARCH DEMO</span>
+    <a class="brand" href="/" aria-label="PDEP home"><span id="brandIcon" class="brandmark">P</span><span><span id="brandName">PDEP</span> <small>CHECKOUT</small></span></a>
+    <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
   </header>
   <div class="workspace">
     <section class="config panel" aria-label="Payment configuration">
-      <div class="sectionheading"><span class="step">01</span><div><h1>Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
+      <div class="sectionheading"><span class="step">01</span><div><h1 id="checkoutHeadline">Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
       <form id="form">
         <div class="field">
           <label for="mode">Payment type</label>
           <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
         </div>
-        <div class="field">
+        <div class="field" id="destinationRow" hidden>
           <label for="destinationType">Payee selection</label>
           <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
         </div>
@@ -77,8 +77,8 @@
     <span>🔒 Payment initiation only. A return from an app is not proof of debit.</span>
     <span><a href="/admin">Manage VPA inventory</a></span>
   </footer>
-  <div class="sr-only" id="log" aria-live="polite">No payment session yet.</div>
+  <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>
 </main>
-<script src="/static/app.js?v=a088c54"></script>
+<script src="/static/app.js?v=pdep-v04"></script>
 </body>
 </html>
