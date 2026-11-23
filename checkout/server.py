@@ -14,7 +14,6 @@ from urllib.parse import quote, urlencode
 import qrcode
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
-from PIL import Image, ImageDraw
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, text
@@ -66,24 +65,6 @@ app.include_router(saas_router)
 app.include_router(mobile_router)
 
 
-@app.get("/icons/pdep-{size}.png")
-def pwa_icon(size: int):
-    if size not in (192, 512):
-        raise HTTPException(404, "Unsupported icon size")
-    image = Image.new("RGB", (size, size), "#ffffff")
-    draw = ImageDraw.Draw(image)
-    margin = size // 5
-    draw.rounded_rectangle((margin, margin, size - margin, size - margin),
-                           radius=size // 7, fill="#8B5CF6")
-    # White P mark with generous safe-zone margins
-    draw.rectangle((size * .39, size * .34, size * .46, size * .67), fill="#ffffff")
-    draw.ellipse((size * .38, size * .31, size * .63, size * .52), fill="#ffffff")
-    draw.rectangle((size * .45, size * .39, size * .54, size * .46), fill="#8B5CF6")
-    out = io.BytesIO()
-    image.save(out, format="PNG")
-    return Response(out.getvalue(), media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
-
-
 @app.middleware("http")
 async def response_headers(request: Request, call_next):
     request_id = secrets.token_hex(12)
@@ -98,8 +79,6 @@ async def response_headers(request: Request, call_next):
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'self'; img-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'",
     })
-    if request.url.path == "/static/sw.js":
-        response.headers["Service-Worker-Allowed"] = "/"
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
