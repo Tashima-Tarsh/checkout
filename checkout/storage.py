@@ -36,14 +36,6 @@ mobile_evidence = Table(
     __import__("sqlalchemy").UniqueConstraint("sid", "evidence_hash",
                                                name="uq_checkout_evidence_digest"),
 )
-share_intake = Table(
-    "checkout_share_intake", metadata,
-    Column("code_hash", String(64), primary_key=True),
-    Column("evidence_hash", String(64), nullable=False),
-    Column("length_bytes", Integer, nullable=False),
-    Column("created", Integer, nullable=False),
-    Column("consumed", Boolean, nullable=False),
-)
 sessions = Table(
     "checkout_sessions", metadata,
     Column("id", String(64), primary_key=True),
