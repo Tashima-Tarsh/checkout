@@ -1,84 +1,62 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0c1425">
-  <meta name="description" content="P2P and P2M browser-based UPI checkout initiation">
-  <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=pdep-v04">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff"><meta name="description" content="PDEP direct P2P and P2M UPI checkout">
+<meta name="application-name" content="PDEP Checkout"><link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/static/pdep-mark.svg">
+<link rel="stylesheet" href="/static/style.css?v=share-light-v05">
+<title>PDEP · Checkout</title>
 </head>
-<body>
+<body class="checkout-body">
 <main class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="PDEP home"><span id="brandIcon" class="brandmark">P</span><span><span id="brandName">PDEP</span> <small>CHECKOUT</small></span></a>
-    <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
+    <a class="brand" href="/"><span class="brandmark" id="brandIcon">P</span><span><b id="brandName">PDEP</b><small>DIRECT PAYMENTS</small></span></a>
+    <div class="top-right"><span class="environment"><span class="dot"></span> UPI payment initiation</span><a href="/admin" class="top-admin">Workspace ↗</a></div>
   </header>
+  <section class="intro"><div><div class="eyebrow">PAYMENT EXPERIENCE</div><h1 id="checkoutHeadline">Make a payment</h1><p>Pay a person or business directly using your preferred UPI app.</p></div><div class="trust-label">🔒 Session protected <span>·</span> No extra app required</div></section>
   <div class="workspace">
-    <section class="config panel" aria-label="Payment configuration">
-      <div class="sectionheading"><span class="step">01</span><div><h1 id="checkoutHeadline">Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
+    <section class="config panel" aria-label="Payment details">
+      <div class="sectionheading"><span class="step">1</span><div><h2>Payment details</h2><p>Enter your recipient and amount</p></div></div>
       <form id="form">
-        <div class="field">
-          <label for="mode">Payment type</label>
-          <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
-        </div>
-        <div class="field" id="destinationRow" hidden>
-          <label for="destinationType">Payee selection</label>
-          <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
-        </div>
-        <div class="field" id="vpaRow">
-          <label for="vpa">Recipient UPI ID</label>
-          <input id="vpa" autocomplete="off" inputmode="email" placeholder="person@upi" required>
-        </div>
-        <div class="field" id="routeRow" hidden>
-          <label for="routeKey">Approved routing group</label>
-          <input id="routeKey" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="my-recipient-group">
-        </div>
-        <div class="field">
-          <label for="name">Recipient display name</label>
-          <input id="name" maxlength="80" placeholder="Payee name" required>
-        </div>
-        <div class="twofields">
-          <div class="field">
-            <label for="amount">Amount (₹)</label>
-            <input id="amount" type="number" min="1" max="1000000" step=".01" placeholder="499.00" required>
-          </div>
-          <div class="field" id="mccRow" hidden>
-            <label for="mcc">Merchant MCC <span class="optional">optional</span></label>
-            <input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="5411">
-          </div>
-        </div>
-        <button id="create" type="submit" class="primary">Create secure checkout <span aria-hidden="true">→</span></button>
+        <div class="field"><label for="mode">Who are you paying?</label>
+          <select id="mode"><option value="P2P">A person (P2P)</option><option value="P2M">A business (P2M)</option></select></div>
+        <div class="field" id="destinationRow" hidden><label for="destinationType">Payee configuration</label><select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Approved recipient route</option></select></div>
+        <div class="field" id="vpaRow"><label for="vpa">Recipient UPI ID</label><input id="vpa" autocomplete="off" inputmode="email" placeholder="name@upi" required></div>
+        <div class="field" id="routeRow" hidden><label for="routeKey">Recipient routing group</label><input id="routeKey" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="your-approved-route"></div>
+        <div class="twofields"><div class="field"><label for="name">Recipient name</label><input id="name" maxlength="80" placeholder="Recipient name" required></div>
+        <div class="field"><label for="amount">Amount · INR</label><div class="currency-field"><span>₹</span><input id="amount" type="number" min="1" max="1000000" step=".01" placeholder="499.00" required></div></div></div>
+        <div class="field" id="mccRow" hidden><label for="mcc">Merchant category code (optional)</label><input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="e.g. 5411"></div>
+        <button id="create" type="submit" class="primary">Continue to payment <span aria-hidden="true">→</span></button>
+        <p class="form-footnote">Payment amount and recipient are locked once the session begins.</p>
       </form>
     </section>
-    <section id="paypanel" class="payment panel" aria-label="Payment status">
-      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any supported UPI app</h2><p>Scan or open from your phone</p></div></div>
-      <div id="empty" class="empty">
-        <div class="qrpreview" aria-hidden="true"><span class="scanline"></span>▦</div>
-        <strong>Your payment QR appears here</strong>
-        <p>Enter the payment details to begin. Nothing to download.</p>
-      </div>
-      <div id="pay" hidden><button id="edit" type="button" class="secondary editbutton">← Edit payment</button>
+    <section id="paypanel" class="payment panel" aria-label="Payment and mobile evidence">
+      <div class="sectionheading"><span class="step">2</span><div><h2>Pay and share evidence</h2><p>Open a UPI app or scan the QR</p></div></div>
+      <div id="empty" class="empty"><div class="qrpreview" aria-hidden="true"><span>▦</span></div><strong>Secure checkout, ready when you are</strong><p>Your personal QR and payment details will appear here.</p><div class="secure-row"><span>✓ P2P & P2M</span><span>✓ No QR downloads</span></div></div>
+      <div id="pay" hidden>
+        <button id="edit" class="secondary editbutton" type="button">← Edit details</button>
         <div class="total" id="info"></div>
-        <div class="qrbox"><img id="qr" alt="Scan this QR in your UPI app" width="180" height="180" hidden></div>
-        <p class="scanhelp">Scan on another device, or open your installed UPI app.</p>
-        <a id="launch" class="primary" role="button">Open UPI app <span aria-hidden="true">↗</span></a>
-        <div class="actions">
-          <button id="claim" type="button" class="secondary">I completed payment</button>
-          <button id="refresh" type="button" class="secondary">Refresh status</button>
-          <button id="demo" type="button" class="secondary" hidden>Synthetic proof test</button>
-        </div>
-        <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div>
-        <p id="timer" class="timer"></p>
+        <div class="payment-content"><div class="qrbox"><img id="qr" alt="UPI payment QR" width="160" height="160" hidden></div>
+        <div class="pay-options"><p>Use your phone to scan, or tap below to launch an installed UPI app.</p>
+          <a id="launch" class="primary" role="button">Open UPI app ↗</a><div class="actions"><button id="claim" type="button" class="secondary">I attempted payment</button><button id="refresh" type="button" class="secondary">Refresh status</button><button id="demo" type="button" class="secondary" hidden>Test receipt</button></div>
+          <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div><p id="timer" class="timer"></p>
+        </div></div>
+        <details id="evidencePanel" class="evidence-panel"><summary>📲 Attach mobile evidence <span>SMS · App share · Receipt</span></summary>
+          <div class="evidence-help">Use an app's Share action to send a receipt to an installed PDEP web app, then enter the one-time code here. Or paste a message / attach a file manually. Evidence is not automatic payment confirmation.</div>
+          <div class="field"><label for="evidenceSource">Source</label><select id="evidenceSource"><option value="app_share">Shared app receipt text</option><option value="sms_paste">Copied SMS</option><option value="notification_paste">Copied notification</option><option value="receipt_upload">Receipt file</option></select></div>
+          <div class="field"><label for="evidenceText">Paste shared content</label><textarea id="evidenceText" maxlength="8192" rows="2" placeholder="Paste receipt / debit alert text here (optional)"></textarea></div>
+          <div class="field"><label for="evidenceFile">Or choose receipt file</label><input id="evidenceFile" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"></div>
+          <button id="submitEvidence" type="button" class="secondary full">Attach evidence</button>
+          <div class="claim-fields"><div class="field"><label for="shareCode">One-time PDEP share code</label><input id="shareCode" autocomplete="off" maxlength="32" placeholder="Paste code from PDEP share target"></div><button id="claimShare" type="button" class="secondary">Link shared item</button></div>
+          <p class="evidence-status" id="evidenceStatus" aria-live="polite">No mobile evidence submitted.</p>
+        </details>
       </div>
     </section>
   </div>
-  <footer class="footer">
-    <span>🔒 Payment initiation only. A return from an app is not proof of debit.</span>
-    <span><a href="/admin">Manage VPA inventory</a></span>
-  </footer>
-  <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>
+  <footer class="footer"><span>Mobile return and shared content are observations, not proof of completed debit.</span><span>Built for direct UPI initiation · <a href="/admin">Merchant workspace</a></span></footer>
+  <div id="log" class="sr-only" aria-live="polite">Ready to create a checkout.</div>
 </main>
-<script src="/static/app.js?v=pdep-v04"></script>
-</body>
-</html>
+<script src="/static/app.js?v=share-light-v05"></script>
+<script src="/static/mobile-share.js?v=share-light-v05"></script>
+</body></html>
