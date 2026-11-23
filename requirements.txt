@@ -1,6 +1,9 @@
-fastapi>=0.110,<1
-uvicorn>=0.25,<1
-qrcode[pil]>=7.4,<9
-cryptography>=41
-httpx>=0.24
-pytest>=7
+fastapi==0.115.12
+uvicorn==0.34.2
+qrcode==8.2
+Pillow==11.2.1
+cryptography==44.0.3
+pydantic==2.11.4
+SQLAlchemy==2.0.40
+psycopg[binary]==3.2.9
+alembic==1.15.2
