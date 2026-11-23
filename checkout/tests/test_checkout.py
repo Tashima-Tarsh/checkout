@@ -79,3 +79,101 @@ def test_expired_session(client):
     assert client.get(path, headers=headers).json()["state"] == "EXPIRED"
     assert client.get(path + "/qr.png", headers=headers).status_code == 410
     assert client.post(path + "/observe", headers=headers, json={"event": "BROWSER_RESUMED"}).status_code == 410
+
+
+def test_admin_import_routes_and_ip_whitelist(client, monkeypatch):
+    monkeypatch.setenv("PDEP_ADMIN_TOKEN", "test-admin-token-with-at-least-32-chars")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "127.0.0.0/8")
+    # TestClient uses the logical peer 'testclient' by default; this is not an IP.
+    # Create an explicit local peer to simulate a direct allowlisted admin client.
+    from fastapi.testclient import TestClient
+    from io import BytesIO
+    from openpyxl import Workbook
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    headers = {"Authorization": "Bearer test-admin-token-with-at-least-32-chars"}
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["route_key", "mode", "vpa", "mcc", "priority", "enabled"])
+    sheet.append(["primary", "P2P", "person@upi", None, 10, "true"])
+    sheet.append(["business", "P2M", "shop@upi", 5411, 5, "true"])
+    sheet.append(["business", "P2M", "backup@upi", None, 20, "true"])
+    saved = BytesIO()
+    workbook.save(saved)
+    saved.seek(0)
+    assert local.post("/api/admin/vpas/import", files={
+        "file": ("routes.xlsx", saved, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    }).status_code == 401
+    saved.seek(0)
+    ok = local.post("/api/admin/vpas/import", headers=headers, files={
+        "file": ("routes.xlsx", saved, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    })
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["imported"] == 3
+    routed = local.post("/api/sessions", json={
+        "mode": "P2M", "route_key": "business", "name": "Shop", "amount_paise": 49900
+    })
+    assert routed.status_code == 201, routed.text
+    data = routed.json()
+    assert data["vpa"] == "shop@upi"
+    assert data["mcc"] == "5411"
+    assert data["financially_verified"] is False
+    assert "pa=shop%40upi" in data["payment_uri"]
+    personal = local.post("/api/sessions", json={
+        "mode": "P2P", "route_key": "primary", "name": "Person", "amount_paise": 100
+    })
+    assert personal.status_code == 201
+    assert personal.json()["mcc"] is None
+    assert local.post("/api/sessions", json={
+        "mode": "P2M", "route_key": "missing", "name": "Shop", "amount_paise": 100
+    }).status_code == 422
+    assert local.post("/api/sessions", json={
+        "mode": "P2M", "route_key": "business", "vpa": "attacker@upi", "amount_paise": 100
+    }).status_code == 422
+
+
+def test_admin_proxy_spoof_and_unconfigured_fail_closed(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("PDEP_ADMIN_TOKEN", "test-admin-token-with-at-least-32-chars")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "203.0.113.5/32")
+    local = TestClient(client.app, client=("198.51.100.10", 50000))
+    response = local.get("/api/admin/vpas", headers={
+        "Authorization": "Bearer test-admin-token-with-at-least-32-chars",
+        "X-Forwarded-For": "203.0.113.5",
+    })
+    assert response.status_code == 403
+    monkeypatch.delenv("PDEP_ADMIN_IP_ALLOWLIST")
+    assert local.get("/api/admin/vpas").status_code == 503
+
+
+def test_import_rejects_bad_csv_and_formulas(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("PDEP_ADMIN_TOKEN", "test-admin-token-with-at-least-32-chars")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "127.0.0.1/32")
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    headers = {"Authorization": "Bearer test-admin-token-with-at-least-32-chars"}
+    malformed = "route_key,mode,vpa,mcc,priority,enabled\nprimary,P2M,NOT_A_VPA,,1,true\n"
+    response = local.post("/api/admin/vpas/import", headers=headers,
+                          files={"file": ("routes.csv", malformed, "text/csv")})
+    assert response.status_code == 422
+    from openpyxl import Workbook
+    from io import BytesIO
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["route_key", "mode", "vpa", "mcc", "priority", "enabled"])
+    ws.append(["business", "P2M", "=HYPERLINK(\"https://example.invalid\")", None, 1, "true"])
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    response = local.post("/api/admin/vpas/import", headers=headers, files={
+        "file": ("routes.xlsx", out, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    })
+    assert response.status_code == 422
+
+
+def test_forged_client_callback_never_verifies_debit(client):
+    session, path, headers = create(client)
+    for event in ("UPI_LAUNCH_ATTEMPTED", "BROWSER_RESUMED", "PAYER_CLAIMED_PAID", "PAYER_CANCELLED"):
+        result = client.post(path + "/observe", headers=headers, json={"event": event})
+        assert result.status_code == 200
+        assert result.json()["financially_verified"] is False
+    assert client.get(path, headers=headers).json()["financially_verified"] is False

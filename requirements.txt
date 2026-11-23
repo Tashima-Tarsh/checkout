@@ -7,3 +7,6 @@ pydantic==2.11.4
 SQLAlchemy==2.0.40
 psycopg[binary]==3.2.9
 alembic==1.15.2
+
+openpyxl==3.1.5
+python-multipart==0.0.20

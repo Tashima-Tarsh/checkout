@@ -1,40 +1,30 @@
 'use strict';
 
+// Payment UI is an observation client, NOT an authentic debit witness.
 const $ = id => document.getElementById(id);
 let session;
-let launchSession;
+let attempt;
 let qrUrl;
+let refreshPending = false;
 
 function log(message) {
   $('log').textContent = message;
 }
-
 async function api(path, {method = 'GET', body, token, image = false} = {}) {
   const headers = {};
   if (token) headers.Authorization = 'Bearer ' + token;
-  if (body) headers['Content-Type'] = 'application/json';
-  const response = await fetch(path, {method, headers, body: body && JSON.stringify(body)});
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const response = await fetch(path, {
+    method, headers, cache: 'no-store', body: body === undefined ? undefined : JSON.stringify(body)
+  });
   if (image && response.ok) return response.blob();
   const result = await response.json();
-  if (!response.ok) throw Error(typeof result.detail === 'string' ? result.detail : 'Check the session details.');
+  if (!response.ok) throw Error(typeof result.detail === 'string' ? result.detail : 'Request failed');
   return result;
 }
-
 function path(s) {
   return '/api/sessions/' + encodeURIComponent(s.session_id);
 }
-
-function render(update, target) {
-  if (session !== target) return;
-  Object.assign(session, update);
-  $('pay').hidden = false;
-  $('info').textContent = '₹' + (session.amount_paise / 100).toFixed(2) + ' to ' + session.vpa;
-  $('state').textContent = session.state.replaceAll('_', ' ') + ' · Debit unverified';
-  $('demo').hidden = !session.synthetic_enabled;
-  if (session.payment_uri) $('launch').href = session.payment_uri;
-  updateTimer();
-}
-
 function updateTimer() {
   if (!session) return;
   const remaining = Math.max(0, Math.ceil(session.expires - Date.now() / 1000));
@@ -46,40 +36,74 @@ function updateTimer() {
     $('demo').disabled = true;
   }
 }
-
+function render(update, target) {
+  if (session !== target) return;
+  Object.assign(session, update);
+  document.querySelector('.shell').classList.add('has-session');
+  $('empty').hidden = true;
+  $('pay').hidden = false;
+  $('info').textContent = '₹' + (session.amount_paise / 100).toFixed(2) +
+    ' · ' + session.vpa + ' · ' + session.mode +
+    (session.mcc ? ' · MCC ' + session.mcc : '');
+  $('state').textContent = session.state.replaceAll('_', ' ') + ' · Debit unverified';
+  $('demo').hidden = !session.synthetic_enabled;
+  if (session.payment_uri) $('launch').href = session.payment_uri;
+  updateTimer();
+}
 async function observe(event, target = session) {
   if (!target || target !== session) return;
   try {
-    render(await api(path(target) + '/observe', {
+    const value = await api(path(target) + '/observe', {
       method: 'POST', token: target.token, body: {event}
-    }), target);
+    });
+    render(value, target);
+    log(event + ' recorded; no debit verified');
   } catch (error) {
-    log(error.message);
+    log('Observation error: ' + error.message);
   }
 }
-
 async function refresh() {
+  if (!session || refreshPending) return;
   const target = session;
-  if (!target) return;
+  refreshPending = true;
   try {
     render(await api(path(target), {token: target.token}), target);
   } catch (error) {
     log(error.message);
+  } finally {
+    refreshPending = false;
   }
 }
-
-$('mode').onchange = () => { $('mccRow').hidden = $('mode').value !== 'P2M'; };
-$('form').onsubmit = async event => {
+$('mode').addEventListener('change', () => {
+  $('mccRow').hidden = $('mode').value !== 'P2M';
+});
+$('destinationType').addEventListener('change', () => {
+  const routed = $('destinationType').value === 'route';
+  $('vpaRow').hidden = routed;
+  $('routeRow').hidden = !routed;
+  $('vpa').required = !routed;
+  $('routeKey').required = routed;
+  $('mccRow').hidden = $('mode').value !== 'P2M' || routed;
+});
+$('mode').addEventListener('change', () => {
+  if ($('destinationType').value === 'route') $('mccRow').hidden = true;
+});
+$('form').addEventListener('submit', async event => {
   event.preventDefault();
-  const submit = event.submitter || $('form').querySelector('button');
+  const submit = event.submitter || $('create');
   submit.disabled = true;
   try {
+    const routed = $('destinationType').value === 'route';
+    const amount = Number($('amount').value);
+    const amount_paise = Math.round(amount * 100);
+    if (!Number.isSafeInteger(amount_paise) || amount_paise < 100) throw Error('Invalid amount');
     const request = {
       mode: $('mode').value,
-      vpa: $('vpa').value.trim(),
+      vpa: routed ? null : $('vpa').value.trim(),
+      route_key: routed ? $('routeKey').value.trim() : null,
       name: $('name').value.trim(),
-      amount_paise: Math.round(Number($('amount').value) * 100),
-      mcc: $('mode').value === 'P2M' ? $('mcc').value || null : null
+      amount_paise,
+      mcc: !routed && $('mode').value === 'P2M' ? ($('mcc').value.trim() || null) : null
     };
     const created = await api('/api/sessions', {method: 'POST', body: request});
     if (qrUrl) URL.revokeObjectURL(qrUrl);
@@ -88,39 +112,52 @@ $('form').onsubmit = async event => {
     $('claim').disabled = false;
     $('demo').disabled = false;
     session = created;
-    launchSession = undefined;
+    attempt = undefined;
     render(created, created);
     const image = await api(path(created) + '/qr.png', {token: created.token, image: true});
+    if (session !== created) return;
     qrUrl = URL.createObjectURL(image);
     $('qr').src = qrUrl;
     $('qr').hidden = false;
     updateTimer();
-    log('Session started');
+    log('Payment ready. Selected VPA shown above. No debit verified.');
   } catch (error) {
     log(error.message);
+    alert(error.message);
   } finally {
     submit.disabled = false;
   }
-};
+});
 
-$('launch').onclick = () => {
-  if (!$('launch').hasAttribute('href')) return;
-  launchSession = session;
-  observe('UPI_LAUNCH_ATTEMPTED', launchSession);
-};
+// Browser lifecycle detection: only report a return if we observed
+// a page-hidden/pagehide event after attempting the UPI handoff.
+$('launch').addEventListener('click', () => {
+  if (!$('launch').hasAttribute('href') || !session) return;
+  attempt = {target: session, away: false, returned: false};
+  // Keepalive helps survive native-app navigation; it cannot authenticate payment.
+  observe('UPI_LAUNCH_ATTEMPTED', session);
+});
+function markAway() {
+  if (attempt && attempt.target === session) attempt.away = true;
+}
 function resume() {
-  if (!launchSession) return;
-  const target = launchSession;
-  launchSession = undefined;
-  observe('BROWSER_RESUMED', target);
+  if (!attempt || !attempt.away || attempt.returned || attempt.target !== session) return;
+  if (document.visibilityState !== 'visible') return;
+  attempt.returned = true;
+  observe('BROWSER_RESUMED', attempt.target);
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') resume();
+  if (document.visibilityState === 'hidden') markAway();
+  else resume();
 });
-window.addEventListener('pageshow', event => { if (event.persisted) resume(); });
-$('claim').onclick = () => observe('PAYER_CLAIMED_PAID');
-$('refresh').onclick = refresh;
-$('demo').onclick = async () => {
+window.addEventListener('pagehide', markAway);
+window.addEventListener('pageshow', resume);
+window.addEventListener('focus', resume);
+
+$('edit').addEventListener('click', () => document.querySelector('.shell').classList.remove('has-session'));
+$('claim').addEventListener('click', () => observe('PAYER_CLAIMED_PAID'));
+$('refresh').addEventListener('click', refresh);
+$('demo').addEventListener('click', async () => {
   const target = session;
   if (!target?.synthetic_enabled) return;
   try {
@@ -128,11 +165,11 @@ $('demo').onclick = async () => {
     const result = await api('/api/demo/sessions/' + encodeURIComponent(target.session_id) + '/issue-test-proof', options);
     const observation = await api(path(target) + '/proof', {...options, body: {receipt: result.receipt}});
     render(observation, target);
-    log('Synthetic receipt: ' + observation.result);
+    log('Synthetic receipt: ' + observation.result + ' · REAL DEBIT UNVERIFIED');
   } catch (error) {
     log(error.message);
   }
-};
+});
 setInterval(updateTimer, 1000);
 setInterval(() => {
   if (session?.state !== 'EXPIRED' && document.visibilityState === 'visible') refresh();

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDEP · VPA Administration</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main class="shell"><header class="topbar"><a class="brand" href="/"><span class="brandmark">P</span> PDEP</a><span class="environment">VPA CONFIGURATION</span></header>
+<section class="panel" style="max-width:720px;width:100%;margin:auto"><h1>Manage recipient routes</h1>
+<p>Import only UPI IDs you are authorized to receive payments for. This inventory never proves a debit.</p>
+<form id="inventory">
+<div class="field"><label for="token">Admin bearer credential (not stored)</label><input id="token" type="password" autocomplete="off" required></div>
+<div class="field"><label for="file">CSV or Excel (.xlsx), up to 500 rows / 1 MB</label><input type="file" id="file" accept=".csv,.xlsx" required></div>
+<button class="primary" type="submit">Replace routing inventory</button></form>
+<p>Columns: <code>route_key,mode,vpa,mcc,priority,enabled</code></p>
+<p>Example: <code>primary,P2M,merchant@upi,5411,10,true</code></p>
+<pre id="result" aria-live="polite">IP allowlist and admin token are mandatory. Upload replaces current inventory.</pre>
+</section><footer class="footer">Backend checks source IP and bearer token independently. <a href="/">Back to checkout</a></footer></main>
+<script src="/static/admin.js"></script></body></html>
