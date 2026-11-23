@@ -1,9 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDEP · VPA Administration</title><link rel="stylesheet" href="/static/style.css"></head>
-<body><main class="shell"><header class="topbar"><a class="brand" href="/"><span class="brandmark">P</span> PDEP</a><span class="environment">VPA CONFIGURATION</span></header>
-<section class="panel" style="max-width:720px;width:100%;margin:auto"><h1>Manage recipient routes</h1>
-<p>Import only UPI IDs you are authorized to receive payments for. This inventory never proves a debit.</p>
+<title>PDEP · SaaS Administration</title><link rel="stylesheet" href="/static/style.css?v=pdep-v04"></head>
+<body><main class="shell"><header class="topbar"><a class="brand" href="/"><span class="brandmark">P</span> PDEP</a><span class="environment">SAAS CONTROL CENTER</span></header>
+<section class="panel" style="max-width:720px;width:100%;margin:auto"><h1>Checkout control center</h1>
+<p>Manage your checkout appearance, recipient routes and operational observations. No dashboard metric confirms a financial debit.</p>
+<button id="loadDashboard" type="button" class="secondary">Load live dashboard</button>
+<div id="overview" class="admin-stats" aria-live="polite">Authenticate and load to view checkout activity.</div>
+<hr style="border:0;border-top:1px solid #30415d;margin:18px 0">
+<h2>Appearance</h2><form id="appearanceForm">
+<div class="field"><label for="brandName">Checkout brand</label><input id="brandName" minlength="2" maxlength="40" required placeholder="PDEP"></div>
+<div class="field"><label for="headline">Checkout headline</label><input id="headline" minlength="3" maxlength="70" required placeholder="Make a payment"></div>
+<div class="twofields">
+<div class="field"><label for="accent">Theme accent</label><select id="accent">
+<option value="#4985FF">Royal blue</option><option value="#8B5CF6">Violet</option>
+<option value="#06B6D4">Cyan</option><option value="#10B981">Emerald</option>
+<option value="#F59E0B">Amber</option><option value="#F43F5E">Rose</option>
+</select></div>
+<div class="field"><label for="theme">Theme</label><select id="theme">
+<option value="midnight">Midnight HD</option><option value="aurora">Aurora HD</option>
+<option value="light">Daylight</option></select></div></div>
+<div class="field"><label for="logoLetter">Brand icon letter</label><input id="logoLetter" maxlength="1" pattern="[A-Za-z0-9]" value="P" required></div>
+<button type="submit" class="primary">Save appearance</button></form>
+<p id="appearanceResult" aria-live="polite"></p>
+<hr style="border:0;border-top:1px solid #30415d;margin:18px 0">
+<h2>Recipient route inventory</h2>
 <form id="inventory">
 <div class="field"><label for="token">Admin bearer credential (not stored)</label><input id="token" type="password" autocomplete="off" required></div>
 <div class="field"><label for="file">CSV or Excel (.xlsx), up to 500 rows / 1 MB</label><input type="file" id="file" accept=".csv,.xlsx" required></div>
@@ -12,4 +32,4 @@
 <p>Example: <code>primary,P2M,merchant@upi,5411,10,true</code></p>
 <pre id="result" aria-live="polite">IP allowlist and admin token are mandatory. Upload replaces current inventory.</pre>
 </section><footer class="footer">Backend checks source IP and bearer token independently. <a href="/">Back to checkout</a></footer></main>
-<script src="/static/admin.js"></script></body></html>
+<script src="/static/admin.js?v=pdep-v04"></script></body></html>
