@@ -21,7 +21,8 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
 
-from checkout.storage import creation_limits, events, make_engine, metadata, receipts, sessions
+from checkout.storage import creation_limits, events, make_engine, metadata, receipts, sessions, vpa_routes
+from checkout.vpa_admin import router as admin_router
 from pdep.protocol import Session, SimulatedIssuer, Verifier
 
 ROOT = Path(__file__).parent
@@ -57,6 +58,7 @@ async def lifespan(app):
 
 app = FastAPI(title="PDEP research checkout", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+app.include_router(admin_router)
 
 
 @app.middleware("http")
@@ -80,7 +82,8 @@ async def response_headers(request: Request, call_next):
 
 class Create(BaseModel):
     mode: Literal["P2P", "P2M"]
-    vpa: str = Field(pattern=r"^[A-Za-z0-9_.-]{2,256}@[A-Za-z0-9_.-]{2,64}$")
+    vpa: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]{2,256}@[A-Za-z0-9_.-]{2,64}$")
+    route_key: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
     name: str = Field(default="Recipient", min_length=1, max_length=80)
     amount_paise: int = Field(strict=True, ge=100, le=100000000)
     mcc: str | None = Field(default=None, pattern=r"^[0-9]{4}$")
@@ -157,12 +160,27 @@ def home():
 def create(b: Create, request: Request):
     if b.mode == "P2P" and b.mcc is not None:
         raise HTTPException(422, "MCC is available only for merchant payments")
+    if bool(b.vpa) == bool(b.route_key):
+        raise HTTPException(422, "Supply exactly one: vpa or route_key")
     token = secrets.token_urlsafe(32)
-    row = dict(id="ps_" + secrets.token_urlsafe(18), token_hash=digest(token),
-               nonce=secrets.token_urlsafe(32), mode=b.mode, vpa=b.vpa.lower(), name=b.name,
-               amount=b.amount_paise, mcc=b.mcc, expires=int(time.time()) + 900,
-               state="AWAITING_PAYMENT")
     with request.app.state.engine.begin() as connection:
+        if b.route_key:
+            selected = connection.execute(
+                select(vpa_routes).where(
+                    vpa_routes.c.route_key == b.route_key,
+                    vpa_routes.c.mode == b.mode,
+                    vpa_routes.c.enabled.is_(True),
+                ).order_by(vpa_routes.c.priority.asc(), vpa_routes.c.id.asc()).limit(1)
+            ).mappings().one_or_none()
+            if selected is None:
+                raise HTTPException(422, "No enabled recipient for this route and mode")
+            target_vpa, target_mcc = selected["vpa"], selected["mcc"]
+        else:
+            target_vpa, target_mcc = b.vpa.lower(), b.mcc
+        row = dict(id="ps_" + secrets.token_urlsafe(18), token_hash=digest(token),
+                   nonce=secrets.token_urlsafe(32), mode=b.mode, vpa=target_vpa, name=b.name,
+                   amount=b.amount_paise, mcc=target_mcc, expires=int(time.time()) + 900,
+                   state="AWAITING_PAYMENT")
         bucket = int(time.time()) // 60
         insert = postgres_insert if connection.dialect.name == "postgresql" else sqlite_insert
         limit = insert(creation_limits).values(bucket=bucket, count=1).on_conflict_do_update(
