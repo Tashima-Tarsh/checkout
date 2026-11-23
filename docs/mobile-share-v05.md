@@ -1,13 +1,19 @@
-# PDEP Mobile Evidence Intake v0.5
+# PDEP v0.5: browser-only mobile evidence collection (no installation)
 
-A browser cannot automatically read notifications, SMS inboxes or data inside another app.
-This implementation offers two consent-based paths:
-1. On an Android browser with installed PWA support, install PDEP from the browser and use a UPI app's **Share** action, if the app and OS expose a compatible share-sheet item. Select the installed PDEP target. The server returns a single-use claim code; paste it into the originating checkout session to bind the item without sharing the checkout authorization token.
-2. On any compatible browser, explicitly paste copied SMS/notification/receipt text or upload a receipt file in **Attach mobile evidence**. Only the SHA-256 digest, byte length and source category are stored; raw message bodies and screenshots are not retained.
+**No app installation, PWA, service worker, native SDK, or extension is required or used.**
 
-PWA share-target support differs by browser and operating system. Google Pay's share UI is not controlled by the checkout, and an exact in-app share-to-PDEP path cannot be guaranteed.
-A 10-minute one-time code links an incoming share to an authenticated checkout session. Claim codes are not payment-success credentials. Uploaded evidence is labeled **PAYER_SUBMITTED_UNVERIFIED**, and `financially_verified` stays false.
+The payer initiates UPI from an ordinary browser session. A return to the browser is recorded as a **device observation** only. Google Pay and other UPI apps control their own Share actions; a regular webpage cannot register itself as an OS-native share destination without installation. Therefore, a supported zero-install flow is:
 
-No automatic capture of SMS, notification content or device activity occurs. No native mobile app or prohibited payment-service integrations are required.
+1. After an UPI-app action, the payer copies shared receipt text, notification text, or SMS content, or saves a receipt file using functionality already available on their device.
+2. The payer returns to the open checkout page and selects **Attach mobile evidence**.
+3. The payer pastes the text or chooses the file from the browser, and explicitly submits it.
+4. The server binds its SHA-256 digest, byte length and source label to the authenticated checkout session. Duplicate bytes are deduplicated by a database uniqueness constraint. No raw messages, SMS, screenshots, or files are retained in the checkout database.
+5. Browser return, screenshots, payer claims and locally shared content **do not prove debit**, even if amount and VPA appear to match. Nothing changes `financially_verified` to true.
 
-Production cautions: strict 2 MB/file limits, supported types only, hashing without storing private content, deduplication; consider additional per-IP rate limiting and explicit user consent flows before opening this to broad public use. Browser test automation is not equivalent to physical Android/iOS testing.
+No bank API, PSP integration, aggregator, webhook, SMS permissions or notification-reading permissions are used.
+
+## Testing requirements
+Test Android Chrome and iOS Safari in real devices when accessible; Playwright emulation alone is not a native UPI test. Model rooted-device tampering, forged messages, replay, cross-session evidence and malicious uploads. No actual financial transactions are performed automatically.
+
+## Production deployment
+This branch adds one additive `0004_mobile_share` migration for evidence digests. Existing PostgreSQL sessions and routing inventory are unaffected. Deployment to Railway must pass CI and live health checks first.
