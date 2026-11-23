@@ -184,7 +184,7 @@ async function loadAppearance() {
   try {
     const data = await api('/api/appearance');
     const accent = /^#[0-9A-F]{6}$/i.test(data.accent || '') ? data.accent : '#4985FF';
-    const theme = ['midnight', 'aurora', 'light'].includes(data.theme) ? data.theme : 'midnight';
+    const theme = ['light', 'lilac', 'citrus'].includes(data.theme) ? data.theme : 'light';
     document.documentElement.style.setProperty('--accent', accent);
     document.documentElement.dataset.theme = theme;
     $('brandName').textContent = data.brand_name;
