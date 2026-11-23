@@ -210,11 +210,11 @@ def test_saas_appearance_admin_and_observations(client, monkeypatch):
     headers = {"Authorization": "Bearer test-admin-token-with-at-least-32-chars"}
     public = local.get("/api/appearance")
     assert public.status_code == 200
-    assert public.json()["theme"] == "midnight"
+    assert public.json()["theme"] == "light"
     assert local.get("/api/admin/overview").status_code == 401
     assert local.get("/api/admin/overview", headers=headers).status_code == 200
     appearance = {"brand_name": "StudioPay", "headline": "Pay securely",
-                  "accent": "#06B6D4", "theme": "aurora", "logo_letter": "S"}
+                  "accent": "#06B6D4", "theme": "lilac", "logo_letter": "S"}
     updated = local.put("/api/admin/appearance", headers=headers, json=appearance)
     assert updated.status_code == 200, updated.text
     assert local.get("/api/appearance").json() == appearance
@@ -223,3 +223,101 @@ def test_saas_appearance_admin_and_observations(client, monkeypatch):
     assert local.get("/api/appearance").json() == appearance
     overview = local.get("/api/admin/overview", headers=headers).json()
     assert overview["financially_verified"] == 0
+
+
+def test_mobile_share_text_digest_and_dedup(client):
+    from checkout.storage import mobile_evidence
+    _, path, headers = create(client)
+    text = "UPI debit message voluntarily copied by payer"
+    response = client.post(path + "/evidence", headers=headers,
+                           data={"source": "sms_paste", "text": text})
+    assert response.status_code == 200, response.text
+    assert response.json()["accepted"] is True
+    assert response.json()["financially_verified"] is False
+    again = client.post(path + "/evidence", headers=headers,
+                        data={"source": "sms_paste", "text": text})
+    assert again.status_code == 200
+    assert again.json()["duplicate"] is True
+    with client.app.state.engine.connect() as conn:
+        stored = conn.execute(mobile_evidence.select()).mappings().all()
+    assert len(stored) == 1
+    assert stored[0]["evidence_hash"] != text
+    assert text not in str(dict(stored[0]))
+    assert client.get(path + "/evidence", headers=headers).json()["financially_verified"] is False
+
+
+def test_pwa_share_target_claim_once_and_no_debit(client):
+    import re
+    _, path, headers = create(client)
+    incoming = client.post("/share-inbox", data={
+        "title": "UPI receipt", "text": "Payment completed in application",
+        "url": ""
+    })
+    assert incoming.status_code == 200, incoming.text
+    code = re.search(r'<code id="claim">([A-Za-z0-9_-]+)</code>', incoming.text).group(1)
+    wrong = client.post(path + "/evidence/claim", data={"code": code})
+    assert wrong.status_code == 401
+    valid = client.post(path + "/evidence/claim", data={"code": code}, headers=headers)
+    assert valid.status_code == 200, valid.text
+    assert valid.json()["financially_verified"] is False
+    replay = client.post(path + "/evidence/claim", data={"code": code}, headers=headers)
+    assert replay.status_code == 410
+    assert code not in client.get(path + "/evidence", headers=headers).text
+
+
+def test_mobile_evidence_rejects_oversized_and_bad_types(client):
+    _, path, headers = create(client)
+    bad = client.post(path + "/evidence", headers=headers, data={
+        "source": "app_share", "text": "fake notification"},
+        files={"file": ("fake.png", b"not a file", "image/png")})
+    assert bad.status_code == 422
+    empty = client.post(path + "/evidence", headers=headers,
+                        data={"source": "sms_paste", "text": ""})
+    assert empty.status_code == 422
+    oversize = client.post(path + "/evidence", headers=headers,
+        files={"file": ("huge.png", b"x"*(2*1024*1024+1), "image/png")})
+    assert oversize.status_code == 413
+    unsupported = client.post(path + "/evidence", headers=headers,
+        files={"file": ("receipt.exe", b"not safe", "application/octet-stream")})
+    assert unsupported.status_code == 415
+
+
+def test_mobile_evidence_auth_and_expiration(client):
+    from checkout.storage import sessions
+    _, path, headers = create(client)
+    assert client.post(path + "/evidence", data={"text": "fake"}).status_code == 401
+    with client.app.state.engine.begin() as conn:
+        conn.execute(sessions.update().values(expires=1))
+    result = client.post(path + "/evidence", data={"text": "fake"}, headers=headers)
+    assert result.status_code == 410
+
+
+def test_pwa_manifest_and_icons(client):
+    import json
+    manifest = client.get("/static/manifest.webmanifest")
+    assert manifest.status_code == 200
+    payload = manifest.json()
+    assert payload["share_target"]["action"] == "/share-inbox"
+    assert payload["share_target"]["method"] == "POST"
+    for size in (192, 512):
+        r = client.get(f"/icons/pdep-{size}.png")
+        assert r.status_code == 200
+        assert r.content.startswith(b"\x89PNG")
+    assert client.get("/static/sw.js").status_code == 200
+
+
+def test_admin_checkout_feed_is_authorized(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("PDEP_ADMIN_TOKEN", "test-admin-token-with-at-least-32-chars")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "127.0.0.1/32")
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    assert local.get("/api/admin/checkouts").status_code == 401
+    session, _, _ = create(client)
+    headers = {"Authorization": "Bearer test-admin-token-with-at-least-32-chars"}
+    response = local.get("/api/admin/checkouts", headers=headers)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["items"][0]["session_id"] == session["session_id"]
+    assert "token" not in data["items"][0]
+    assert data["items"][0]["financially_verified"] is False
+    assert local.get("/api/admin/checkouts?limit=500", headers=headers).status_code == 422
