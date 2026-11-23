@@ -9,9 +9,15 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/static/pdep-mark.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/pdep-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/pdep-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
