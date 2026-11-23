@@ -106,3 +106,25 @@ Expected classifications: `SIGNATURE_VALID` and `DEBIT_UNVERIFIED`.
 No native application or installation required; pure browser-compatible
 WebCrypto experiment. Reject this signal as debit evidence unless a genuine
 debit-dependent signer with authenticated origin is identified.
+
+## Candidate 007: User-consented screen-capture feasibility
+
+Code: `research/screen_evidence_capability.mjs` and tests. This is
+**not deployed** and does not capture/retain frames. The probe checks whether
+the user's ordinary browser exposes `getDisplayMedia`, asks only after
+an explicit user gesture, and fails closed on unsupported, denied, or
+unfocused captures. Even if a track exists, the image can be spoofed
+by a malicious payer and does not authenticate debit.
+
+Investigate device differences, including the recent reported availability
+on some iOS versions, with actual physical testing rather than declaring
+cross-platform compatibility from user-agent strings. Android Chrome support
+must be verified, not assumed.
+
+References:
+- https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia
+- https://web-platform-dx.github.io/web-features-explorer/features/screen-capture/
+- https://github.com/mdn/browser-compat-data/issues/30654
+
+Do not collect private screens or notification contents without informed
+opt-in, and never claim recording was enabled automatically.
