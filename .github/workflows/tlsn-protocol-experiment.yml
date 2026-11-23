@@ -41,13 +41,12 @@ jobs:
               raise SystemExit("Fixture did not become reachable")
           PY
           start=$(date +%s%3N)
-          timeout 120 target/release/examples/attestation_prove
-          timeout 30 target/release/examples/attestation_present
-          timeout 30 target/release/examples/attestation_verify
+          timeout 90 bash -c 'target/release/examples/attestation_prove && target/release/examples/attestation_present && target/release/examples/attestation_verify'
           elapsed=$(( $(date +%s%3N) - start ))
           test -s example-json.presentation.tlsn
           printf 'Upstream local fixture proof round trip: %s ms (build excluded)\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
-          if (( elapsed >= 120000 )); then
+          if (( elapsed >= 90000 )); then
             echo 'Local proof round trip exceeded the target window.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
           echo 'Non-financial fixture only; no MyUPI, mobile browser, checkout or actual debit validation.' >> "$GITHUB_STEP_SUMMARY"
