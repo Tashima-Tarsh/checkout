@@ -1,25 +1,41 @@
-"""Run against an already started checkout with no real payment."""
+"""Browser-level checkout smoke tests (emulators, NO UPI app or real payment)."""
 import os
 from playwright.sync_api import expect, sync_playwright
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
-    for mobile in (False, True):
-        options = playwright.devices["Pixel 7"] if mobile else {}
+    configurations = [
+        ("desktop", {}),
+        ("android-emulation", playwright.devices["Pixel 7"]),
+        # Chromium emulating an iPhone viewport is NOT an iOS WebKit test.
+        ("iphone-viewport-emulation", playwright.devices["iPhone 13"]),
+    ]
+    for label, options in configurations:
         page = browser.new_page(**options)
         page.goto(os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080"))
-        page.locator("#mode").select_option("P2M" if mobile else "P2P")
-        if mobile:
+        expect(page.get_by_role("heading", name="Make a payment")).to_be_visible()
+        mode = "P2M" if label == "android-emulation" else "P2P"
+        page.locator("#mode").select_option(mode)
+        if mode == "P2M":
             page.locator("#mcc").fill("5411")
         page.locator("#vpa").fill("test@upi")
         page.locator("#name").fill("Research recipient")
         page.locator("#amount").fill("1.25")
-        page.get_by_role("button", name="Create checkout").click()
+        page.get_by_role("button", name="Create secure checkout").click()
         expect(page.locator("#qr")).to_be_visible()
         page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
         uri = page.locator("#launch").get_attribute("href")
         assert uri.startswith("upi://pay?") and "am=1.25" in uri
-        assert ("mc=5411" in uri) == mobile
+        assert ("mc=5411" in uri) == (mode == "P2M")
+        expect(page.locator("#info")).to_contain_text("test@upi")
+        # A fake launch and browser return must only produce an observation.
+        # Prevent external UPI navigation; this intentionally does NOT launch an app.
+        page.locator("#launch").evaluate(
+            "(el) => {el.addEventListener('click', e => e.preventDefault(), {once:true}); el.click();}"
+        )
+        page.evaluate("window.dispatchEvent(new Event('pagehide'))")
+        page.evaluate("window.dispatchEvent(new Event('pageshow'))")
+        expect(page.locator("#state")).to_contain_text("Debit unverified")
         page.locator("#claim").click()
         expect(page.locator("#state")).to_contain_text("Debit unverified")
         expect(page.locator("#state")).to_contain_text("PAYER CLAIMED SUCCESS")
