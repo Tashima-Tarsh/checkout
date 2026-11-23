@@ -27,16 +27,3 @@ $e('submitEvidence').addEventListener('click',async()=>{
     $e('evidenceText').value='';$e('evidenceFile').value='';
   }catch(e){status.textContent=e.message;}finally{btn.disabled=false;}
 });
-$e('claimShare').addEventListener('click',async()=>{
-  const btn=$e('claimShare'),status=$e('evidenceStatus');
-  const form=new FormData();form.set('code',$e('shareCode').value.trim());
-  btn.disabled=true;
-  try{
-    const r=await sendEvidence('/api/sessions/'+encodeURIComponent(session.session_id)+'/evidence/claim',form);
-    status.textContent=r.duplicate?'Shared item already attached.':'Shared item linked to checkout — debit unverified.';
-    $e('shareCode').value='';
-  }catch(e){status.textContent=e.message;}finally{btn.disabled=false;}
-});
-if ('serviceWorker' in navigator && window.isSecureContext) {
-  navigator.serviceWorker.register('/static/sw.js',{scope:'/'}).catch(()=>{});
-}
