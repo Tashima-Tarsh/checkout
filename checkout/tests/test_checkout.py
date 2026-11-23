@@ -177,3 +177,39 @@ def test_forged_client_callback_never_verifies_debit(client):
         assert result.status_code == 200
         assert result.json()["financially_verified"] is False
     assert client.get(path, headers=headers).json()["financially_verified"] is False
+
+
+def test_p2p_direct_does_not_require_route_or_mcc(client):
+    result = client.post("/api/sessions", json={
+        "mode": "P2P", "vpa": "recipient@upi", "name": "Recipient",
+        "amount_paise": 100, "mcc": None, "route_key": None
+    })
+    assert result.status_code == 201, result.text
+    data = result.json()
+    assert data["vpa"] == "recipient@upi"
+    assert data["mcc"] is None
+    assert "mc=" not in data["payment_uri"]
+    assert data["financially_verified"] is False
+
+
+def test_saas_appearance_admin_and_observations(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("PDEP_ADMIN_TOKEN", "test-admin-token-with-at-least-32-chars")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "127.0.0.1/32")
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    headers = {"Authorization": "Bearer test-admin-token-with-at-least-32-chars"}
+    public = local.get("/api/appearance")
+    assert public.status_code == 200
+    assert public.json()["theme"] == "midnight"
+    assert local.get("/api/admin/overview").status_code == 401
+    assert local.get("/api/admin/overview", headers=headers).status_code == 200
+    appearance = {"brand_name": "StudioPay", "headline": "Pay securely",
+                  "accent": "#06B6D4", "theme": "aurora", "logo_letter": "S"}
+    updated = local.put("/api/admin/appearance", headers=headers, json=appearance)
+    assert updated.status_code == 200, updated.text
+    assert local.get("/api/appearance").json() == appearance
+    bad = {**appearance, "accent": "#000000"}
+    assert local.put("/api/admin/appearance", headers=headers, json=bad).status_code == 422
+    assert local.get("/api/appearance").json() == appearance
+    overview = local.get("/api/admin/overview", headers=headers).json()
+    assert overview["financially_verified"] == 0
