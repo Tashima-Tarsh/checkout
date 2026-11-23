@@ -74,20 +74,22 @@ async function refresh() {
     refreshPending = false;
   }
 }
-$('mode').addEventListener('change', () => {
-  $('mccRow').hidden = $('mode').value !== 'P2M';
-});
-$('destinationType').addEventListener('change', () => {
-  const routed = $('destinationType').value === 'route';
+function syncPaymentFields() {
+  const personal = $('mode').value === 'P2P';
+  // P2P is direct by default. Do not require a merchant routing group or MCC.
+  if (personal) $('destinationType').value = 'direct';
+  $('destinationRow').hidden = personal;
+  const routed = !personal && $('destinationType').value === 'route';
   $('vpaRow').hidden = routed;
   $('routeRow').hidden = !routed;
   $('vpa').required = !routed;
   $('routeKey').required = routed;
-  $('mccRow').hidden = $('mode').value !== 'P2M' || routed;
-});
-$('mode').addEventListener('change', () => {
-  if ($('destinationType').value === 'route') $('mccRow').hidden = true;
-});
+  $('mccRow').hidden = personal || routed;
+  $('mcc').disabled = personal || routed;
+}
+$('mode').addEventListener('change', syncPaymentFields);
+$('destinationType').addEventListener('change', syncPaymentFields);
+syncPaymentFields();
 $('form').addEventListener('submit', async event => {
   event.preventDefault();
   const submit = event.submitter || $('create');
