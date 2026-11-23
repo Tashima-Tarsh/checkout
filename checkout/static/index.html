@@ -43,7 +43,7 @@
         <details id="evidencePanel" class="evidence-panel"><summary>📲 Attach mobile evidence <span>SMS · App share · Receipt</span></summary>
           <div class="evidence-help">Copy text from the payment app or an SMS and paste it here, or choose a receipt file directly from your phone. Evidence is not automatic payment confirmation.</div>
           <div class="field"><label for="evidenceSource">Source</label><select id="evidenceSource"><option value="app_share">Shared app receipt text</option><option value="sms_paste">Copied SMS</option><option value="notification_paste">Copied notification</option><option value="receipt_upload">Receipt file</option></select></div>
-          <div class="field"><label for="evidenceText">Paste shared content</label><textarea id="evidenceText" maxlength="8192" rows="2" placeholder="Paste receipt / debit alert text here (optional)"></textarea></div>
+          <button id="pasteClipboard" class="secondary" type="button">Paste from clipboard (with permission)</button>\n          <div class="field"><label for="evidenceText">Paste shared content</label><textarea id="evidenceText" maxlength="8192" rows="2" placeholder="Paste receipt / debit alert text here (optional)"></textarea></div>
           <div class="field"><label for="evidenceFile">Or choose receipt file</label><input id="evidenceFile" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"></div>
           <button id="submitEvidence" type="button" class="secondary full">Attach evidence</button>
           <p class="evidence-status" id="evidenceStatus" aria-live="polite">No mobile evidence submitted.</p>
