@@ -1,0 +1,55 @@
+"""Database setup shared by the application and migrations."""
+import os
+
+from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine
+from sqlalchemy.engine import URL
+
+
+def database_url():
+    url = os.getenv("DATABASE_URL")
+    if url:
+        if url.startswith(("postgres://", "postgresql://")):
+            url = "postgresql+psycopg://" + url.split("://", 1)[1]
+        if not url.startswith("postgresql+psycopg://"):
+            raise RuntimeError("DATABASE_URL must point to PostgreSQL")
+        return url
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PDEP_REQUIRE_POSTGRES") == "1":
+        raise RuntimeError("DATABASE_URL is required for deployment")
+    return URL.create("sqlite", database=os.getenv("PDEP_DB", "checkout-v2.sqlite3"))
+
+
+def make_engine():
+    return create_engine(database_url(), pool_pre_ping=True, hide_parameters=True)
+
+
+metadata = MetaData()
+sessions = Table(
+    "checkout_sessions", metadata,
+    Column("id", String(64), primary_key=True),
+    Column("token_hash", String(64), nullable=False),
+    Column("nonce", String(64), nullable=False),
+    Column("mode", String(3), nullable=False),
+    Column("vpa", String(321), nullable=False),
+    Column("name", String(80), nullable=False),
+    Column("amount", Integer, nullable=False),
+    Column("mcc", String(4)),
+    Column("expires", Integer, nullable=False, index=True),
+    Column("state", String(40), nullable=False),
+)
+events = Table(
+    "checkout_events", metadata,
+    Column("sid", String(64), primary_key=True),
+    Column("kind", String(40), primary_key=True),
+    Column("created", Integer, nullable=False),
+)
+receipts = Table(
+    "checkout_receipts", metadata,
+    Column("issuer", String(32), primary_key=True),
+    Column("reference", String(128), primary_key=True),
+)
+
+creation_limits = Table(
+    "checkout_creation_limits", metadata,
+    Column("bucket", Integer, primary_key=True),
+    Column("count", Integer, nullable=False),
+)
