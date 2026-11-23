@@ -1,7 +1,7 @@
 """Database setup shared by the application and migrations."""
 import os
 
-from sqlalchemy import Boolean, Column, Index, Integer, MetaData, String, Table, create_engine
+from sqlalchemy import Boolean, Column, Index, Integer, MetaData, String, Table, UniqueConstraint, create_engine
 from sqlalchemy.engine import URL
 
 
@@ -33,8 +33,7 @@ mobile_evidence = Table(
     Column("evidence_hash", String(64), nullable=False),
     Column("length_bytes", Integer, nullable=False),
     Column("created", Integer, nullable=False),
-    __import__("sqlalchemy").UniqueConstraint("sid", "evidence_hash",
-                                               name="uq_checkout_evidence_digest"),
+    UniqueConstraint("sid", "evidence_hash", name="uq_checkout_evidence_digest"),
 )
 sessions = Table(
     "checkout_sessions", metadata,
