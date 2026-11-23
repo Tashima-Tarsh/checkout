@@ -50,6 +50,17 @@ def _client_ip(request: Request):
     return peer
 
 
+def enforce_optional_session_allowlist(request: Request):
+    """Restrict session creation to merchant servers only when explicitly enabled.
+
+    Never turn this on for unrestricted public browser checkout: end-user IPs
+    are dynamic. Admin allowlisting remains separately enforced.
+    """
+    allowed = _networks("PDEP_SESSION_CREATE_IP_ALLOWLIST")
+    if allowed and not any(_client_ip(request) in net for net in allowed):
+        raise HTTPException(403, "Session creation is not allowed from this IP")
+
+
 def require_admin(request: Request):
     secret = os.environ.get("PDEP_ADMIN_TOKEN", "")
     allowed = _networks("PDEP_ADMIN_IP_ALLOWLIST")
