@@ -1,35 +1,34 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDEP · SaaS Administration</title><link rel="stylesheet" href="/static/style.css?v=pdep-v04"></head>
-<body><main class="shell"><header class="topbar"><a class="brand" href="/"><span class="brandmark">P</span> PDEP</a><span class="environment">SAAS CONTROL CENTER</span></header>
-<section class="panel" style="max-width:720px;width:100%;margin:auto"><h1>Checkout control center</h1>
-<p>Manage your checkout appearance, recipient routes and operational observations. No dashboard metric confirms a financial debit.</p>
-<button id="loadDashboard" type="button" class="secondary">Load live dashboard</button>
-<div id="overview" class="admin-stats" aria-live="polite">Authenticate and load to view checkout activity.</div>
-<hr style="border:0;border-top:1px solid #30415d;margin:18px 0">
-<h2>Appearance</h2><form id="appearanceForm">
-<div class="field"><label for="brandName">Checkout brand</label><input id="brandName" minlength="2" maxlength="40" required placeholder="PDEP"></div>
-<div class="field"><label for="headline">Checkout headline</label><input id="headline" minlength="3" maxlength="70" required placeholder="Make a payment"></div>
-<div class="twofields">
-<div class="field"><label for="accent">Theme accent</label><select id="accent">
-<option value="#4985FF">Royal blue</option><option value="#8B5CF6">Violet</option>
-<option value="#06B6D4">Cyan</option><option value="#10B981">Emerald</option>
-<option value="#F59E0B">Amber</option><option value="#F43F5E">Rose</option>
-</select></div>
-<div class="field"><label for="theme">Theme</label><select id="theme">
-<option value="midnight">Midnight HD</option><option value="aurora">Aurora HD</option>
-<option value="light">Daylight</option></select></div></div>
-<div class="field"><label for="logoLetter">Brand icon letter</label><input id="logoLetter" maxlength="1" pattern="[A-Za-z0-9]" value="P" required></div>
-<button type="submit" class="primary">Save appearance</button></form>
-<p id="appearanceResult" aria-live="polite"></p>
-<hr style="border:0;border-top:1px solid #30415d;margin:18px 0">
-<h2>Recipient route inventory</h2>
-<form id="inventory">
-<div class="field"><label for="token">Admin bearer credential (not stored)</label><input id="token" type="password" autocomplete="off" required></div>
-<div class="field"><label for="file">CSV or Excel (.xlsx), up to 500 rows / 1 MB</label><input type="file" id="file" accept=".csv,.xlsx" required></div>
-<button class="primary" type="submit">Replace routing inventory</button></form>
-<p>Columns: <code>route_key,mode,vpa,mcc,priority,enabled</code></p>
-<p>Example: <code>primary,P2M,merchant@upi,5411,10,true</code></p>
-<pre id="result" aria-live="polite">IP allowlist and admin token are mandatory. Upload replaces current inventory.</pre>
-</section><footer class="footer">Backend checks source IP and bearer token independently. <a href="/">Back to checkout</a></footer></main>
-<script src="/static/admin.js?v=pdep-v04"></script></body></html>
+<!doctype html><html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff"><title>PDEP · Merchant workspace</title>
+<link rel="stylesheet" href="/static/style.css?v=share-light-v05"></head>
+<body class="admin-body">
+<div class="admin-shell">
+<aside class="admin-sidebar">
+ <a class="brand" href="/"><span class="brandmark">P</span><span><b>PDEP</b><small>MERCHANT CLOUD</small></span></a>
+ <nav class="admin-nav" aria-label="Workspace sections">
+ <button type="button" data-view="dashboard" class="active">◈ &nbsp; Overview</button>
+ <button type="button" data-view="transactions">▤ &nbsp; Checkouts</button>
+ <button type="button" data-view="routing">⌁ &nbsp; VPA routing</button>
+ <button type="button" data-view="appearance">◐ &nbsp; Checkout design</button>
+ <button type="button" data-view="security">◇ &nbsp; Security</button>
+ </nav>
+ <div class="sidebar-note"><strong>Operations workspace</strong><p>Payment initiation and evidence observations only. No financial settlement is inferred.</p><a href="/">↗ Open checkout</a></div>
+</aside>
+<main class="admin-main">
+ <header class="admin-header"><div><span class="eyebrow">MERCHANT WORKSPACE</span><h1 id="workspaceTitle">Overview</h1><p id="workspaceSubtitle">Your direct UPI operations at a glance.</p></div>
+ <div class="admin-auth"><div class="field"><label for="token">Admin access key</label><input id="token" type="password" autocomplete="off" placeholder="Restricted access" aria-label="Admin access key"></div><button id="loadDashboard" class="secondary" type="button">Connect workspace</button></div></header>
+ <div id="workspaceMessage" class="muted-note" role="status" aria-live="polite">Connect using your admin key from an allowlisted IP to view protected data.</div>
+ <section class="admin-view active" id="view-dashboard">
+   <div class="kpi-grid"><div class="kpi-card"><span class="kpi-title">Total checkouts</span><strong id="kpiTotal">—</strong></div><div class="kpi-card"><span class="kpi-title">Active sessions</span><strong id="kpiActive">—</strong></div><div class="kpi-card"><span class="kpi-title">Configured VPAs</span><strong id="kpiRoutes">—</strong></div><div class="kpi-card"><span class="kpi-title">Mobile observations</span><strong id="kpiEvents">—</strong></div></div>
+   <div class="admin-split"><div class="section-card"><h2>Operational pipeline</h2><div id="overview" class="admin-stats">Connect to populate operational activity.</div><div id="statusChart" class="admin-stats"></div></div><div class="section-card"><h2>Mobile evidence workflow</h2><p class="muted-note">Receive content the payer explicitly shares from a UPI app or SMS. Bind it to a checkout using a one-time code. Payer-generated evidence is review material, not authenticated debit proof.</p><div class="admin-actions"><a href="/" class="secondary">Open checkout ↗</a><button type="button" class="secondary" data-view="transactions">View sessions</button></div></div></div>
+   <div class="section-card"><h2>Recent checkouts</h2><div class="table-wrap"><table class="data-table"><thead><tr><th>Session</th><th>Type</th><th>Recipient</th><th>Amount</th><th>State</th><th>Expires</th></tr></thead><tbody id="recentRows"><tr><td colspan="6">Connect to load sessions</td></tr></tbody></table></div></div>
+ </section>
+ <section class="admin-view" id="view-transactions"><div class="section-card"><h2>Checkout sessions</h2><p class="muted-note">The event state is an observation, not payment settlement. Session authorization tokens are not displayed.</p><div class="table-wrap"><table class="data-table"><thead><tr><th>Session</th><th>Type</th><th>Recipient</th><th>Amount</th><th>State</th><th>Expires</th></tr></thead><tbody id="transactionRows"><tr><td colspan="6">Connect to load sessions</td></tr></tbody></table></div><div class="admin-actions"><button type="button" id="moreTransactions" class="secondary">Load more</button></div></div></section>
+ <section class="admin-view" id="view-routing"><div class="section-card"><h2>Approved UPI destinations</h2><p class="muted-note">Configure recipient VPAs via Excel or CSV. Import replaces the existing inventory atomically. Only add VPAs you control or are authorized to use.</p><div class="table-wrap"><table class="data-table"><thead><tr><th>Group</th><th>Type</th><th>UPI ID</th><th>MCC</th><th>Priority</th><th>Enabled</th></tr></thead><tbody id="routeRows"><tr><td colspan="6">Connect to view recipients</td></tr></tbody></table></div></div>
+ <div class="section-card"><h2>Bulk upload VPAs</h2><form id="inventory"><div class="field"><label for="file">Upload CSV or Excel (.xlsx), max 500 rows / 1 MB</label><input id="file" type="file" accept=".csv,.xlsx" required></div><button class="primary" type="submit">Replace routing inventory</button></form><p class="muted-note">Columns: route_key, mode, vpa, mcc, priority, enabled</p><p id="result" class="muted-note" aria-live="polite"></p></div></section>
+ <section class="admin-view" id="view-appearance"><div class="section-card"><h2>Checkout Studio</h2><p class="muted-note">Give customers a bright, recognizable checkout. Changes are applied to the public page after a refresh.</p><form id="appearanceForm"><div class="admin-split"><div class="field"><label for="brandName">Brand name</label><input id="brandName" maxlength="40" minlength="2" required placeholder="PDEP"></div><div class="field"><label for="headline">Checkout heading</label><input id="headline" maxlength="70" minlength="3" required placeholder="Make a payment"></div></div><div class="admin-split"><div class="field"><label for="accent">Accent palette</label><select id="accent"><option value="#4985FF">Iris blue</option><option value="#8B5CF6">Lavender</option><option value="#06B6D4">Sky</option><option value="#10B981">Mint</option><option value="#F59E0B">Sunshine</option><option value="#F43F5E">Coral</option></select></div><div class="field"><label for="theme">Canvas</label><select id="theme"><option value="light">Clean white</option><option value="lilac">Soft lilac</option><option value="citrus">Warm ivory</option></select></div></div><div class="field"><label for="logoLetter">Brand icon</label><input id="logoLetter" maxlength="1" pattern="[A-Za-z0-9]" value="P" required></div><button type="submit" class="primary">Publish checkout appearance</button></form><p id="appearanceResult" class="muted-note" role="status" aria-live="polite"></p></div></section>
+ <section class="admin-view" id="view-security"><div class="section-card"><h2>Access and evidence protection</h2><p class="muted-note">Admin requests require both an authorized network IP and an admin secret. API sessions use bearer headers and hashed credentials. No shared message or screenshot is stored in plaintext by the mobile-evidence intake.</p><div class="table-wrap"><table class="data-table"><tbody><tr><td>Admin IP allowlisting</td><td>Enforced server-side</td></tr><tr><td>Mobile share code</td><td>One-time, 10-minute lifetime</td></tr><tr><td>Shared content storage</td><td>SHA-256 digest + metadata</td></tr><tr><td>Debit evidence</td><td><span class="status-tag">Payer-submitted / unverified</span></td></tr></tbody></table></div></div></section>
+ </main></div>
+<script src="/static/admin.js?v=share-light-v05"></script>
+</body></html>
