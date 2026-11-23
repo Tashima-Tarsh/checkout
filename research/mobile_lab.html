@@ -32,13 +32,14 @@ tap Read clipboard below. This is a user action, not silent access.</p>
 <textarea id="evidence" rows="3" placeholder="Or paste the shared text here manually"></textarea>
 <button id="assess">Check challenge echo</button>
 <p id="assessment"></p></section>
-<section><h2>4. Export research trace</h2>
+<section><h2>4. Explicit screen-stream continuity test</h2><p>With your permission, check whether the browser capture track stays active when switching to an existing UPI app. Pixels are not saved or sent.</p><button id="captureStart">Request screen sharing</button><button id="captureStop">Stop sharing</button><p id="captureStatus">Not started</p></section>\n<section><h2>5. Export research trace</h2>
 <button id="export">Save JSON report (local)</button><pre id="trace"></pre>
 <small>No payment credentials, account identifiers or pasted receipt body are included
 in the exported JSON. Never submit real private information to an untrusted site.</small></section>
 </main>
 <script type="module">
 import {makeNonceCarrier,analyzeRoundTrip} from './nonce_carrier.mjs';
+import {LiveCaptureProbe} from './live_capture_probe.mjs';
 let carrier=null, startMs=0, trace=[];
 const storageKey='pdep-nonce-carrier-lab-v1';
 function persist(){
@@ -94,10 +95,14 @@ $('assess').onclick=()=>{
   $('assessment').textContent=out.status+' — Financial debit NOT verified';
   stamp('CLAIM_ASSESSED',{markerPresent:out.observed,debitVerified:false});
 };
+const capture=new LiveCaptureProbe({mediaDevices:navigator.mediaDevices,onEvent:e=>stamp('SCREEN_'+e.kind,{trackState:e.trackState,trackMuted:e.trackMuted})});
+$('captureStart').onclick=async()=>{const result=await capture.start();$('captureStatus').textContent='Capture: '+result.status;};
+$('captureStop').onclick=()=>{capture.stop();$('captureStatus').textContent='Capture stopped';};
+document.addEventListener('visibilitychange',()=>capture.onDocumentVisibility(document.hidden));
 restore();
 $('export').onclick=()=>{
   const doc={experiment:'PDEP-NONCE-CARRIER-V1',browser:navigator.userAgent,
-    trace,correlationOnly:true,debitVerified:false};
+    trace,captureContinuity:capture.report(),correlationOnly:true,debitVerified:false};
   const blob=new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='pdep-lab-trace.json';a.click();
