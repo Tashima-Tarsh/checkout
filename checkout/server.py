@@ -189,7 +189,7 @@ def create(b: Create, request: Request):
             target_vpa, target_mcc = b.vpa.lower(), b.mcc
         row = dict(id="ps_" + secrets.token_urlsafe(18), token_hash=digest(token),
                    nonce=secrets.token_urlsafe(32), mode=b.mode, vpa=target_vpa, name=b.name,
-                   amount=b.amount_paise, mcc=target_mcc, expires=int(time.time()) + 900,
+                   amount=b.amount_paise, mcc=target_mcc, expires=int(time.time()) + (120 if b.mode == "P2P" else 900),
                    state="AWAITING_PAYMENT")
         bucket = int(time.time()) // 60
         insert = postgres_insert if connection.dialect.name == "postgresql" else sqlite_insert
