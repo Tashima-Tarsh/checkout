@@ -59,3 +59,16 @@ false 'zero fraud' result.
 - https://developer.mozilla.org/en-US/docs/Web/API/Window/pagehide_event
 - https://github.com/karpathy/autoresearch
 - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/How_to/Share_data_between_apps
+
+## Adversarial fuzz extension
+
+The test runner now compares 10,000 pairs of deterministic lifecycle traces,
+one labeled debit and the other cancellation. The label is withheld from the
+observer. The check asserts byte-for-byte equality of the observed traces and
+never sets a positive debit verdict. This is a **negative control**, not an
+observed real-payment dataset or proof of the absence of every possible signal.
+
+The next research workstream is discovering a payer-visible artifact
+which has an authenticated origin and an unforgeable session binding, and
+testing whether such an artifact is obtainable using ordinary web-page
+capabilities alone. The browser security boundary must be respected.
