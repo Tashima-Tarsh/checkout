@@ -52,7 +52,10 @@ export class EvidenceLedger {
     if (nowMs > challenge.expiresMs || nowMs < challenge.createdMs) return this.reject('EXPIRED');
     if (submitted.sessionId !== challenge.sessionId ||
         submitted.nonce !== challenge.nonce) return this.reject('CHALLENGE_MISMATCH');
-    if (normalizeVpa(submitted.vpa) !== challenge.vpa) return this.reject('RECIPIENT_MISMATCH');
+    let submittedVpa;
+    try { submittedVpa = normalizeVpa(submitted.vpa); }
+    catch { return this.reject('RECIPIENT_MALFORMED'); }
+    if (submittedVpa !== challenge.vpa) return this.reject('RECIPIENT_MISMATCH');
     if (!matchingDigits(submitted.amount, challenge.amountPaise)) return this.reject('AMOUNT_MISMATCH');
     if (typeof submitted.reference !== 'string' ||
         !/^[A-Za-z0-9_-]{6,64}$/.test(submitted.reference)) return this.reject('REFERENCE_MALFORMED');
