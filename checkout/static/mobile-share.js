@@ -27,3 +27,14 @@ $e('submitEvidence').addEventListener('click',async()=>{
     $e('evidenceText').value='';$e('evidenceFile').value='';
   }catch(e){status.textContent=e.message;}finally{btn.disabled=false;}
 });
+
+$e('pasteClipboard').addEventListener('click',async()=>{
+  const status=$e('evidenceStatus');
+  try{
+    if(!navigator.clipboard?.readText) throw Error('Use your browser Paste command instead.');
+    const text=await navigator.clipboard.readText();
+    if(!text.trim()) throw Error('Clipboard is empty.');
+    $e('evidenceText').value=text.slice(0,8192);
+    status.textContent='Pasted locally. Review and select Attach evidence to submit.';
+  }catch(error){status.textContent=error.message||'Clipboard permission denied. Paste manually.';}
+});
