@@ -22,7 +22,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.storage import creation_limits, events, make_engine, metadata, receipts, sessions, vpa_routes
-from checkout.vpa_admin import router as admin_router
+from checkout.vpa_admin import router as admin_router, enforce_optional_session_allowlist
 from pdep.protocol import Session, SimulatedIssuer, Verifier
 
 ROOT = Path(__file__).parent
