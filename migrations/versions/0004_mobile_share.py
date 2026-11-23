@@ -1,4 +1,4 @@
-"""Payer-submitted evidence digests and one-time share intake.
+"""Payer-submitted evidence digests with no app installation.
 
 Revision ID: 0004_mobile_share
 Revises: 0003_appearance
@@ -21,15 +21,6 @@ def upgrade():
         sa.Column("created", sa.Integer, nullable=False),
         sa.UniqueConstraint("sid", "evidence_hash", name="uq_checkout_evidence_digest"),
     )
-    op.create_table(
-        "checkout_share_intake",
-        sa.Column("code_hash", sa.String(64), primary_key=True),
-        sa.Column("evidence_hash", sa.String(64), nullable=False),
-        sa.Column("length_bytes", sa.Integer, nullable=False),
-        sa.Column("created", sa.Integer, nullable=False),
-        sa.Column("consumed", sa.Boolean, nullable=False),
-    )
 
 def downgrade():
-    op.drop_table("checkout_share_intake")
     op.drop_table("checkout_mobile_evidence")
