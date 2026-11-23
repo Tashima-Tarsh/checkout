@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {evaluateEvidence} from './attested_evidence_gate.mjs';
+const session={start:1000,amountMinor:100,recipient:'test@upi',challenge:'fixture'};
+const row={direction:'DEBIT',status:'SUCCESS',recipient:session.recipient,amountMinor:100,challenge:session.challenge,reference:'fixture1',at:2000};
+const check=overrides=>evaluateEvidence({session,proof:{},now:()=>3000,...overrides});
+test('no adapter fails closed even with browser claimed success',async()=>assert.equal((await check({proof:{verified:true,rows:[row]}})).reason,'NO_TRUSTED_ADAPTER'));
+test('adapter rejection fails closed',async()=>assert.equal((await check({verifyProof:async()=>{throw Error('invalid')}})).reason,'PROOF_INVALID'));
+test('synthetic match never verifies financial debit',async()=>assert.deepEqual(await check({verifyProof:async()=>[row]}),{status:'RESEARCH_MATCH_ONLY',financialDebitVerified:false}));
+test('wrong challenge rejected',async()=>assert.equal((await check({verifyProof:async()=>[{...row,challenge:'wrong'}]})).reason,'NO_BOUND_DEBIT'));
+test('ambiguous receipt rejected',async()=>assert.equal((await check({verifyProof:async()=>[row,row]})).reason,'AMBIGUOUS'));
+test('proof processing crossing expiry rejected',async()=>{let n=0;assert.equal((await check({verifyProof:async()=>[row],now:()=>n++?121000:3000})).reason,'EXPIRED')});
