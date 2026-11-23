@@ -9,7 +9,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import qrcode
 from fastapi import FastAPI, Header, HTTPException, Request, Response
@@ -121,11 +121,12 @@ def digest(token):
 
 def uri(row):
     rupees, paise = divmod(row["amount"], 100)
-    params = dict(pa=row["vpa"], pn=row["name"], am=f"{rupees}.{paise:02}", cu="INR",
-                  tn="PDEP " + row["id"])
-    if row["mcc"]:
-        params["mc"] = row["mcc"]
-    return "upi://pay?" + urlencode(params)
+    params = dict(pa=row["vpa"], pn=row["name"], am=f"{rupees}.{paise:02}", cu="INR")
+    if row["mode"] == "P2M":
+        params["tn"] = "PDEP " + row["id"]
+        if row["mcc"]:
+            params["mc"] = row["mcc"]
+    return "upi://pay?" + urlencode(params, quote_via=quote, safe="")
 
 
 def view(row):

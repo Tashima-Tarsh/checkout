@@ -29,8 +29,8 @@ def create(client, mode="P2P", mcc=None):
 def test_p2p_qr_and_authorization(client):
     session, path, headers = create(client)
     params = parse_qs(urlsplit(session["payment_uri"]).query)
-    assert params["pa"] == ["person@upi"] and params["am"] == ["499.00"]
-    assert "mc" not in params and session["token"] not in session["payment_uri"]
+    assert params == {"pa": ["person@upi"], "pn": ["Person"], "am": ["499.00"], "cu": ["INR"]}
+    assert session["token"] not in session["payment_uri"]
     assert client.get(path, params={"token": session["token"]}).status_code == 401
     assert client.get(path + "/qr.png", headers=headers).content.startswith(b"\x89PNG")
     assert "token" not in client.get(path, headers=headers).json()
@@ -42,6 +42,16 @@ def test_p2p_qr_and_authorization(client):
 def test_p2m(client, mcc):
     session, _, _ = create(client, "P2M", mcc)
     assert parse_qs(urlsplit(session["payment_uri"]).query).get("mc") == ([mcc] if mcc else None)
+
+
+def test_personal_payment_uri_escapes_name_and_ignores_stale_mcc():
+    from checkout.server import uri
+
+    payment_uri = uri({"id": "internal", "mode": "P2P", "vpa": "person@upi",
+                       "name": "A & B + Café", "amount": 100, "mcc": "5411"})
+    assert payment_uri == (
+        "upi://pay?pa=person%40upi&pn=A%20%26%20B%20%2B%20Caf%C3%A9&am=1.00&cu=INR"
+    )
 
 
 def test_personal_mcc_rejected(client):

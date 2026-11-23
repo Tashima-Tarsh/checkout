@@ -1,32 +1,42 @@
 """Browser-level checkout smoke tests (emulators, NO UPI app or real payment)."""
 import os
+from urllib.parse import parse_qs, urlsplit
 from playwright.sync_api import expect, sync_playwright
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     configurations = [
-        ("desktop", {}),
-        ("android-emulation", playwright.devices["Pixel 7"]),
+        ("P2P", {}),
+        ("P2P", playwright.devices["Pixel 7"]),
+        ("P2M", playwright.devices["Pixel 7"]),
         # Chromium emulating an iPhone viewport is NOT an iOS WebKit test.
-        ("iphone-viewport-emulation", playwright.devices["iPhone 13"]),
+        ("P2P", playwright.devices["iPhone 13"]),
     ]
-    for label, options in configurations:
+    for mode, options in configurations:
         page = browser.new_page(**options)
         page.goto(os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080"))
         expect(page.get_by_role("heading", name="Make a payment")).to_be_visible()
-        mode = "P2M" if label == "android-emulation" else "P2P"
         page.locator("#mode").select_option(mode)
         if mode == "P2M":
             page.locator("#mcc").fill("5411")
         page.locator("#vpa").fill("test@upi")
         page.locator("#name").fill("Research recipient")
-        page.locator("#amount").fill("1.25")
+        page.locator("#amount").fill("1.00")
         page.get_by_role("button", name="Create secure checkout").click()
         expect(page.locator("#qr")).to_be_visible()
         page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
         uri = page.locator("#launch").get_attribute("href")
-        assert uri.startswith("upi://pay?") and "am=1.25" in uri
-        assert ("mc=5411" in uri) == (mode == "P2M")
+        parsed = urlsplit(uri)
+        assert (parsed.scheme, parsed.netloc) == ("upi", "pay")
+        personal = {"pa": ["test@upi"], "pn": ["Research recipient"],
+                    "am": ["1.00"], "cu": ["INR"]}
+        params = parse_qs(parsed.query)
+        if mode == "P2P":
+            assert params == personal
+        else:
+            assert params.pop("mc") == ["5411"]
+            assert params.pop("tn")[0].startswith("PDEP ")
+            assert params == personal
         expect(page.locator("#info")).to_contain_text("test@upi")
         # A fake launch and browser return must only produce an observation.
         # Prevent external UPI navigation; this intentionally does NOT launch an app.
