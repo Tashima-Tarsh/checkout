@@ -93,3 +93,16 @@ metadata matching as an authentication oracle.
 
 Run both browser lifecycle and evidence candidate suites with:
 `node --test research/*.spec.mjs`.
+
+## Candidate 006: Payer-local nonextractable WebCrypto signing
+
+Test suite: `research/device_signature.spec.mjs`. The same browser key can
+validly sign an invented transaction whether a debit occurred or not. Marking
+the private key nonextractable does **not** change that fact. An altered amount
+invalidates the signature, so the signature protects payload integrity, but
+not the truth of the payment assertion.
+
+Expected classifications: `SIGNATURE_VALID` and `DEBIT_UNVERIFIED`.
+No native application or installation required; pure browser-compatible
+WebCrypto experiment. Reject this signal as debit evidence unless a genuine
+debit-dependent signer with authenticated origin is identified.
