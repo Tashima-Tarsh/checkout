@@ -176,3 +176,22 @@ setInterval(updateTimer, 1000);
 setInterval(() => {
   if (session?.state !== 'EXPIRED' && document.visibilityState === 'visible') refresh();
 }, 5000);
+
+
+// Operator-controlled visual preferences are fetched read-only.
+// Never use theme configuration as payment verification or authenticated merchant identity.
+async function loadAppearance() {
+  try {
+    const data = await api('/api/appearance');
+    const accent = /^#[0-9A-F]{6}$/i.test(data.accent || '') ? data.accent : '#4985FF';
+    const theme = ['midnight', 'aurora', 'light'].includes(data.theme) ? data.theme : 'midnight';
+    document.documentElement.style.setProperty('--accent', accent);
+    document.documentElement.dataset.theme = theme;
+    $('brandName').textContent = data.brand_name;
+    $('brandIcon').textContent = data.logo_letter;
+    $('checkoutHeadline').textContent = data.headline;
+  } catch (error) {
+    log('Appearance unavailable; using defaults.');
+  }
+}
+loadAppearance();
