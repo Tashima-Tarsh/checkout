@@ -40,10 +40,26 @@ in the exported JSON. Never submit real private information to an untrusted site
 <script type="module">
 import {makeNonceCarrier,analyzeRoundTrip} from './nonce_carrier.mjs';
 let carrier=null, startMs=0, trace=[];
+const storageKey='pdep-nonce-carrier-lab-v1';
+function persist(){
+  try { sessionStorage.setItem(storageKey, JSON.stringify({carrier,trace})); } catch {}
+}
+function restore(){
+  try {
+    const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');
+    if(saved?.carrier?.marker && Array.isArray(saved.trace)) {
+      carrier=saved.carrier; trace=saved.trace;
+      $('challenge').textContent='Restored challenge: '+carrier.note;
+      $('handoff').disabled=false;
+      $('trace').textContent=JSON.stringify(trace,null,2);
+    }
+  } catch {}
+}
 const $=id=>document.getElementById(id);
 const stamp=(kind,extra={})=>{
   trace.push({kind,atMs:Date.now(),elapsedMs:startMs?Math.round(performance.now()-startMs):null,...extra});
   $('trace').textContent=JSON.stringify(trace,null,2);
+  persist();
 };
 function nonce(){
   const bytes=crypto.getRandomValues(new Uint8Array(24));
@@ -78,6 +94,7 @@ $('assess').onclick=()=>{
   $('assessment').textContent=out.status+' — Financial debit NOT verified';
   stamp('CLAIM_ASSESSED',{markerPresent:out.observed,debitVerified:false});
 };
+restore();
 $('export').onclick=()=>{
   const doc={experiment:'PDEP-NONCE-CARRIER-V1',browser:navigator.userAgent,
     trace,correlationOnly:true,debitVerified:false};
