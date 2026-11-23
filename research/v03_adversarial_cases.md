@@ -1,0 +1,16 @@
+# v0.3 adversarial scenarios
+- Browser hidden then visible: one BROWSER_RESUMED observation; never debit verified.
+- Browser never hidden: launching intent alone must not count as a returned browser.
+- Repeated visibilitychange/pageshow: backend deduplicates callback event.
+- Fake UTR or manually sent BROWSER_RESUMED: still financially_verified=false.
+- Rooted/emulated device with JS override: still financially_verified=false.
+- Replayed synthetic proof: rejected and never financially verified.
+- Modified amount or payee in signed test receipt: rejected.
+- Forged signed key: rejected.
+- IP-spoof attempt using X-Forwarded-For from untrusted peer: reject.
+- Unauthorized VPA import: reject.
+- Malformed XLSX, formula cells, too many rows: reject.
+- Route key with no configured enabled recipient: reject; never select another recipient silently.
+- P2P routing rejects MCC and P2M MCC remains optional.
+- P2P/P2M QR must visibly disclose selected VPA and amount.
+- Android/iOS browser emulation is not equivalent to real UPI app testing.
