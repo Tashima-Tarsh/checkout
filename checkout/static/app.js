@@ -154,6 +154,7 @@ window.addEventListener('pagehide', markAway);
 window.addEventListener('pageshow', resume);
 window.addEventListener('focus', resume);
 
+$('edit').addEventListener('click', () => document.querySelector('.shell').classList.remove('has-session'));
 $('claim').addEventListener('click', () => observe('PAYER_CLAIMED_PAID'));
 $('refresh').addEventListener('click', refresh);
 $('demo').addEventListener('click', async () => {
