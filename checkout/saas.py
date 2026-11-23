@@ -87,6 +87,27 @@ def update_appearance(request: Request, appearance: Appearance):
     return data
 
 
+@router.get("/api/admin/checkouts")
+def list_checkouts(request: Request, limit: int = 25, offset: int = 0):
+    require_admin(request)
+    if not 1 <= limit <= 50 or not 0 <= offset <= 100000:
+        from fastapi import HTTPException
+        raise HTTPException(422, "Invalid pagination")
+    with request.app.state.engine.connect() as connection:
+        rows = connection.execute(
+            select(sessions.c.id, sessions.c.mode, sessions.c.vpa,
+                   sessions.c.amount, sessions.c.state, sessions.c.expires)
+            .order_by(sessions.c.expires.desc(), sessions.c.id)
+            .offset(offset).limit(limit)
+        ).mappings().all()
+    return {"items": [
+        {"session_id": row["id"], "mode": row["mode"], "vpa": row["vpa"],
+         "amount_paise": row["amount"], "state": row["state"],
+         "expires": row["expires"], "financially_verified": False}
+        for row in rows
+    ], "limit": limit, "offset": offset}
+
+
 @router.get("/api/admin/overview")
 def overview(request: Request):
     require_admin(request)
