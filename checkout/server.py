@@ -59,6 +59,8 @@ async def lifespan(app):
 
 app = FastAPI(title="PDEP research checkout", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+# Isolated opt-in research lab. Existing checkout routes are unchanged.
+app.mount("/pdep-lab", StaticFiles(directory=ROOT / "static" / "pdep-lab", html=True), name="pdep-lab")
 app.include_router(admin_router)
 app.include_router(saas_router)
 
