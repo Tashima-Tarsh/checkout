@@ -128,3 +128,31 @@ References:
 
 Do not collect private screens or notification contents without informed
 opt-in, and never claim recording was enabled automatically.
+
+## Candidate 006 — nonce-carrier handoff lab (new research artifact)
+
+Files: `research/mobile_lab.html`, `research/nonce_carrier.mjs`, and
+`research/nonce_carrier.spec.mjs`.
+
+**Original hypothesis:** A fresh browser-generated challenge, encoded in a
+UPI `tn` note and reappearing in an existing UPI app's consensually shared
+receipt, may provide a *transaction-bound provenance clue* beyond time-based
+browser return. The experiment measures whether the UPI app preserves the
+challenge in its display and share payload.
+
+**Empirical decision rule:** collect paired successful-debit/cancelled-app
+sessions on physical Android and iOS. A usable echo must be present in
+real debit sessions, absent or distinguishable in negative controls, and bound
+to recipient, amount and nonce. The lab reports correlation only until
+an authentically debit-dependent property is found.
+
+**Synthetic red-team finding:** 10,000 fake text receipts can echo the known
+challenge without money moving. Therefore a nonce echo cannot by itself
+authenticate a debit. The protocol must neither call it a proof nor silently
+read private cross-app data.
+
+**How to test:** Serve this repository's `research/` directory over HTTPS
+(for example on an authorized test origin) and open `mobile_lab.html` in an
+ordinary phone browser. Only send funds between test accounts you own.
+No PWA installation is involved. The current file is a research harness, not
+integrated into production and does not submit receipt contents to a server.
