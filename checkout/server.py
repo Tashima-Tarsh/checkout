@@ -98,6 +98,8 @@ async def response_headers(request: Request, call_next):
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'self'; img-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'",
     })
+    if request.url.path == "/static/sw.js":
+        response.headers["Service-Worker-Allowed"] = "/"
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
