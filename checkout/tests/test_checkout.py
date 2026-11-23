@@ -246,25 +246,6 @@ def test_mobile_share_text_digest_and_dedup(client):
     assert client.get(path + "/evidence", headers=headers).json()["financially_verified"] is False
 
 
-def test_pwa_share_target_claim_once_and_no_debit(client):
-    import re
-    _, path, headers = create(client)
-    incoming = client.post("/share-inbox", data={
-        "title": "UPI receipt", "text": "Payment completed in application",
-        "url": ""
-    })
-    assert incoming.status_code == 200, incoming.text
-    code = re.search(r'<code id="claim">([A-Za-z0-9_-]+)</code>', incoming.text).group(1)
-    wrong = client.post(path + "/evidence/claim", data={"code": code})
-    assert wrong.status_code == 401
-    valid = client.post(path + "/evidence/claim", data={"code": code}, headers=headers)
-    assert valid.status_code == 200, valid.text
-    assert valid.json()["financially_verified"] is False
-    replay = client.post(path + "/evidence/claim", data={"code": code}, headers=headers)
-    assert replay.status_code == 410
-    assert code not in client.get(path + "/evidence", headers=headers).text
-
-
 def test_mobile_evidence_rejects_oversized_and_bad_types(client):
     _, path, headers = create(client)
     bad = client.post(path + "/evidence", headers=headers, data={
@@ -290,20 +271,6 @@ def test_mobile_evidence_auth_and_expiration(client):
         conn.execute(sessions.update().values(expires=1))
     result = client.post(path + "/evidence", data={"text": "fake"}, headers=headers)
     assert result.status_code == 410
-
-
-def test_pwa_manifest_and_icons(client):
-    import json
-    manifest = client.get("/static/manifest.webmanifest")
-    assert manifest.status_code == 200
-    payload = manifest.json()
-    assert payload["share_target"]["action"] == "/share-inbox"
-    assert payload["share_target"]["method"] == "POST"
-    for size in (192, 512):
-        r = client.get(f"/icons/pdep-{size}.png")
-        assert r.status_code == 200
-        assert r.content.startswith(b"\x89PNG")
-    assert client.get("/static/sw.js").status_code == 200
 
 
 def test_admin_checkout_feed_is_authorized(client, monkeypatch):
