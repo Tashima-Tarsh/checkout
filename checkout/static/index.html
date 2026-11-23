@@ -1,1 +1,84 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDEP UPI Checkout</title><link rel="stylesheet" href="/static/style.css"></head><body><main><h1>Direct UPI Checkout</h1><p>Browser-only P2P / P2M research demo · no payment gateway</p><section><h2>Create payment</h2><form id="form"><label>Payment type <select id="mode"><option>P2P</option><option>P2M</option></select></label><label>Recipient UPI ID <input id="vpa" required></label><label>Recipient name <input id="name" required></label><label>Amount in ₹ <input id="amount" type="number" min="1" step=".01" required></label><label id="mccRow" hidden>Merchant MCC (optional) <input id="mcc" pattern="[0-9]{4}"></label><button>Create checkout</button></form></section><section id="pay" hidden><h2>Payment</h2><h3 id="info"></h3><img id="qr" alt="UPI payment QR" width="220"><p>No QR download. Scan directly with a compatible UPI app.</p><a id="launch">Open UPI app</a><button id="claim">I completed payment</button><button id="demo">Synthetic receipt test</button><button id="refresh">Refresh</button><h3 id="state" aria-live="polite"></h3><p id="timer"></p><p>Browser callback and synthetic signatures do not verify a real debit.</p></section><section><h2>Event trace</h2><pre id="log">No payment session yet.</pre></section><aside>Research demo only. Financially verified is always FALSE; do not fulfill payments based on this demo.</aside></main><script src="/static/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0c1425">
+  <meta name="description" content="Browser-only P2P/P2M UPI payment initiation research checkout">
+  <title>PDEP · Premium UPI Checkout</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="PDEP home"><span class="brandmark">P</span><span>PDEP <small>CHECKOUT</small></span></a>
+    <span class="environment"><span class="dot"></span> RESEARCH DEMO</span>
+  </header>
+  <div class="workspace">
+    <section class="config panel" aria-label="Payment configuration">
+      <div class="sectionheading"><span class="step">01</span><div><h1>Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
+      <form id="form">
+        <div class="field">
+          <label for="mode">Payment type</label>
+          <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
+        </div>
+        <div class="field">
+          <label for="destinationType">Payee selection</label>
+          <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
+        </div>
+        <div class="field" id="vpaRow">
+          <label for="vpa">Recipient UPI ID</label>
+          <input id="vpa" autocomplete="off" inputmode="email" placeholder="person@upi" required>
+        </div>
+        <div class="field" id="routeRow" hidden>
+          <label for="routeKey">Approved routing group</label>
+          <input id="routeKey" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="my-recipient-group">
+        </div>
+        <div class="field">
+          <label for="name">Recipient display name</label>
+          <input id="name" maxlength="80" placeholder="Payee name" required>
+        </div>
+        <div class="twofields">
+          <div class="field">
+            <label for="amount">Amount (₹)</label>
+            <input id="amount" type="number" min="1" max="1000000" step=".01" placeholder="499.00" required>
+          </div>
+          <div class="field" id="mccRow" hidden>
+            <label for="mcc">Merchant MCC <span class="optional">optional</span></label>
+            <input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="5411">
+          </div>
+        </div>
+        <button id="create" type="submit" class="primary">Create secure checkout <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+    <section id="paypanel" class="payment panel" aria-label="Payment status">
+      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any supported UPI app</h2><p>Scan or open from your phone</p></div></div>
+      <div id="empty" class="empty">
+        <div class="qrpreview" aria-hidden="true"><span class="scanline"></span>▦</div>
+        <strong>Your payment QR appears here</strong>
+        <p>Enter the payment details to begin. Nothing to download.</p>
+      </div>
+      <div id="pay" hidden>
+        <div class="total" id="info"></div>
+        <div class="qrbox"><img id="qr" alt="Scan this QR in your UPI app" width="180" height="180" hidden></div>
+        <p class="scanhelp">Scan on another device, or open your installed UPI app.</p>
+        <a id="launch" class="primary" role="button">Open UPI app <span aria-hidden="true">↗</span></a>
+        <div class="actions">
+          <button id="claim" type="button" class="secondary">I completed payment</button>
+          <button id="refresh" type="button" class="secondary">Refresh status</button>
+          <button id="demo" type="button" class="secondary" hidden>Synthetic proof test</button>
+        </div>
+        <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div>
+        <p id="timer" class="timer"></p>
+      </div>
+    </section>
+  </div>
+  <footer class="footer">
+    <span>🔒 Payment initiation only. A return from an app is not proof of debit.</span>
+    <span><a href="/admin">Manage VPA inventory</a></span>
+  </footer>
+  <div class="sr-only" id="log" aria-live="polite">No payment session yet.</div>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
