@@ -39,5 +39,15 @@ jobs:
       - run: curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/healthz
       - run: python -m playwright install --with-deps chromium
       - run: python tests/browser_smoke.py
+      - run: python research/browser_signal_lab.py
+      - run: python research/visibility_observation_lab.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-signal-capabilities
+          path: |
+            browser-signal-lab.json
+            browser-visibility-negative-control.json
+          if-no-files-found: warn
       - if: failure()
         run: docker inspect pdep >/dev/null 2>&1 && docker logs pdep || true
