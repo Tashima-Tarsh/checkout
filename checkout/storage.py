@@ -1,7 +1,7 @@
 """Database setup shared by the application and migrations."""
 import os
 
-from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine
+from sqlalchemy import Boolean, Column, Index, Integer, MetaData, String, Table, create_engine
 from sqlalchemy.engine import URL
 
 
@@ -52,4 +52,17 @@ creation_limits = Table(
     "checkout_creation_limits", metadata,
     Column("bucket", Integer, primary_key=True),
     Column("count", Integer, nullable=False),
+)
+
+# Operator-managed routing inventory; never used as debit evidence.
+vpa_routes = Table(
+    "checkout_vpa_routes", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("route_key", String(64), nullable=False),
+    Column("mode", String(3), nullable=False),
+    Column("vpa", String(321), nullable=False),
+    Column("mcc", String(4)),
+    Column("priority", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False),
+    Index("ix_checkout_vpa_routes_match", "route_key", "mode", "enabled", "priority"),
 )
