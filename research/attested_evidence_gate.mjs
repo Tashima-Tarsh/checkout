@@ -7,7 +7,7 @@ export async function evaluateEvidence({session, proof, verifyProof, now = Date.
       session.amountMinor <= 0 || typeof session.challenge !== 'string' || !session.challenge ||
       typeof session.recipient !== 'string' || !session.recipient)
     return rejected('INVALID_SESSION');
-  const inWindow = t => validTime(t) && t >= session.start && t < session.start + 120000;
+  const inWindow = t => validTime(t) && t >= session.start && t < session.start + 90000;
   if (!inWindow(now())) return rejected('EXPIRED');
   if (typeof verifyProof !== 'function') return rejected('NO_TRUSTED_ADAPTER');
   let rows;

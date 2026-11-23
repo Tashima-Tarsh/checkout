@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // Research-only: normalized rows supplied as synthetic fixtures. This does
 // not verify TLS, authenticate a payment provider, or authorize debit.
 function correlate(session, rows, now) {
-  if (!Number.isSafeInteger(now) || now < session.start || now >= session.start + 120_000)
+  if (!Number.isSafeInteger(now) || now < session.start || now >= session.start + 90_000)
     return 'EXPIRED';
   const candidates = rows.filter(r => r.direction === 'DEBIT' &&
     r.status === 'SUCCESS' && r.recipient === session.recipient &&
@@ -30,5 +30,5 @@ for (const [name, rows, now, expected] of [
   ['future transaction', [{...r,at:3001}], 3000, 'NO_MATCH'],
   ['missing transaction reference', [{...r,reference:''}], 3000, 'NO_MATCH'],
   ['duplicate matching receipts', [r,{...r,reference:'fixture-2'}], 3000, 'AMBIGUOUS'],
-  ['deadline boundary', [r], 121000, 'EXPIRED'],
+  ['deadline boundary', [r], 91000, 'EXPIRED'],
 ]) test(name, () => assert.equal(correlate(s,rows,now),expected));

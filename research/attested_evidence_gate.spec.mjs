@@ -9,4 +9,4 @@ test('adapter rejection fails closed',async()=>assert.equal((await check({verify
 test('synthetic match never verifies financial debit',async()=>assert.deepEqual(await check({verifyProof:async()=>[row]}),{status:'RESEARCH_MATCH_ONLY',financialDebitVerified:false}));
 test('wrong challenge rejected',async()=>assert.equal((await check({verifyProof:async()=>[{...row,challenge:'wrong'}]})).reason,'NO_BOUND_DEBIT'));
 test('ambiguous receipt rejected',async()=>assert.equal((await check({verifyProof:async()=>[row,row]})).reason,'AMBIGUOUS'));
-test('proof processing crossing expiry rejected',async()=>{let n=0;assert.equal((await check({verifyProof:async()=>[row],now:()=>n++?121000:3000})).reason,'EXPIRED')});
+test('proof processing crossing expiry rejected',async()=>{let n=0;assert.equal((await check({verifyProof:async()=>[row],now:()=>n++?91000:3000})).reason,'EXPIRED')});
