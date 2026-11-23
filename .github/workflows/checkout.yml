@@ -33,7 +33,7 @@ jobs:
       - run: alembic upgrade head
       - run: python -m pytest -q
       - run: python research/run_experiments.py
-      - run: node --test research/browser_probe.spec.mjs
+      - run: node --test research/*.spec.mjs
       - run: docker build -t pdep-checkout:test .
       - run: docker run --detach --network host --env DATABASE_URL --name pdep pdep-checkout:test
       - run: curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/healthz
