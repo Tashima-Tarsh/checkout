@@ -155,6 +155,10 @@ def proof_session(row):
 def home():
     return (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page():
+    return (ROOT / "static" / "admin.html").read_text(encoding="utf-8")
+
 
 @app.post("/api/sessions", status_code=201)
 def create(b: Create, request: Request):
