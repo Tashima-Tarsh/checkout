@@ -14,6 +14,7 @@ from urllib.parse import quote, urlencode
 import qrcode
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
+from PIL import Image, ImageDraw
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, text
