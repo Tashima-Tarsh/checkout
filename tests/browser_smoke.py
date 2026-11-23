@@ -22,7 +22,7 @@ with sync_playwright() as playwright:
         page.locator("#vpa").fill("test@upi")
         page.locator("#name").fill("Research recipient")
         page.locator("#amount").fill("1.00")
-        page.get_by_role("button", name="Create secure checkout").click()
+        page.get_by_role("button", name="Continue to payment").click()
         expect(page.locator("#qr")).to_be_visible()
         page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
         uri = page.locator("#launch").get_attribute("href")
