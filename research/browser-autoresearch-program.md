@@ -72,3 +72,24 @@ The next research workstream is discovering a payer-visible artifact
 which has an authenticated origin and an unforgeable session binding, and
 testing whether such an artifact is obtainable using ordinary web-page
 capabilities alone. The browser security boundary must be respected.
+
+
+## Candidate 005: Browser-return plus exact session challenge correlation
+
+New experimental code: `research/evidence_candidate.mjs`.
+This adds strict amount/VPA matching, 15-minute challenge expiry, reference replay
+rejection, and no external dependencies. It intentionally accepts an exact
+payer-created receipt as **correlated but unverified**, not as a debit.
+
+Negative control: a malicious payer can fabricate `source=Google Pay`,
+`signed=true`, an exact amount, VPA, session nonce, and reference entirely
+without a debit. No cryptographic signature is actually supplied by the
+payment app or independently checked. The 10,000 fabricated receipts remain
+unverified. This is a synthetic adversarial experiment, not real device data.
+
+**Research implication:** To prove financial debit, identify a genuine
+debit-dependent signal outside the payer's ability to forge. Do not treat
+metadata matching as an authentication oracle.
+
+Run both browser lifecycle and evidence candidate suites with:
+`node --test research/*.spec.mjs`.
