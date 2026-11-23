@@ -39,4 +39,4 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: python tests/browser_smoke.py
       - if: failure()
-        run: docker logs pdep
+        run: docker inspect pdep >/dev/null 2>&1 && docker logs pdep || true

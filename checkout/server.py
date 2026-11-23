@@ -140,7 +140,8 @@ def require_active(row):
 
 def insert_once(connection, table, **values):
     insert = postgres_insert if connection.dialect.name == "postgresql" else sqlite_insert
-    return connection.execute(insert(table).values(**values).on_conflict_do_nothing()).rowcount == 1
+    query = insert(table).values(**values).on_conflict_do_nothing().returning(list(table.primary_key)[0])
+    return connection.execute(query).scalar_one_or_none() is not None
 
 
 def proof_session(row):
@@ -169,7 +170,7 @@ def create(b: Create, request: Request):
             set_={"count": creation_limits.c.count + 1},
             where=creation_limits.c.count < 60,
         )
-        if connection.execute(limit).rowcount != 1:
+        if connection.execute(limit.returning(creation_limits.c.bucket)).scalar_one_or_none() is None:
             raise HTTPException(429, "Session creation limit reached", headers={"Retry-After": "60"})
         connection.execute(creation_limits.delete().where(creation_limits.c.bucket < bucket - 1))
         connection.execute(sessions.insert().values(**row))

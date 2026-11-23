@@ -125,7 +125,7 @@ $('demo').onclick = async () => {
   if (!target?.synthetic_enabled) return;
   try {
     const options = {method: 'POST', token: target.token};
-    const result = await api('/api/demo' + path(target) + '/issue-test-proof', options);
+    const result = await api('/api/demo/sessions/' + encodeURIComponent(target.session_id) + '/issue-test-proof', options);
     const observation = await api(path(target) + '/proof', {...options, body: {receipt: result.receipt}});
     render(observation, target);
     log('Synthetic receipt: ' + observation.result);

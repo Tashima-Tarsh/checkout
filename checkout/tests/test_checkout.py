@@ -62,7 +62,7 @@ def test_callback_is_idempotent_and_unverified(client):
 
 def test_synthetic_proof_is_unverified_and_cannot_replay(client):
     _, path, headers = create(client)
-    receipt = client.post("/api/demo" + path + "/issue-test-proof", headers=headers).json()["receipt"]
+    receipt = client.post("/api/demo/sessions/" + path.rsplit("/", 1)[-1] + "/issue-test-proof", headers=headers).json()["receipt"]
     response = client.post(path + "/proof", headers=headers, json={"receipt": receipt}).json()
     assert response["test_attested"] and not response["financially_verified"]
     response = client.post(path + "/proof", headers=headers, json={"receipt": receipt}).json()

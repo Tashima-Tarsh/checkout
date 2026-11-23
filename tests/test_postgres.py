@@ -27,4 +27,4 @@ def test_postgres_migrations_persistence_and_duplicate_observations():
         with ThreadPoolExecutor(max_workers=4) as executor:
             assert all(result.status_code == 200 for result in executor.map(observe, range(8)))
         assert len(client.get(path + "/events", headers=headers).json()) == 1
-        assert client.post("/api/demo" + path + "/issue-test-proof", headers=headers).status_code == 404
+        assert client.post("/api/demo/sessions/" + session["session_id"] + "/issue-test-proof", headers=headers).status_code == 404
