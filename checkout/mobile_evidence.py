@@ -116,10 +116,10 @@ async def share_target(
         '<p>Return to your PDEP checkout and enter this single-use code in the '
         '<strong>Attach mobile evidence</strong> section.</p>'
         f'<code id="claim">{safe_code}</code>'
-        '<button class="primary" type="button" onclick="navigator.clipboard?.writeText('
-        "document.getElementById('claim').textContent)"
-        '">Copy code</button><p>This does not confirm a debit.</p>'
-        '<a href="/">Open checkout</a></main></html>',
+        '<button class="primary" id="copyCode" type="button">Copy code</button>'
+        '<p>This does not confirm a debit.</p>'
+        '<a href="/">Open checkout</a>'
+        '<script src="/static/share-result.js"></script></main></html>',
         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
     )
 
