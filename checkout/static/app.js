@@ -39,6 +39,7 @@ function updateTimer() {
 function render(update, target) {
   if (session !== target) return;
   Object.assign(session, update);
+  document.querySelector('.shell').classList.add('has-session');
   $('empty').hidden = true;
   $('pay').hidden = false;
   $('info').textContent = '₹' + (session.amount_paise / 100).toFixed(2) +
