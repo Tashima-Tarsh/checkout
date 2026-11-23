@@ -162,6 +162,7 @@ def admin_page():
 
 @app.post("/api/sessions", status_code=201)
 def create(b: Create, request: Request):
+    enforce_optional_session_allowlist(request)
     if b.mode == "P2P" and b.mcc is not None:
         raise HTTPException(422, "MCC is available only for merchant payments")
     if bool(b.vpa) == bool(b.route_key):
