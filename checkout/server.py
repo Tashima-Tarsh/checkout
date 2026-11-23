@@ -62,6 +62,7 @@ app = FastAPI(title="PDEP research checkout", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(admin_router)
 app.include_router(saas_router)
+app.include_router(mobile_router)
 
 
 @app.middleware("http")
