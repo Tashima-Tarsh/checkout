@@ -14,7 +14,7 @@ from checkout.vpa_admin import require_admin
 
 router = APIRouter(tags=["saas"])
 DEFAULTS = {"brand_name": "PDEP", "headline": "Make a payment",
-            "accent": "#4985FF", "theme": "midnight",
+            "accent": "#4985FF", "theme": "light",
             "logo_letter": "P"}
 ACCENTS = {"#4985FF", "#8B5CF6", "#06B6D4", "#10B981", "#F59E0B", "#F43F5E"}
 THEMES = {"midnight", "aurora", "light"}
