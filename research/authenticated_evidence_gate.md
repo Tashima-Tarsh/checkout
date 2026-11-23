@@ -20,7 +20,7 @@ cookies, browser session tokens, or unrelated transaction history are collected.
 A future authorized evidence adapter must establish issuer identity, proof
 validity and freshness, final debit semantics, exact recipient, integer minor
 units, unique reference and authoritative correlation to the checkout challenge.
-All must match the server-owned 120-second session. A missing challenge or
+All must match the server-owned 90-second session. A missing challenge or
 ambiguous match must remain unverified. Atomically consume the transaction
 reference once across sessions. Expiry means unverified, not proof of nonpayment.
 
