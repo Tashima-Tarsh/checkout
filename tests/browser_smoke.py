@@ -50,4 +50,22 @@ with sync_playwright() as playwright:
         expect(page.locator("#state")).to_contain_text("Debit unverified")
         expect(page.locator("#state")).to_contain_text("PAYER CLAIMED SUCCESS")
         page.close()
+    # Public opt-in PDEP lab must load its real JS modules from the same origin.
+    # This proves the test page is deployable; it does NOT emulate a UPI app.
+    lab = browser.new_page()
+    base = os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080").rstrip("/")
+    lab.goto(base + "/pdep-lab/")
+    expect(lab.get_by_role("heading", name="PDEP Mobile Signal Lab")).to_be_visible()
+    lab.locator("#vpa").fill("test@upi")
+    lab.locator("#payee").fill("Research Recipient")
+    lab.locator("#amount").fill("1.00")
+    lab.locator("#prepare").click()
+    expect(lab.locator("#challenge")).to_contain_text("Challenge note:")
+    expect(lab.locator("#handoff")).to_be_enabled()
+    # Module-loaded lab can process copied marker without transferring real money.
+    marker = lab.locator("#challenge").inner_text().split("PD", 1)[1]
+    lab.locator("#evidence").fill("PD" + marker)
+    lab.locator("#assess").click()
+    expect(lab.locator("#assessment")).to_contain_text("Financial debit NOT verified")
+    lab.close()
     browser.close()
