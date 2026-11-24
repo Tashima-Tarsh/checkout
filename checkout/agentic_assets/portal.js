@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const page = location.pathname.slice(1);
+document.body.dataset.workspace=page;
 let token;
 async function call(path, options = {}) {
   const headers = {Authorization: 'Bearer ' + token};
@@ -20,7 +21,7 @@ function table(id,rows,describe,empty,cols){
 function orderLink(row){const a=document.createElement('a');a.href='/checkout/'+encodeURIComponent(row.id);a.textContent='Open checkout ↗';return a}
 function filtered(){const q=$('order-search').value.toLowerCase(),s=$('order-filter').value;return recentOrders.filter(r=>r.id.toLowerCase().includes(q)&&(!s||(s==='EXPIRED'?r.status==='AWAITING_PAYMENT'&&r.expires<=Date.now()/1000:r.status===s&&(s!=='AWAITING_PAYMENT'||r.expires>Date.now()/1000))))}
 function renderOrders(){table('orders',filtered(),r=>[r.id,date(r.created),money(r.amount_minor),r.status==='AWAITING_PAYMENT'&&r.expires<=Date.now()/1000?'EXPIRED':r.status,orderLink(r)],'No matching orders.',5)}
-function view(name){const root=$(page);if(!root)return;const target=root.querySelector('[id="view-'+name+'"]');if(!target){if(page==='merchant'&&name==='agentmonitor')location.href='/agents';return}root.querySelectorAll('.view').forEach(v=>{v.hidden=v!==target;v.classList.toggle('active',v===target)});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));document.body.dataset.currentView=name;const button=[...document.querySelectorAll('[data-view]')].find(b=>b.dataset.view===name);if(button)$('heading').textContent=button.textContent.trim();$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')}
+function view(name){const root=$(page);if(!root)return;const target=root.querySelector('[id="view-'+name+'"]');if(!target){if(page==='merchant'&&name==='agentmonitor')location.href='/agents';return}root.querySelectorAll('.view').forEach(v=>{v.hidden=v!==target;v.classList.toggle('active',v===target)});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));document.body.dataset.currentView=name;const button=[...$(page+'-nav').querySelectorAll('[data-view]')].find(b=>b.dataset.view===name);if(button)$('heading').textContent=button.textContent.trim();$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')}
 async function refresh(){
  if(page==='owner'){const rows=await call('/owner/merchants');table('merchants',rows,r=>[r.name,r.id],'No merchants registered.',2);$('ownerCount').textContent=rows.length}
  else if(page==='agents'){const rows=await call('/agents');table('agent-list',rows,r=>[r.agent_id,r.vpa,r.bank,'•••• '+r.last4,r.state,date(r.expires)],'No agents registered.',6);$('agentCount').textContent=rows.length;$('agentAuth').textContent=rows.filter(r=>r.state==='AUTH_REQUIRED').length}
