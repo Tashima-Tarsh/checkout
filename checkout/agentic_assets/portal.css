@@ -1,1 +1,35 @@
-*{box-sizing:border-box}body{margin:0;font:16px system-ui;color:#eaf2ff;background:#081221;color-scheme:dark}header,main{padding:1.25rem max(1rem,calc((100% - 70rem)/2))}header{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px solid #344763}nav{display:flex;gap:1rem}a{color:#a4ceff}section section{padding:1.25rem;margin:1rem 0;border:1px solid #344763;background:#111e32;border-radius:1rem}form{display:flex;flex-wrap:wrap;align-items:end;gap:1rem;margin:1rem 0}label{display:grid;gap:.4rem}input,select,button{padding:.65rem;font:inherit;border:1px solid #6c83a1;border-radius:.4rem}button{background:#243c65;color:#fff;cursor:pointer}output,li{overflow-wrap:anywhere}li{padding:.4rem}[hidden]{display:none!important}
+/* Agentic Pay adapter for the original Moonlight Glass command-center styles. */
+[hidden]{display:none!important}
+body.app-page .app-layout{display:flex;min-height:100dvh}
+body.app-page .app-main{flex:1;min-width:0}
+body.app-page .app-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.agentic-wordmark{font-size:clamp(19px,2vw,26px);font-weight:850;letter-spacing:-.045em;color:#f1f5ff;text-shadow:0 0 16px #89aaff80}
+.portal-links{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#eaf1ff}
+.portal-links a:hover{text-decoration:underline}
+#login-panel{max-width:520px;margin:8vh auto}
+#login-panel .form-grid{grid-template-columns:1fr}
+#status{overflow-wrap:anywhere;color:#ffe4c5;padding:8px 0}
+#status:empty{display:none}
+#workspace>section{min-width:0}
+#workspace .view.active{display:block}
+#workspace .module h2{margin:0 0 16px}
+#workspace .form-grid{margin:18px 0 24px}
+#workspace .module>h2:not(:first-child){margin-top:26px}
+#workspace .table-scroller{overflow-x:auto;max-width:100%}
+#workspace table td{overflow-wrap:anywhere}
+#workspace table a,#checkout-link a{color:#b9dfff;text-decoration:underline}
+#checkout-link:empty{display:none}
+.token-output{display:block;overflow-wrap:anywhere;color:#ffe4c5}
+#workspace .stat strong{overflow-wrap:anywhere}
+#owner-menu{display:grid;gap:3px}
+#owner-menu button{background:transparent;border:1px solid transparent;text-align:left;padding:9px;color:#eaf1ff;border-radius:9px}
+#owner-menu button.active{background:#af5a485e;border-color:#ffc06c}
+#owner-menu .nav-label{font-size:10px;color:#ffba62;margin:12px 6px 3px;letter-spacing:.1em}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+#sideToggle{display:none}
+body[data-workspace="owner"] .celestial-stage{display:none}
+body[data-workspace="owner"] .side{background:#0d0f16;border-color:#ed946a50}
+body[data-workspace="owner"] .module,body[data-workspace="owner"] .stat{background:linear-gradient(130deg,#181a23,#14161e);border-color:#ed946a40}
+body[data-workspace="owner"] .app-top{background:#0b0d14;border-color:#ed946a40}
+@media(max-width:860px){body.app-page .side{position:fixed;top:0;left:0;height:100dvh;z-index:100;transform:translateX(-110%);transition:transform .25s ease}body.app-page .side.open{transform:none}#sideToggle:not([hidden]){display:inline-flex}body.app-page .app-main{width:100%;padding:12px}.mobile-side-backdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:90;background:#0009}.portal-links{gap:8px}.app-title-row{flex-wrap:wrap}#workspace .form-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
