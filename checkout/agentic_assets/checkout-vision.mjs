@@ -1,53 +1,27 @@
-// Explicitly authorized receipt input. Research UI only; no payment writes.
-export function visionMessage(value) {
-  if (value?.financially_verified !== false || value?.checkout_changed !== false)
-    return 'Vision analysis unavailable.';
-  if (value.decision === 'VISUAL_SUCCESS' && value.advance_research === true)
-    return 'Visual payment success recognized. Research analysis complete.';
-  if (value.visual_status === 'SUCCESS_RECOGNIZED')
-    return 'Visual payment success recognized. Amount uncertain or mismatched.';
-  return 'Payment success not recognized.';
+// Display only a server-returned, order-scoped receipt observation.
+// This is not an acquisition API or a financial-status update.
+export function receiptRecognized(observation, orderId) {
+  return typeof orderId === 'string' && orderId.length > 0 &&
+    observation?.order_id === orderId &&
+    observation.decision === 'VISUAL_SUCCESS' &&
+    observation.advance_research === true &&
+    observation.financially_verified === false &&
+    observation.checkout_changed === false;
 }
 
-export async function mountCheckoutVision({endpoint, host}) {
-  if (!host || host.querySelector('#checkout-vision')) return;
-  const response = await fetch(endpoint + '/vision', {cache:'no-store', signal:AbortSignal.timeout(5000)});
-  if (!response.ok) return;
-  const capability = await response.json();
-  if (capability.enabled !== true || capability.research_only !== true) return;
-  if (host.querySelector('#checkout-vision')) return;
+export function renderReceiptObservation({host, orderId, observation}) {
+  if (!host) return;
+  const previous = host.querySelector('#checkout-vision');
+  if (!receiptRecognized(observation, orderId)) {
+    previous?.remove();
+    return;
+  }
+  if (previous) return;
   const section = document.createElement('section');
   section.id = 'checkout-vision';
-  section.setAttribute('aria-label','Agentic Vision research');
-  section.innerHTML = '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" role="img" aria-label="Receipt analysis"><path d="M11 4H5v6M21 4h6v6M5 22v6h6M27 22v6h-6"/><path d="M7 16s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6Z"/><circle cx="16" cy="16" r="2.5"/></svg><p>Choose your own receipt for backend image analysis. This analyzes the image, not the debit.</p><label for="vision-receipt">Payment image</label><input id="vision-receipt" type="file" accept="image/png,image/jpeg,image/webp"><button class="secondary" type="button" id="vision-analyze" disabled>Analyze payment image</button><p role="status" aria-live="polite" id="vision-result">Awaiting authorized image.</p>';
-  host.append(section);
-  const file = section.querySelector('#vision-receipt');
-  const button = section.querySelector('#vision-analyze');
-  const result = section.querySelector('#vision-result');
-  let busy = false;
-  file.addEventListener('change', () => {
-    if (busy) return;
-    button.disabled = !file.files.length;
-    result.textContent = 'Image ready for analysis.';
-  });
-  button.addEventListener('click', async () => {
-    if (busy) return;
-    const image = file.files[0];
-    if (!image || !['image/png','image/jpeg','image/webp'].includes(image.type) || image.size > 4*1024*1024) {
-      result.textContent = 'Choose a supported image under 4 MB.';
-      return;
-    }
-    busy = true;
-    file.disabled = button.disabled = true;
-    result.textContent = 'Analyzing payment image…';
-    try {
-      const r = await fetch(endpoint + '/vision', {method:'POST', headers:{'Content-Type':image.type},
-        body:image, cache:'no-store', signal:AbortSignal.timeout(20000)});
-      if (!r.ok) throw Error();
-      result.textContent = visionMessage(await r.json());
-    } catch { result.textContent = 'Vision analysis unavailable or timed out.'; }
-    finally {
-      busy = false; file.disabled = false; button.disabled = !file.files.length;
-    }
-  });
+  section.setAttribute('role','status');
+  section.setAttribute('aria-live','polite');
+  section.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0;color:#74e6ad;font-weight:600;font-size:14px';
+  section.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><span>Receipt recognized</span>';
+  host.querySelector('#stage')?.after(section);
 }
