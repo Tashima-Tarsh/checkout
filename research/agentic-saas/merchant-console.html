@@ -371,7 +371,7 @@
             </label>
             <label class="field">Account holder / display name<input id="vpaHolder" required minlength="2" maxlength="100" placeholder="Name linked to this UPI ID"></label>
             <label class="field">Bank / UPI provider<input id="vpaBank" maxlength="100" placeholder="e.g. State Bank of India"></label>
-            <label class="field">Registered mobile (test only)<input id="vpaMobile" inputmode="numeric" pattern="[0-9]{10}" required></label><label class="field">Receiving bank last four digits<input id="vpaLast4" inputmode="numeric" pattern="[0-9]{4}" required maxlength="4"></label><label class="field">UPI account type
+            <label class="field">Registered mobile (test only)<input id="vpaMobile" inputmode="numeric" pattern="[0-9]{10}" required></label><label class="field">Receiving bank account number (synthetic only)<input id="vpaLast4" inputmode="numeric" pattern="[0-9]{6,34}" required maxlength="34"></label><label class="field">UPI account type
               <select id="vpaAccountType">
                 <option value="PERSONAL">Personal / P2P</option>
                 <option value="MERCHANT">Bank-issued merchant / P2M</option>
@@ -389,7 +389,7 @@
           <div class="module-head"><div><div class="overline">BULK IMPORT</div><h2>Upload UPI accounts</h2></div><button type="button" class="btn ghost small" id="downloadVpaTemplate"><span aria-hidden="true">↓</span> Download CSV template</button></div>
           <p class="module-intro">Import up to 1,000 synthetic account records including registered mobile and receiving bank last four digits. A duplicate or invalid record cancels the entire import.</p>
           <div class="import-actions"><label for="vpaCsvFile" class="file-picker"><span class="file-icon" aria-hidden="true">⇪</span><span><strong>Choose CSV file</strong><small>1,000 accounts maximum · 512 KB</small></span><input id="vpaCsvFile" type="file" accept=".csv,text/csv"></label><button type="button" id="importVpaCsv" class="btn primary">Import accounts</button></div>
-          <p class="fine" id="importVpaStatus" role="status" aria-live="polite">Expected columns: upi_id, account_holder, bank_name, account_type, mcc, registered_mobile, receiving_last4.</p>
+          <p class="fine" id="importVpaStatus" role="status" aria-live="polite">Expected columns: upi_id, account_holder, bank_name, account_type, mcc, registered_mobile, receiving_account_number.</p>
         </div>
       </section>
 
