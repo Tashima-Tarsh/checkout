@@ -234,3 +234,41 @@ def test_worker_skips_expired_and_terminal_orders(api):
     assert not dispatch_next(engine, Provider())
     with engine.connect() as conn:
         assert set(conn.scalars(select(jobs.c.order_id).where(jobs.c.dispatched == 1))) == {ids[2]}
+
+
+def test_expire_old_uat_links_only_preserves_records_and_new_orders(api):
+    from checkout.agentic_storage import orders, amount_reservations, expire_previous_uat_links
+    from checkout.agentic_api import now
+    from sqlalchemy import func
+    client, engine, _ = api
+    first = merchant(client, "Expiry target")
+    second = merchant(client, "Other merchant")
+    assert client.post("/api/accounts", headers=first, json=[account()]).status_code == 201
+    assert client.post("/api/accounts", headers=second, json=[account("other@example")]).status_code == 201
+    first_id = client.get("/api/accounts", headers=first).json()[0]["id"]
+    second_id = client.get("/api/accounts", headers=second).json()[0]["id"]
+    timestamp = now()
+    cutoff = timestamp - 10
+    ids = []
+    for index, (headers, aid) in enumerate([(first,first_id)]*4 + [(second,second_id)]):
+        result = client.post("/api/orders", headers=headers, json={
+            "account_id": aid, "amount_minor": 600+index}).json()
+        ids.append(result["id"])
+    assert client.post("/api/checkout/"+ids[1]+"/verify").status_code == 202
+    with engine.begin() as conn:
+        conn.execute(orders.update().where(orders.c.id.in_(ids)).values(created=cutoff-1, expires=timestamp+1000))
+        conn.execute(orders.update().where(orders.c.id==ids[2]).values(status="PAID"))
+        conn.execute(orders.update().where(orders.c.id==ids[3]).values(created=cutoff+1))
+        merchant_id = conn.scalar(select(orders.c.merchant_id).where(orders.c.id==ids[0]))
+    assert expire_previous_uat_links(engine, merchant_id=merchant_id, cutoff=cutoff, timestamp=timestamp)==2
+    assert expire_previous_uat_links(engine, merchant_id=merchant_id, cutoff=cutoff, timestamp=timestamp)==0
+    for i in (0,1):
+        assert client.get("/api/checkout/"+ids[i]).status_code == 410
+        assert client.post("/api/checkout/"+ids[i]+"/verify").status_code == 410
+    for i in (3,4):
+        assert client.get("/api/checkout/"+ids[i]).status_code == 200
+    with engine.connect() as conn:
+        assert conn.scalar(select(func.count()).select_from(orders))==5
+        assert conn.scalar(select(func.count()).select_from(amount_reservations))==5
+        assert conn.scalar(select(func.count()).select_from(jobs))==1
+        assert conn.scalar(select(orders.c.status).where(orders.c.id==ids[2]))=="PAID"
