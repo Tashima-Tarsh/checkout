@@ -90,6 +90,29 @@ def main():
             page.get_by_text("Receipt recognized",exact=True).wait_for()
             assert page.get_by_role("button",name="I Paid").is_enabled()
             assert page.get_by_text("Payment Done",exact=True).count()==0
+            # Delayed observation after I Paid: a pending page must keep checking.
+            state = {"submitted": False, "polls": 0}
+            def delayed_status(route):
+                payload = {"status":"PENDING" if state["submitted"] else "OPEN",
+                    "amount_minor":100,"discount_minor":0,"upi_id":"fixture-not-a-payment-address"}
+                if state["submitted"]:
+                    state["polls"] += 1
+                    if state["polls"] >= 2:
+                        payload["receipt_observation"] = {"order_id":"fixture","decision":"VISUAL_SUCCESS",
+                            "advance_research":True,"financially_verified":False,"checkout_changed":False}
+                route.fulfill(json=payload)
+            def submit(route):
+                state["submitted"] = True
+                route.fulfill(status=202,json={"status":"PENDING","financially_verified":False})
+            page.route("**/api/checkout/fixture", delayed_status)
+            page.route("**/api/checkout/fixture/verify", submit)
+            page.goto(base+"/checkout/fixture")
+            page.get_by_role("button",name="I Paid").click()
+            page.get_by_text("Verification pending.",exact=True).wait_for()
+            assert page.get_by_text("Receipt recognized",exact=True).count()==0
+            page.get_by_text("Receipt recognized",exact=True).wait_for(timeout=15000)
+            assert state["polls"] >= 2
+            assert page.get_by_text("Payment Done",exact=True).count()==0
             browser.close()
     finally:
         server.shutdown();server.server_close();worker.join()
