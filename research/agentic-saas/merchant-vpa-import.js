@@ -51,9 +51,10 @@
       const accountType=(field('account_type')||'PERSONAL').toUpperCase();
       const mcc=field('mcc');
       const registeredMobile=field('registered_mobile');
-      const receivingLast4=field('receiving_last4');
+      const accountNumber=field('receiving_account_number');
+      const receivingLast4=accountNumber.slice(-4);
       const line=index+2;
-      if(!/^[0-9]{10}$/.test(registeredMobile)||!/^\d{4}$/.test(receivingLast4))throw Error('Invalid mobile or receiving suffix on CSV line '+line);
+      if(!/^[0-9]{10}$/.test(registeredMobile)||!/^\d{6,34}$/.test(accountNumber))throw Error('Invalid mobile or receiving suffix on CSV line '+line);
       if(!VPA.test(vpaAddress))throw Error('Invalid UPI ID on CSV line '+line);
       if(holderName.length<2||holderName.length>100)throw Error('Invalid account holder name on CSV line '+line);
       if(bankName.length>100)throw Error('Bank name too long on CSV line '+line);
