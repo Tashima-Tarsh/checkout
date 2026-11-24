@@ -123,6 +123,7 @@ def portal():
     return FileResponse(ASSETS / "portal.html")
 
 
+@app.get("/checkout/{order_id}/diagnostics")
 @app.get("/checkout/{order_id}")
 def checkout(order_id: str):
     if not ORDER_ID.fullmatch(order_id):

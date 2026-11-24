@@ -19,7 +19,7 @@ export async function mountCheckoutVision({endpoint, host}) {
   const section = document.createElement('section');
   section.id = 'checkout-vision';
   section.setAttribute('aria-label','Agentic Vision research');
-  section.innerHTML = '<h3>Agentic Vision · Research</h3><p>Choose your own receipt for backend image analysis. This analyzes the image, not the debit.</p><label for="vision-receipt">Payment image</label><input id="vision-receipt" type="file" accept="image/png,image/jpeg,image/webp"><button class="secondary" type="button" id="vision-analyze" disabled>Analyze payment image</button><p role="status" aria-live="polite" id="vision-result">Awaiting authorized image.</p>';
+  section.innerHTML = '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" role="img" aria-label="Receipt analysis"><path d="M11 4H5v6M21 4h6v6M5 22v6h6M27 22v6h-6"/><path d="M7 16s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6Z"/><circle cx="16" cy="16" r="2.5"/></svg><p>Choose your own receipt for backend image analysis. This analyzes the image, not the debit.</p><label for="vision-receipt">Payment image</label><input id="vision-receipt" type="file" accept="image/png,image/jpeg,image/webp"><button class="secondary" type="button" id="vision-analyze" disabled>Analyze payment image</button><p role="status" aria-live="polite" id="vision-result">Awaiting authorized image.</p>';
   host.append(section);
   const file = section.querySelector('#vision-receipt');
   const button = section.querySelector('#vision-analyze');
