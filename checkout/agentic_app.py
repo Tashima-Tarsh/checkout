@@ -1,4 +1,6 @@
 """Independent Agentic Pay application entry point."""
+import asyncio
+import logging
 import os
 import re
 from contextlib import asynccontextmanager
@@ -14,8 +16,23 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.agentic_api import ORDER_ID, digest, router
 from checkout.agentic_storage import initialize, make_engine, merchants
+from checkout.agentic_worker import N8nProvider, dispatch_next
 
 ASSETS = Path(__file__).parent / "agentic_assets"
+log = logging.getLogger(__name__)
+
+
+async def dispatch_pending(engine, provider, stopped):
+    while not stopped.is_set():
+        try:
+            if await asyncio.to_thread(dispatch_next, engine, provider):
+                continue
+        except SQLAlchemyError:
+            log.error("Agentic Pay dispatch storage unavailable")
+        try:
+            await asyncio.wait_for(stopped.wait(), timeout=1)
+        except TimeoutError:
+            pass
 
 
 @asynccontextmanager
@@ -29,7 +46,22 @@ async def lifespan(app):
     try:
         initialize(engine)
         app.state.engine = engine
-        yield
+        webhook = os.environ.get("AGENTIC_N8N_WEBHOOK")
+        dispatch_token = os.environ.get("AGENTIC_N8N_TOKEN")
+        if bool(webhook) != bool(dispatch_token):
+            raise RuntimeError("Configure the n8n webhook and token together")
+        stopped = asyncio.Event()
+        task = None
+        if webhook:
+            task = asyncio.create_task(
+                dispatch_pending(engine, N8nProvider(webhook, dispatch_token), stopped)
+            )
+        try:
+            yield
+        finally:
+            stopped.set()
+            if task is not None:
+                await task
     finally:
         engine.dispose()
 
