@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {palette,observedMarker,classifyExperiment} from './split_screen_pixel_probe.mjs';
+import {palette,observedMarker,classifyExperiment} from '../checkout/agentic_assets/split-screen-pixel-probe.mjs';
 const challenge=[2,0,4,1],w=100,h=24;
 function frame(order){
   const data=new Uint8ClampedArray(w*h*4);

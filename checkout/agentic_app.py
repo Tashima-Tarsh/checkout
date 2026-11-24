@@ -141,6 +141,11 @@ def checkout(order_id: str):
     return FileResponse(ASSETS / "checkout.html")
 
 
+@app.get("/research/split-screen")
+def split_screen_research():
+    return FileResponse(ASSETS / "split-screen-pixel.html", headers={"Permissions-Policy": "display-capture=(self), camera=(), microphone=()"})
+
+
 @app.get("/agenticcheckouttest")
 def public_test_checkout(request: Request):
     if auto_enabled():
