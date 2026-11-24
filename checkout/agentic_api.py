@@ -3,15 +3,38 @@ import os
 import secrets
 import time
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from checkout.agentic_storage import accounts, agent_sessions
 from checkout.vpa_admin import require_admin
 
-router = APIRouter(prefix="/api/admin/agentic", tags=["agentic"])
+class AccountRoute(APIRoute):
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def handle(request: Request):
+            try:
+                return await handler(request)
+            except RequestValidationError:
+                return JSONResponse(
+                    status_code=422,
+                    content={"detail": "Invalid account registration input"},
+                )
+
+        return handle
+
+
+router = APIRouter(
+    prefix="/api/admin/agentic",
+    tags=["agentic"],
+    route_class=AccountRoute,
+    dependencies=[Depends(require_admin)],
+)
 
 class AccountInput(BaseModel):
     vpa: str = Field(pattern=r"^[a-zA-Z0-9_.-]{2,256}@[a-zA-Z0-9_.-]{2,64}$")
@@ -35,7 +58,6 @@ def encrypt_account(item, cipher):
 
 @router.post("/accounts")
 def register(request: Request, items: list[AccountInput]):
-    require_admin(request)
     if not 1 <= len(items) <= 1000:
         raise HTTPException(400,"Expected 1 to 1000 accounts")
     try:
@@ -53,7 +75,6 @@ def register(request: Request, items: list[AccountInput]):
 
 @router.get("/accounts")
 def inventory(request: Request):
-    require_admin(request)
     with request.app.state.engine.connect() as conn:
         rows=conn.execute(select(accounts.c.id,accounts.c.vpa,accounts.c.bank,accounts.c.last4,agent_sessions.c.state,agent_sessions.c.expires).join(agent_sessions)).mappings().all()
     return [dict(r, state="AUTH_REQUIRED" if r["expires"] <= int(time.time()) else r["state"]) for r in rows]
