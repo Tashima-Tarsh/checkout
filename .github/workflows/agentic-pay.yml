@@ -75,3 +75,9 @@ jobs:
       - run: bash n8n/test-dispatch.sh
       - run: docker build -f Dockerfile.n8n -t agentic-n8n:ci .
       - run: docker build -f Dockerfile.agentic-redis -t agentic-redis:ci .
+  n8n-regular:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash n8n/test-dispatch.sh regular

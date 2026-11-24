@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-compose() { docker compose -f compose.ci.yml "$@"; }
+mode=${1:-queue}
+compose() {
+  if [ "$mode" = regular ]; then
+    docker compose -f compose.ci.yml -f compose.regular-ci.yml "$@"
+  else
+    docker compose -f compose.ci.yml "$@"
+  fi
+}
 cleanup() {
   status=$?
-  if [ "$status" -ne 0 ]; then compose logs --tail=80 main worker; fi
+  if [ "$status" -ne 0 ]; then compose logs --tail=80; fi
   compose down -v
   exit "$status"
 }
@@ -34,7 +41,11 @@ PY
 compose run --rm main import:credentials --input=/imports/credential.json
 compose run --rm main import:workflow --input=/imports/workflow.json
 compose run --rm main publish:workflow --id=AgenticPayDispatch
-compose up -d main worker
+if [ "$mode" = regular ]; then
+  compose up -d main
+else
+  compose up -d main worker
+fi
 root=http://127.0.0.1:5678
 curl -fsS --retry 30 --retry-all-errors --retry-delay 2 "$root/healthz"
 endpoint="$root/webhook/agentic-pay-dispatch"
