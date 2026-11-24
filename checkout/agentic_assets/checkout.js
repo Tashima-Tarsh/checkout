@@ -10,6 +10,9 @@ let checkoutRevision = 0;
 let observationTimer;
 let expiryTimer;
 let returned = false;
+function paymentOpen(current) {
+  return current?.status === 'AWAITING_PAYMENT' || current?.status === 'PENDING';
+}
 function closeCheckout(message) {
   checkoutRevision++;
   stopObservationPolling();
@@ -55,6 +58,7 @@ function startObservationPolling() {
         if (response.ok) {
           const current = await response.json();
           if (!valid()) return;
+          if (!paymentOpen(current)) { closeCheckout('Checkout closed.'); return; }
           if (current.status === 'PENDING' && order.status !== 'PENDING') {
             order = current;
             pending();
@@ -122,6 +126,7 @@ async function refreshAfterReturn(event) {
     if (!response.ok) throw new Error();
     const current = await response.json();
     if (revision !== checkoutRevision) return;
+    if (!paymentOpen(current)) { closeCheckout('Checkout closed.'); return; }
     if (current.status === 'PENDING') {
       order = current;
       pending();
@@ -217,6 +222,7 @@ async function confirmPayment() {
     if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     order = await response.json();
+    if (!paymentOpen(order)) { closeCheckout('Checkout closed.'); return; }
     showOrder();
     updateReceipt(order);
     if (!diagnosticPage) startObservationPolling();
