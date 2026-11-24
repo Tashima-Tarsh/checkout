@@ -8,6 +8,26 @@ let order;
 let returnCallback;
 let checkoutRevision = 0;
 let observationTimer;
+let expiryTimer;
+function closeCheckout(message) {
+  checkoutRevision++;
+  stopObservationPolling();
+  clearTimeout(expiryTimer);
+  returnCallback?.disarm();
+  updateReceipt(null);
+  panel.textContent = message;
+}
+function scheduleExpiry() {
+  clearTimeout(expiryTimer);
+  if (!Number.isFinite(order?.expires)) return;
+  const check = () => {
+    const remaining = order.expires * 1000 - Date.now();
+    if (remaining <= 0) closeCheckout('Checkout expired.');
+    else expiryTimer = setTimeout(check, Math.min(remaining, 60000));
+  };
+  check();
+}
+
 let observationGeneration = 0;
 function stopObservationPolling() {
   clearTimeout(observationTimer);
@@ -27,8 +47,7 @@ function startObservationPolling() {
         const response = await fetch(endpoint, {cache:'no-store',signal:AbortSignal.timeout(8000)});
         if (!valid()) return;
         if ([404,410].includes(response.status)) {
-          updateReceipt(null);
-          panel.textContent = 'Checkout unavailable or expired.';
+          closeCheckout('Checkout expired or closed.');
           return;
         }
         if (response.ok) {
@@ -90,7 +109,7 @@ async function refreshAfterReturn(event) {
     const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
     if (revision !== checkoutRevision) return;
     if (response.status === 410 || response.status === 404) {
-      panel.textContent = 'Checkout unavailable or expired.';
+      closeCheckout('Checkout expired or closed.');
       return;
     }
     if (!response.ok) throw new Error();
@@ -153,6 +172,7 @@ async function confirmPayment() {
   status.textContent = 'Submitting verification request';
   try {
     const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
+    if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     diagnostics?.record('verify_ok');
     diagnostic?.record('request-ok');
@@ -170,11 +190,13 @@ async function confirmPayment() {
   try {
     await Promise.all([diagnosticsReady, returnReady, receiptReady]);
     const response = await fetch(endpoint);
+    if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     order = await response.json();
     showOrder();
     updateReceipt(order);
     if (order.status === 'PENDING') startObservationPolling();
+    scheduleExpiry();
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }
