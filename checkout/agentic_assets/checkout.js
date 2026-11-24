@@ -5,11 +5,18 @@ const panel = document.querySelector('#stage');
 const endpoint = '/api' + location.pathname;
 let order;
 let diagnostics;
-const diagnosticsReady = new URLSearchParams(location.search).get('diagnostic_lab') === '1'
+let diagnostic;
+const diagnosticParams = new URLSearchParams(location.search);
+// Preserve the existing diagnostics flag; activate only one panel per page.
+const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
   ? import('/assets/local-diagnostics.mjs').then(({mountDiagnostics}) => {
       diagnostics = mountDiagnostics();
     }).catch(() => {})
-  : Promise.resolve();
+  : diagnosticParams.get('diagnostics') === '1'
+    ? import('/assets/checkout-diagnostics.mjs').then(({mountDiagnostics}) => {
+        diagnostic = mountDiagnostics({host:document.querySelector('main.panel')});
+      }).catch(() => {})
+    : Promise.resolve();
 // Opt-in research only; no payment state mutation on return.
 let tracker;
 if (new URLSearchParams(location.search).get('return_lab') === '1') {
@@ -39,9 +46,11 @@ function showOrder() {
       await navigator.clipboard.writeText(order.upi_id);
       tracker?.arm();
       diagnostics?.record('copy_ok');
+    diagnostic?.record('copy-ok');
       status.textContent = 'UPI ID copied.';
     } catch {
       diagnostics?.record('copy_failed');
+    diagnostic?.record('copy-failed');
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
@@ -52,14 +61,17 @@ async function confirmPayment() {
   const status = panel.querySelector('[role=status]');
   button.disabled = true;
   diagnostics?.record('paid_click');
+  diagnostic?.record('paid-click');
   status.textContent = 'Submitting verification request';
   try {
     const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
     if (!response.ok) throw new Error();
     diagnostics?.record('verify_ok');
+    diagnostic?.record('request-ok');
     pending();
   } catch {
     diagnostics?.record('verify_failed');
+    diagnostic?.record('request-failed');
     status.textContent = 'Unable to submit or checkout expired. Please retry.';
     button.disabled = false;
   }
