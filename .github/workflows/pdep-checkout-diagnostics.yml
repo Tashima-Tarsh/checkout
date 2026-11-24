@@ -1,0 +1,12 @@
+name: PDEP checkout diagnostics
+on: [pull_request]
+jobs:
+  checkout-diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test research/checkout_diagnostics.spec.mjs
+      - run: node --check checkout/agentic_assets/checkout.js
