@@ -46,7 +46,8 @@ jobs:
             sh -ec 'python -m pip install --no-cache-dir playwright==1.52.0
                      python tests/browser_smoke.py
                      python research/browser_signal_lab.py
-                     python research/visibility_observation_lab.py'
+                     python research/visibility_observation_lab.py
+                     python research/opaque_fetch_lab.py'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
