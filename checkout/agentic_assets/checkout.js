@@ -9,11 +9,13 @@ let returnCallback;
 let checkoutRevision = 0;
 let observationTimer;
 let expiryTimer;
+let returned = false;
 function closeCheckout(message) {
   checkoutRevision++;
   stopObservationPolling();
   clearTimeout(expiryTimer);
   returnCallback?.disarm();
+  returned = false;
   updateReceipt(null);
   panel.textContent = message;
 }
@@ -35,7 +37,7 @@ function stopObservationPolling() {
 }
 function startObservationPolling() {
   stopObservationPolling();
-  if (diagnosticPage || document.querySelector('#checkout-vision')) return;
+  if (diagnosticPage || document.querySelector('#checkout-vision[data-result=recognized]')) return;
   const generation = observationGeneration;
   const revision = checkoutRevision;
   const deadline = Number.isFinite(order?.expires) ? order.expires * 1000 : Date.now() + 120000;
@@ -58,7 +60,7 @@ function startObservationPolling() {
             pending();
           }
           updateReceipt(current);
-          if (document.querySelector('#checkout-vision')) return;
+          if (document.querySelector('#checkout-vision[data-result=recognized]')) return;
         }
       } catch { /* A temporary network failure is not a result. */ }
     }
@@ -67,12 +69,12 @@ function startObservationPolling() {
   observationTimer = setTimeout(poll, 1000);
 }
 let renderReceiptObservation;
-const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=5').then(module => {
+const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=6').then(module => {
   renderReceiptObservation = module.renderReceiptObservation;
 }).catch(() => {});
 function updateReceipt(current) {
-  renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation});
-  if (!diagnosticPage && document.querySelector('#checkout-vision')) {
+  renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation, returned:returned && current != null});
+  if (!diagnosticPage && document.querySelector('#checkout-vision[data-result=recognized]')) {
     const status = panel.querySelector('[role=status]');
     if (status) status.textContent = '';
   }
@@ -127,6 +129,7 @@ async function refreshAfterReturn(event) {
     const message = panel.querySelector('[role=status]');
     if (message && current.status !== 'PENDING') message.textContent = diagnosticPage
       ? 'If you paid, select I Paid.' : '';
+    if (!diagnosticPage) returned = true;
     updateReceipt(current);
     startObservationPolling();
   } catch {
@@ -156,6 +159,8 @@ function showOrder() {
       await navigator.clipboard.writeText(order.upi_id);
       if (revision !== checkoutRevision) return;
       checkoutRevision++;
+      returned = false;
+      document.querySelector('#checkout-vision[data-result=not-observed]')?.remove();
       stopObservationPolling();
       returnCallback?.arm();
       tracker?.arm();
