@@ -110,3 +110,15 @@ def test_invalid_account_payload_is_redacted(api):
     response = client.post("/api/accounts", headers=headers, json=[item])
     assert response.status_code == 422
     assert response.json() == {"detail": "Invalid request input"}
+
+
+def test_thousand_accounts_get_unique_logical_agents(api):
+    client, _, _ = api
+    headers = merchant(client, "Scale Fixture")
+    items = [account(f"fixture-{number}@example") for number in range(1000)]
+    result = client.post("/api/accounts", headers=headers, json=items)
+    assert result.status_code == 201
+    agents = client.get("/api/agents", headers=headers).json()
+    assert len({row["agent_id"] for row in agents}) == 1000
+    assert {row["state"] for row in agents} == {"AUTH_REQUIRED"}
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 409
