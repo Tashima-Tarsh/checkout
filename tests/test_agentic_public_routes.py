@@ -43,6 +43,7 @@ def test_public_test_checkout_is_opt_in_read_only_and_exact_amount(monkeypatch, 
     try:
         monkeypatch.setattr(app.state, "engine", engine, raising=False)
         client = TestClient(app, follow_redirects=False)
+        monkeypatch.delenv("AGENTIC_TEST_AMOUNT_MINOR", raising=False)
         monkeypatch.delenv("AGENTIC_TEST_ORDER_ID", raising=False)
         assert client.get("/agenticcheckouttest").status_code == 404
         monkeypatch.setenv("AGENTIC_TEST_ORDER_ID", "https://example.invalid/")
@@ -60,8 +61,13 @@ def test_public_test_checkout_is_opt_in_read_only_and_exact_amount(monkeypatch, 
         with engine.begin() as conn:
             conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=101))
         assert client.get("/agenticcheckouttest").status_code == 404
-        with engine.begin() as conn:
-            conn.execute(amount_reservations.update().values(payable_minor=100))
+        monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", "101")
+        assert client.get("/agenticcheckouttest").status_code == 303
+        for invalid in ("0", "1.01", "200", "-101", "abc"):
+            # 200 is syntactically valid but must not match the reserved 101.
+            monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", invalid)
+            assert client.get("/agenticcheckouttest").status_code == 404
+        monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", "101")
         for _ in range(3):
             response = client.get("/agenticcheckouttest")
             assert response.status_code == 303

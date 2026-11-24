@@ -136,7 +136,8 @@ def public_test_checkout(request: Request):
     # Operator opts in by selecting an already allocated, authorized test order.
     # Public GET never creates an order, consumes an amount, or changes payment state.
     order_id = os.environ.get("AGENTIC_TEST_ORDER_ID", "")
-    if not ORDER_ID.fullmatch(order_id):
+    amount = os.environ.get("AGENTIC_TEST_AMOUNT_MINOR", "100")
+    if not re.fullmatch(r"1[0-9]{2}", amount) or not ORDER_ID.fullmatch(order_id):
         raise HTTPException(404, "Test checkout not configured")
     with request.app.state.engine.connect() as conn:
         order = conn.execute(
@@ -145,7 +146,7 @@ def public_test_checkout(request: Request):
                   & (amount_reservations.c.account_id == orders.c.account_id))
             .where(orders.c.id == order_id)
         ).mappings().first()
-    if order is None or order["payable_minor"] != 100:
+    if order is None or order["payable_minor"] != int(amount):
         raise HTTPException(404, "Test checkout unavailable")
     if order["status"] != "AWAITING_PAYMENT" or order["expires"] <= now():
         raise HTTPException(410, "Test checkout expired or already submitted")
