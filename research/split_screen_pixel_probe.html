@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Split-screen synthetic pixel test</title>
+<style>body{font:16px system-ui;max-width:680px;margin:24px auto;padding:16px}button,a{display:block;padding:12px;margin:12px 0}#target{display:flex;width:100%;height:120px}#target span{flex:1}pre{white-space:pre-wrap}</style>
+<h1>Split-screen synthetic pixel test</h1><p id="instructions">Research only. Use the generated color target in a separate controlled window. Do not display payment apps, PINs, notifications or personal information during capture. No image is saved or sent.</p><a id="open" target="_blank" rel="noopener">Open separate synthetic target</a><button id="start">Select synthetic target for one-frame test</button><div id="target"></div><pre id="result" role="status"></pre>
+<script type="module">
+import {palette,observedMarker,classifyExperiment} from './split_screen_pixel_probe.mjs';
+const el=id=>document.getElementById(id);
+const q=new URLSearchParams(location.search),given=q.get('target');
+if(given&&/^[0-5]{4}$/.test(given)&&new Set(given).size===4){
+ el('open').hidden=el('start').hidden=true;
+ el('instructions').textContent='Synthetic target only. Keep this visible in the second pane.';
+ for(const c of given){const band=document.createElement('span');band.style.backgroundColor='rgb('+palette[Number(c)].join(',')+')';el('target').append(band);}
+}else{
+ const candidates=[0,1,2,3,4,5],challenge=[];
+ while(challenge.length<4){const value=crypto.getRandomValues(new Uint32Array(1))[0];challenge.push(candidates.splice(value%candidates.length,1)[0]);}
+ const url=new URL(location.href);url.search='';url.searchParams.set('target',challenge.join(''));el('open').href=url.href;
+ const begin=performance.now();
+ const supported=typeof navigator.mediaDevices?.getDisplayMedia==='function';
+ el('result').textContent=supported?'Capture API available. Select only the synthetic target window.':'CAPTURE_UNSUPPORTED';
+ el('start').disabled=!supported;
+ el('start').onclick=async()=>{
+  el('start').disabled=true;
+  let stream,video,canvas;
+  try{
+   stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+   if(performance.now()-begin>120000)throw Error('WINDOW_EXPIRED');
+   video=document.createElement('video');video.muted=true;video.srcObject=stream;await video.play();
+   if(!video.videoWidth||!video.videoHeight||video.videoWidth*video.videoHeight>12000000)throw Error('FRAME_UNAVAILABLE');
+   canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+   const context=canvas.getContext('2d');context.drawImage(video,0,0);
+   const pixels=context.getImageData(0,0,canvas.width,canvas.height);
+   const markerObserved=observedMarker(pixels.data,canvas.width,canvas.height,challenge);
+   pixels.data.fill(0);
+   el('result').textContent=classifyExperiment({supported:true,consented:true,markerObserved,elapsedMs:performance.now()-begin});
+  }catch(e){el('result').textContent=e.message==='WINDOW_EXPIRED'?'WINDOW_EXPIRED':'CAPTURE_NOT_AVAILABLE_OR_DENIED';}
+  finally{stream?.getTracks().forEach(t=>t.stop());if(video)video.srcObject=null;if(canvas){canvas.width=0;canvas.height=0;}}
+ };
+}
+</script></html>
