@@ -162,6 +162,7 @@ function showOrder() {
 }
 async function confirmPayment() {
   checkoutRevision++;
+  const revision = checkoutRevision;
   stopObservationPolling();
   returnCallback?.disarm();
   const button = panel.querySelector('#paid');
@@ -172,6 +173,7 @@ async function confirmPayment() {
   status.textContent = 'Submitting verification request';
   try {
     const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
+    if (revision !== checkoutRevision) return;
     if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     diagnostics?.record('verify_ok');
@@ -180,6 +182,7 @@ async function confirmPayment() {
     pending();
     startObservationPolling();
   } catch {
+    if (revision !== checkoutRevision) return;
     diagnostics?.record('verify_failed');
     diagnostic?.record('request-failed');
     status.textContent = 'Unable to submit or checkout expired. Please retry.';

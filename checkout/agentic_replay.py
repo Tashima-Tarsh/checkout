@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from checkout.agentic_storage import evidence_consumption, orders
+from checkout.agentic_storage import evidence_consumption, orders, shared_test_orders
 
 
 def reserve_reference(conn, *, order_id, merchant_id, account_id, reference, now):
@@ -24,6 +24,9 @@ def reserve_reference(conn, *, order_id, merchant_id, account_id, reference, now
     ).with_for_update()).mappings().first()
     if order is None:
         return "SCOPE_MISMATCH"
+    if conn.scalar(select(shared_test_orders.c.order_id).where(
+        shared_test_orders.c.order_id == order_id)) is not None:
+        return "ORDER_NOT_ELIGIBLE"
     if order["status"] != "PENDING" or not order["created"] <= now < order["expires"]:
         return "ORDER_NOT_ELIGIBLE"
     if conn.dialect.name == "postgresql":

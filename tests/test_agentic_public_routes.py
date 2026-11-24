@@ -101,6 +101,7 @@ def test_automatic_test_checkout_allocates_distinct_amounts_and_reuses_session(m
         monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
         monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
+        monkeypatch.delenv("AGENTIC_TEST_SHARED_AMOUNT", raising=False)
         with engine.begin() as conn:
             conn.execute(merchants.insert().values(id=merchant, name="fixture", token_hash="d"*64))
             conn.execute(accounts.insert().values(id=account, merchant_id=merchant, vpa="fixture@example",
@@ -136,5 +137,55 @@ def test_automatic_test_checkout_allocates_distinct_amounts_and_reuses_session(m
         assert clients[0].get("/api"+fresh).json()["amount_minor"] == 103
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "0")
         assert clients[0].post("/api/agenticcheckouttest", headers={"origin":origin}).status_code == 404
+    finally:
+        engine.dispose()
+
+
+def test_shared_uat_amount_has_no_pool_exhaustion_and_cannot_consume_evidence(monkeypatch, tmp_path):
+    from sqlalchemy import create_engine, select, func
+    from checkout.agentic_api import now, unused_payable
+    from checkout.agentic_replay import reserve_reference
+    from checkout.agentic_storage import accounts, amount_reservations, merchants, metadata, orders, shared_test_orders
+    engine = create_engine("sqlite:///" + str(tmp_path / "shared-test.db"))
+    metadata.create_all(engine)
+    merchant, account = "a"*32, "b"*32
+    origin = "https://agenticpay.thenitishkr.in"
+    try:
+        monkeypatch.setattr(app.state, "engine", engine, raising=False)
+        monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
+        monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
+        monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
+        monkeypatch.setenv("AGENTIC_TEST_SHARED_AMOUNT", "1")
+        monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", "100")
+        with engine.begin() as conn:
+            conn.execute(merchants.insert().values(id=merchant,name="fixture",token_hash="d"*64))
+            conn.execute(accounts.insert().values(id=account,merchant_id=merchant,vpa="fixture@example",
+                bank="fixture",holder="fixture",account_cipher="fixture",mobile_cipher="fixture",
+                last4="0000",account_type="PERSONAL"))
+            conn.execute(orders.insert(), [dict(id=format(v,"048x"), merchant_id=merchant,
+                account_id=account,amount_minor=v,created=now()-7200,expires=now()-3600,
+                status="AWAITING_PAYMENT") for v in range(100,200)])
+            conn.execute(amount_reservations.insert(), [dict(order_id=format(v,"048x"),
+                account_id=account,payable_minor=v) for v in range(100,200)])
+        ids = []
+        # Do not enter app lifespan: use isolated fixture engine as above.
+        for _ in range(2):
+            client = TestClient(app,base_url=origin,follow_redirects=False)
+            assert client.get("/agenticcheckouttest").status_code == 200
+            result = client.post("/api/agenticcheckouttest",headers={"origin":origin})
+            assert result.status_code == 200
+            path = result.json()["checkout_path"]
+            assert client.get("/api"+path).json()["amount_minor"] == 100
+            assert client.post("/api/agenticcheckouttest",headers={"origin":origin}).json()["checkout_path"] == path
+            assert client.post("/api"+path+"/verify").status_code == 202
+            ids.append(path.split("/")[-1])
+        assert len(set(ids)) == 2
+        with engine.begin() as conn:
+            assert conn.scalar(select(func.count()).select_from(amount_reservations)) == 100
+            assert set(conn.scalars(select(shared_test_orders.c.order_id))) == set(ids)
+            assert unused_payable(conn,account,100,100) is None
+            for oid in ids:
+                assert reserve_reference(conn,order_id=oid,merchant_id=merchant,
+                    account_id=account,reference="123456789012",now=now()) == "ORDER_NOT_ELIGIBLE"
     finally:
         engine.dispose()

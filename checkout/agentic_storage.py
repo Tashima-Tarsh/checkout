@@ -62,6 +62,11 @@ amount_reservations = Table(
     Column("payable_minor", Integer, nullable=False),
     UniqueConstraint("account_id", "payable_minor"),
 )
+# Explicitly marked repeat-amount UAT orders are observational only.
+shared_test_orders = Table(
+    "ap_shared_test_orders", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+)
 # Only an independently authenticated source may eventually consume this ledger.
 # No public or worker ingestion endpoint is enabled by this schema.
 evidence_consumption = Table(

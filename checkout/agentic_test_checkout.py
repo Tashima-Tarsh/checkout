@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 
 from checkout.agentic_api import event, now, unused_payable
 from checkout.agentic_login import require_same_origin
-from checkout.agentic_storage import accounts, amount_reservations, orders
+from checkout.agentic_storage import accounts, amount_reservations, orders, shared_test_orders
 
 router = APIRouter()
 COOKIE = "__Host-agentic_test_session"
@@ -89,11 +89,23 @@ def allocate_test(request: Request):
             orders.c.account_id == account, orders.c.created > timestamp - 60))
         if recent >= MAX_NEW_PER_MINUTE:
             raise HTTPException(429, "Please retry shortly")
-        payable = unused_payable(conn, account, LOWER, UPPER, ascending=True)
-        if payable is None:
-            raise HTTPException(409, "Test amount pool exhausted")
+        shared = os.getenv("AGENTIC_TEST_SHARED_AMOUNT") == "1"
+        if shared:
+            configured = os.getenv("AGENTIC_TEST_AMOUNT_MINOR", "100")
+            if not re.fullmatch(r"1[0-9]{2}", configured):
+                raise HTTPException(503, "Test amount configuration invalid")
+            payable = int(configured)
+        else:
+            payable = unused_payable(conn, account, LOWER, UPPER, ascending=True)
+            if payable is None:
+                raise HTTPException(409, "Test amount pool exhausted")
         conn.execute(orders.insert().values(id=oid, merchant_id=identity, account_id=account,
             amount_minor=payable, created=timestamp, expires=timestamp+1800, status="AWAITING_PAYMENT"))
-        conn.execute(amount_reservations.insert().values(order_id=oid, account_id=account, payable_minor=payable))
-        event(conn, identity, "TEST_ORDER_CREATED")
+        if shared:
+            # Deliberately ambiguous amount; this order cannot consume financial evidence.
+            # The regular allocator also excludes unreserved historical order amounts.
+            conn.execute(shared_test_orders.insert().values(order_id=oid))
+        else:
+            conn.execute(amount_reservations.insert().values(order_id=oid, account_id=account, payable_minor=payable))
+        event(conn, identity, "TEST_SHARED_ORDER_CREATED" if shared else "TEST_ORDER_CREATED")
     return {"checkout_path": "/checkout/" + oid}
