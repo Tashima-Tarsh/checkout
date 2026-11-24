@@ -38,7 +38,7 @@ function startObservationPolling() {
   if (diagnosticPage || document.querySelector('#checkout-vision')) return;
   const generation = observationGeneration;
   const revision = checkoutRevision;
-  const deadline = Date.now() + 120000;
+  const deadline = Number.isFinite(order?.expires) ? order.expires * 1000 : Date.now() + 120000;
   const valid = () => generation === observationGeneration && revision === checkoutRevision;
   async function poll() {
     if (!valid() || Date.now() >= deadline) return;
@@ -62,7 +62,7 @@ function startObservationPolling() {
         }
       } catch { /* A temporary network failure is not a result. */ }
     }
-    if (valid() && Date.now() < deadline) observationTimer = setTimeout(poll, 3000);
+    if (valid() && Date.now() < deadline) observationTimer = setTimeout(poll, 5000);
   }
   observationTimer = setTimeout(poll, 1000);
 }
@@ -143,8 +143,10 @@ function showOrder() {
     'Merchant discount: ' + formatAmount(order.discount_minor);
   panel.querySelector('#copy').onclick = async () => {
     const status = panel.querySelector('[role=status]');
+    const revision = checkoutRevision;
     try {
       await navigator.clipboard.writeText(order.upi_id);
+      if (revision !== checkoutRevision) return;
       checkoutRevision++;
       stopObservationPolling();
       returnCallback?.arm();
@@ -153,6 +155,7 @@ function showOrder() {
     diagnostic?.record('copy-ok');
       status.textContent = 'UPI ID copied.';
     } catch {
+      if (revision !== checkoutRevision) return;
       diagnostics?.record('copy_failed');
     diagnostic?.record('copy-failed');
       status.textContent = 'Unable to copy. Please retry.';
@@ -167,7 +170,9 @@ async function confirmPayment() {
   returnCallback?.disarm();
   const button = panel.querySelector('#paid');
   const status = panel.querySelector('[role=status]');
+  const copy = panel.querySelector('#copy');
   button.disabled = true;
+  if (copy) copy.disabled = true;
   diagnostics?.record('paid_click');
   diagnostic?.record('paid-click');
   status.textContent = 'Submitting verification request';
@@ -187,6 +192,7 @@ async function confirmPayment() {
     diagnostic?.record('request-failed');
     status.textContent = 'Unable to submit or checkout expired. Please retry.';
     button.disabled = false;
+    if (copy) copy.disabled = false;
   }
 }
 (async () => {
