@@ -49,9 +49,11 @@ class N8nProvider:
 
 def dispatch_next(engine, provider: EvidenceProvider):
     with engine.begin() as conn:
+        timestamp = int(time.time())
         row = conn.execute(
             select(jobs, orders.c.account_id, orders.c.merchant_id).join(orders)
-            .where(jobs.c.attempts < 5, jobs.c.dispatched == 0, jobs.c.retry_at <= int(time.time()))
+            .where(jobs.c.attempts < 5, jobs.c.dispatched == 0, jobs.c.retry_at <= timestamp,
+                   orders.c.status == "PENDING", orders.c.expires > timestamp)
             .order_by(jobs.c.created).limit(1).with_for_update(of=jobs, skip_locked=True)
         ).mappings().first()
         if row is None:

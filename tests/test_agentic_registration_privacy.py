@@ -208,3 +208,29 @@ def test_checkout_expiry_and_terminal_state_close_public_access(api):
         assert conn.scalar(select(func.count()).select_from(orders)) == 3
         assert conn.scalar(select(func.count()).select_from(amount_reservations)) == 3
         assert conn.scalar(select(func.count()).select_from(jobs)) == 1
+
+
+def test_worker_skips_expired_and_terminal_orders(api):
+    from checkout.agentic_storage import orders
+    from checkout.agentic_api import now
+    client, engine, _ = api
+    headers = merchant(client, "Worker fixture")
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 201
+    aid = client.get("/api/accounts", headers=headers).json()[0]["id"]
+    ids = []
+    for amount in (501, 502, 503):
+        created = client.post("/api/orders", headers=headers, json={
+            "account_id": aid, "amount_minor": amount}).json()
+        assert client.post("/api" + created["checkout_path"] + "/verify").status_code == 202
+        ids.append(created["id"])
+    with engine.begin() as conn:
+        conn.execute(orders.update().where(orders.c.id == ids[0]).values(expires=now()-1))
+        conn.execute(orders.update().where(orders.c.id == ids[1]).values(status="PAID"))
+    class Provider:
+        def dispatch(self, order_id, account_id):
+            assert order_id == ids[2]
+            assert account_id == aid
+    assert dispatch_next(engine, Provider())
+    assert not dispatch_next(engine, Provider())
+    with engine.connect() as conn:
+        assert set(conn.scalars(select(jobs.c.order_id).where(jobs.c.dispatched == 1))) == {ids[2]}

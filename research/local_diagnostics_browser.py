@@ -113,6 +113,13 @@ def main():
             page.get_by_text("Receipt recognized",exact=True).wait_for(timeout=15000)
             assert state["polls"] >= 2
             assert page.get_by_text("Payment Done",exact=True).count()==0
+            # Expired session must not display copy or submit controls.
+            page.route("**/api/checkout/fixture", lambda r: r.fulfill(status=410,json={"detail":"Checkout expired"}))
+            page.goto(base+"/checkout/fixture")
+            page.get_by_text("Checkout expired or closed.",exact=True).wait_for()
+            assert page.get_by_role("button",name="Copy UPI ID").count()==0
+            assert page.get_by_role("button",name="I Paid").count()==0
+            assert page.get_by_text("Receipt recognized",exact=True).count()==0
             browser.close()
     finally:
         server.shutdown();server.server_close();worker.join()
