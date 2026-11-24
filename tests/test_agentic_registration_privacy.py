@@ -86,7 +86,7 @@ def test_customer_checkout_is_idempotent_and_only_pending(api):
     assert client.get(path).status_code == 200
     assert client.get("/api" + path).json()["upi_id"] == "first@example"
     for _ in range(2):
-        result = client.post("/api" + path + "/verify", json={"payer_last4": "0123"})
+        result = client.post("/api" + path + "/verify", )
         assert result.status_code == 202
         assert result.json() == {"status": "PENDING", "financially_verified": False}
 
@@ -157,3 +157,25 @@ def test_email_session_is_revocable_and_scoped(api, monkeypatch):
     assert browser.post("/api/auth/login", headers=origin, json=credentials).status_code == 204
     agentic_app.app.state.password_login = PasswordLogin(password + "-rotated", "a" * 43, merchant_id)
     assert browser.get("/api/agents").status_code == 401
+
+def test_no_input_and_unique_discount_reservations(api, monkeypatch):
+    client, engine, _ = api
+    headers = merchant(client, "Reservation merchant")
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 201
+    aid = client.get("/api/accounts", headers=headers).json()[0]["id"]
+    payload = dict(account_id=aid, amount_minor=4900, max_discount_minor=1)
+    first = client.post("/api/orders", headers=headers, json=payload).json()
+    second = client.post("/api/orders", headers=headers, json=payload).json()
+    assert (first["payable_minor"], second["payable_minor"]) == (4900,4899)
+    assert second["discount_minor"] == 1
+    path = "/api" + second["checkout_path"]
+    assert client.get(path).json()["amount_minor"] == 4899
+    assert client.post(path+"/verify").json() == {"status":"PENDING","financially_verified":False}
+    assert client.post(path+"/verify").status_code == 202
+    assert client.post("/api/orders", headers=headers, json=payload).status_code == 409
+    # Overlapping original prices cannot allocate the same payable amount.
+    assert client.post("/api/orders", headers=headers, json=dict(payload,amount_minor=4899,max_discount_minor=0)).status_code == 409
+    from checkout.agentic_storage import orders
+    with engine.begin() as conn:
+        conn.execute(orders.update().values(expires=1))
+    assert client.post("/api/orders", headers=headers, json=payload).status_code == 409

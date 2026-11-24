@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders
+from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -82,10 +82,8 @@ class AccountInput(BaseModel):
 class OrderInput(BaseModel):
     account_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     amount_minor: int = Field(strict=True, ge=100, le=10000000)
+    max_discount_minor: int = Field(default=0, strict=True, ge=0, le=99)
 
-
-class VerificationInput(BaseModel):
-    payer_last4: str = Field(pattern=r"^[0-9]{4}$")
 
 
 def now():
@@ -199,15 +197,31 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
     with request.app.state.engine.begin() as conn:
         account = conn.scalar(select(accounts.c.id).where(
             accounts.c.id == item.account_id, accounts.c.merchant_id == identity,
-        ))
+        ).with_for_update())
         if account is None:
             raise HTTPException(404, "Account not found")
+        # Serialize allocations per receiving account. Include all historical
+        # original amounts conservatively (legacy links may still be payable).
+        lower = max(100, item.amount_minor - item.max_discount_minor)
+        used = set(conn.scalars(select(amount_reservations.c.payable_minor).where(
+            amount_reservations.c.account_id == account,
+            amount_reservations.c.payable_minor.between(lower, item.amount_minor))))
+        used.update(conn.scalars(select(orders.c.amount_minor).where(
+            orders.c.account_id == account,
+            orders.c.amount_minor.between(lower, item.amount_minor),
+            ~select(amount_reservations.c.order_id).where(
+                amount_reservations.c.order_id == orders.c.id).exists())))
+        payable = next((value for value in range(item.amount_minor, lower-1, -1)
+                        if value not in used), None)
+        if payable is None:
+            raise HTTPException(409, "Payment amount pool exhausted; no safe unused amount")
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
             created=created, expires=created + 1800, status="AWAITING_PAYMENT",
         ))
+        conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=payable))
         event(conn, identity, "ORDER_CREATED")
-    return {"id": order_id, "checkout_path": f"/checkout/{order_id}"}
+    return {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
 
 
 @router.get("/orders")
@@ -238,11 +252,17 @@ def checkout_info(request: Request, order_id: str):
         vpa = conn.scalar(select(accounts.c.vpa).where(
             accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
         ))
-        return {"amount_minor": order["amount_minor"], "upi_id": vpa, "status": order["status"]}
+        payable = conn.scalar(select(amount_reservations.c.payable_minor).where(
+            amount_reservations.c.order_id == order_id,
+            amount_reservations.c.account_id == order["account_id"]))
+        return {"amount_minor": payable if payable is not None else order["amount_minor"],
+                "original_minor": order["amount_minor"],
+                "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
+                "expires": order["expires"], "upi_id": vpa, "status": order["status"]}
 
 
 @router.post("/checkout/{order_id}/verify", status_code=202)
-def verify(request: Request, order_id: str, item: VerificationInput):
+def verify(request: Request, order_id: str):
     with request.app.state.engine.begin() as conn:
         order = checkout_order(conn, order_id, lock=True)
         if order["status"] == "AWAITING_PAYMENT":

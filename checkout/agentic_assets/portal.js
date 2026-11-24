@@ -92,8 +92,8 @@ submit('import', async ({file}) => {
   await call('/accounts/import', {method: 'POST', body: file, csv: true});
   await refresh();
 }, 'Accounts imported.');
-submit('new-order', async ({amount, account_id}) => {
-  const row = await call('/orders', {method: 'POST', body: JSON.stringify({amount_minor: Math.round(Number(amount) * 100), account_id})});
+submit('new-order', async ({amount, account_id, max_discount_minor}) => {
+  const row = await call('/orders', {method: 'POST', body: JSON.stringify({amount_minor: Math.round(Number(amount) * 100), account_id, max_discount_minor: Number(max_discount_minor)})});
   const link = document.createElement('a');
   link.href = row.checkout_path;
   link.textContent = new URL(row.checkout_path, location.origin).href;
