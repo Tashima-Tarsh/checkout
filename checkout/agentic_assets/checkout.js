@@ -4,6 +4,16 @@ network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Da
 const panel = document.querySelector('#stage');
 const endpoint = '/api' + location.pathname;
 let order;
+// Opt-in research only; no payment state mutation on return.
+let tracker;
+if (new URLSearchParams(location.search).get('return_lab') === '1') {
+  import('/assets/return-tracker.mjs').then(({attachReturnTracker}) => {
+    tracker = attachReturnTracker(async trace => {
+      console.info('PDEP return research', trace);
+      try { const response = await fetch(endpoint, {cache:'no-store'}); if (response.ok) console.info('PDEP status', (await response.json()).status); } catch { /* observational only */ }
+    });
+  }).catch(() => {});
+}
 function pending() {
   panel.innerHTML = '<h2>Verification pending</h2><p role="status">Payment confirmation awaits authorized credit evidence.</p>';
 }
@@ -17,6 +27,7 @@ function showOrder() {
     const status = panel.querySelector('[role=status]');
     try {
       await navigator.clipboard.writeText(order.upi_id);
+      tracker?.arm();
       status.textContent = 'UPI ID copied.';
     } catch {
       status.textContent = 'Unable to copy. Please retry.';
