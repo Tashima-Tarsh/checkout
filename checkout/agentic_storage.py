@@ -76,6 +76,16 @@ evidence_consumption = Table(
     Column("order_id", ForeignKey("ap_orders.id"), unique=True, nullable=False),
     Column("created", BigInteger, nullable=False),
 )
+# Visual deduplication only; never consumes the financial evidence ledger.
+receipt_observations = Table(
+    "ap_receipt_observations", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+    Column("frame_digest", String(64), unique=True, nullable=False),
+    Column("reference_digest", String(64), unique=True, nullable=False),
+    Column("decision", String(32), nullable=False),
+    Column("created", BigInteger, nullable=False),
+    Column("expires", BigInteger, nullable=False),
+)
 audit = Table(
     "ap_audit", metadata,
     Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True),
