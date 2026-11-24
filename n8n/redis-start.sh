@@ -6,7 +6,7 @@ esac
 [ "$(printf '%s' "$AGENTIC_REDIS_PASSWORD" | wc -c)" -ge 43 ]
 umask 077
 {
-  printf 'bind * -::*\n'
+  printf 'bind 0.0.0.0 -::\n'
   printf 'protected-mode yes\n'
   printf 'requirepass %s\n' "$AGENTIC_REDIS_PASSWORD"
   printf 'appendonly yes\n'
