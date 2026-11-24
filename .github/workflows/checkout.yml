@@ -37,10 +37,16 @@ jobs:
       - run: docker build -t pdep-checkout:test .
       - run: docker run --detach --network host --env DATABASE_URL --name pdep pdep-checkout:test
       - run: curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/healthz
-      - run: python -m playwright install --with-deps chromium
-      - run: python tests/browser_smoke.py
-      - run: python research/browser_signal_lab.py
-      - run: python research/visibility_observation_lab.py
+      - name: Run browser smoke and research checks
+        timeout-minutes: 8
+        run: |
+          docker run --rm --init --ipc host --network host \
+            -v "$PWD:/workspace" -w /workspace \
+            mcr.microsoft.com/playwright/python:v1.52.0-noble \
+            sh -ec 'python -m pip install --no-cache-dir playwright==1.52.0
+                     python tests/browser_smoke.py
+                     python research/browser_signal_lab.py
+                     python research/visibility_observation_lab.py'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
