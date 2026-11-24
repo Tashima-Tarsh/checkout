@@ -223,3 +223,25 @@ def test_saas_appearance_admin_and_observations(client, monkeypatch):
     assert local.get("/api/appearance").json() == appearance
     overview = local.get("/api/admin/overview", headers=headers).json()
     assert overview["financially_verified"] == 0
+
+
+@pytest.mark.parametrize("mode,mcc", [("P2P", None), ("P2M", "5411")])
+def test_qr_encoder_receives_exact_payment_uri(client, monkeypatch, mode, mcc):
+    from checkout import server
+
+    payloads = []
+    original_make = server.qrcode.make
+
+    def capture_make(payload, *args, **kwargs):
+        payloads.append(payload)
+        return original_make(payload, *args, **kwargs)
+
+    monkeypatch.setattr(server.qrcode, "make", capture_make)
+    session, path, headers = create(client, mode, mcc)
+    response = client.get(path + "/qr.png", headers=headers)
+    assert response.status_code == 200
+    assert response.content.startswith(b"\x89PNG")
+    assert payloads == [session["payment_uri"]]
+    assert session["token"] not in payloads[0]
+    params = parse_qs(urlsplit(payloads[0]).query)
+    assert params.get("mc") == ([mcc] if mcc else None)
