@@ -4,6 +4,12 @@ network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Da
 const panel = document.querySelector('#stage');
 const endpoint = '/api' + location.pathname;
 let order;
+let diagnostic;
+if (new URLSearchParams(location.search).get('diagnostics') === '1') {
+  import('/assets/checkout-diagnostics.mjs').then(({mountDiagnostics}) => {
+    diagnostic = mountDiagnostics({host:document.querySelector('main.panel')});
+  }).catch(() => {});
+}
 // Opt-in research only; no payment state mutation on return.
 let tracker;
 if (new URLSearchParams(location.search).get('return_lab') === '1') {
@@ -32,8 +38,10 @@ function showOrder() {
     try {
       await navigator.clipboard.writeText(order.upi_id);
       tracker?.arm();
+      diagnostic?.record('copy-ok');
       status.textContent = 'UPI ID copied.';
     } catch {
+      diagnostic?.record('copy-failed');
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
@@ -42,13 +50,16 @@ function showOrder() {
 async function confirmPayment() {
   const button = panel.querySelector('#paid');
   const status = panel.querySelector('[role=status]');
+  diagnostic?.record('paid-click');
   button.disabled = true;
   status.textContent = 'Submitting verification request';
   try {
     const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
     if (!response.ok) throw new Error();
+    diagnostic?.record('request-ok');
     pending();
   } catch {
+    diagnostic?.record('request-failed');
     status.textContent = 'Unable to submit or checkout expired. Please retry.';
     button.disabled = false;
   }
