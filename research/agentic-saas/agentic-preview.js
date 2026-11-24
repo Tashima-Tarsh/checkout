@@ -10,7 +10,7 @@ document.querySelectorAll('[data-view],[data-switch]').forEach(b=>b.addEventList
 $('sideToggle')?.addEventListener('click',()=> $('appSide')?.classList.toggle('open'));
 $('refreshVpas')?.addEventListener('click',render);
 $('importVpaCsv')?.addEventListener('click',async()=>{try{const f=$('vpaCsvFile').files[0];if(!f)throw Error('Choose synthetic CSV');if(f.size>512*1024)throw Error('File too large');add(window.AgenticVpaImport.parseVpaCsv(await f.text()));$('vpaCsvFile').value=''}catch(e){status(e.message)}});
-$('downloadVpaTemplate')?.addEventListener('click',()=>{const url=URL.createObjectURL(new Blob(['upi_id,account_holder,bank_name,account_type,mcc,registered_mobile,receiving_last4\nfixture@example,Test Account,Test Bank,PERSONAL,,0000000000,0123\n'],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='agentic-accounts-template.csv';a.click();URL.revokeObjectURL(url)});
+$('downloadVpaTemplate')?.addEventListener('click',()=>{const url=URL.createObjectURL(new Blob(['upi_id,account_holder,bank_name,account_type,mcc,registered_mobile,receiving_account_number\nfixture@example,Test Account,Test Bank,PERSONAL,,0000000000,0000000123\n'],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='agentic-accounts-template.csv';a.click();URL.revokeObjectURL(url)});
 document.querySelectorAll('form').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();status('Live backend not connected. Use synthetic CSV import for preview.');}));
 view('vpas');render();
 })();
