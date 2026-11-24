@@ -1,2 +1,2 @@
 FROM docker.io/n8nio/n8n:2.48.7
-COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs /opt/agentic-pay/
+COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs n8n/preflight.mjs /opt/agentic-pay/
