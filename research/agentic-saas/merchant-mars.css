@@ -1,0 +1,71 @@
+/* Agentic Pay / MARS MERCHANT WORKSPACE
+   Readability-first premium finance UI; no faux real-time telemetry. */
+:root{color-scheme:dark;--bg:#0a0c12;--bg-surface:#151821;--bg-elevated:#1b1d28;--panel:#171a23;--panel-solid:#181b25;--panel-hover:#222430;--border:#ffffff24;--border-subtle:#ffffff14;--border-bright:#e5a27a65;--border-focus:#ffb98e;--text:#f1edef;--text-secondary:#d2c6ca;--muted:#a9a8b4;--muted-dark:#918d9a;--emerald:#5cd0a9;--emerald-light:#88dec0;--cyan:#9bb8dc;--violet:#bb9dcf;--indigo:#f2a379;--amber:#f2a379;--rose:#f38b8d;--shadow-sm:0 2px 14px #0004;--shadow-md:0 12px 40px #0005;--shadow-lg:0 25px 75px #0008}
+body.app-page{background:radial-gradient(ellipse at 100% 0%,#6d302c23,transparent 40%),#0b0d14;color:#f4f0f0;font-family:"DM Sans",system-ui,sans-serif;color-scheme:dark;line-height:1.5}
+body.app-page h1,body.app-page h2,body.app-page h3,body.app-page h4{color:#f5eff0;font-family:"Space Grotesk","DM Sans",sans-serif;font-weight:650;letter-spacing:-.045em}
+body.app-page p{color:#bdb4bf}
+body.app-page .app-main{background:transparent;max-width:none;padding:22px clamp(17px,2.7vw,42px) 34px;min-width:0}
+body.app-page .side{background:linear-gradient(160deg,#0c0e15,#15131a 85%);color:#e7e2e8;border-right:1px solid #ffffff20;box-shadow:none;scrollbar-color:#5a4745 transparent}
+body.app-page .side .brand{padding:0 9px 15px;background:none}
+body.app-page .side .side-wordmark{object-fit:contain;object-position:left center;max-width:192px;max-height:48px}
+body.app-page .merchant-chip{background:#24202a;border:1px solid #de94563a;border-radius:12px}
+body.app-page .merchant-chip b{color:#f4efee}
+body.app-page .merchant-chip small{color:#c7b8ba}
+body.app-page .side-group-label{font-size:9px;color:#aa8f92;letter-spacing:.15em;margin-top:14px}
+body.app-page .side-nav{gap:1px}
+body.app-page .side-nav button{font:600 12px "DM Sans",sans-serif;color:#bcb6c4;border:1px solid transparent;border-radius:9px;min-height:38px;padding:8px 11px;transition:background .18s,color .18s}
+body.app-page .side-nav button svg{stroke:#b1aab5;opacity:1}
+body.app-page .side-nav button:hover{background:#ffffff0e;color:#fff;transform:none}
+body.app-page .side-nav button.active{background:linear-gradient(100deg,#ed976529,#9d59321a);color:#ffccb0;border-color:#e9a57a51;box-shadow:inset 3px 0 #f2a078}
+body.app-page .side-nav button.active svg{stroke:#ffbb93}
+body.app-page .side-end{border-color:#ffffff20;color:#ac9aa6;padding-top:13px}
+body.app-page .app-top{background:#11141c;border:1px solid #ffffff20;border-radius:13px;padding:11px 18px;box-shadow:0 10px 30px #0003;min-height:65px}
+body.app-page .app-title-row{padding:19px 2px 14px;margin:0}
+body.app-page .app-title-row h1{font-size:clamp(27px,2.8vw,39px);margin:5px 0}
+body.app-page .app-title-row p{font-size:13px}
+body.app-page .overline{color:#e8a57f}
+body.app-page .module,body.app-page .stat,body.app-page .card,body.app-page .panel{background:linear-gradient(145deg,#1a1b25,#141720);border:1px solid #ffffff1f;border-radius:14px;color:#f5edf0;box-shadow:0 7px 22px #0003}
+body.app-page .module{padding:clamp(17px,2.2vw,27px)}
+body.app-page .module h2,body.app-page .module h3{color:#f5f0ef}
+body.app-page .stat small,body.app-page .stat label,body.app-page .metric-label{color:#c7bdc7}
+body.app-page .stat strong{color:#f5b58d}
+body.app-page .btn.primary,body.app-page .primary.btn{background:linear-gradient(110deg,#eea274,#de7546);color:#1b0e0e;border:1px solid #f8b98d;box-shadow:0 6px 20px #d36b4230}
+body.app-page .btn.primary:hover{background:#ffb586;color:#1d1010}
+body.app-page .btn:not(.primary),body.app-page .btn.ghost{color:#eee1e4;background:#2a2832;border-color:#ffffff2c}
+body.app-page .btn:not(.primary):hover{background:#34303b}
+body.app-page button:focus-visible,body.app-page a:focus-visible,body.app-page input:focus-visible{outline:2px solid #f7ba92;outline-offset:2px}
+body.app-page input,body.app-page select,body.app-page textarea,body.app-page .search{background:#10131b;color:#f2edef;border:1px solid #ffffff39;border-radius:9px}
+body.app-page input::placeholder,body.app-page textarea::placeholder{color:#99919e}
+body.app-page .search-wrap input{color:#eee}
+body.app-page .env{background:#e69a6921;color:#f3c2a1;border-color:#e3a16e3a}
+body.app-page .app-top-right .icon-button{background:#27252e;color:#efddd8;border-color:#ffffff2c}
+body.app-page table{color:#ddd5db}
+body.app-page table th{color:#c0b2bf;background:#1c1e28;border-color:#ffffff1f}
+body.app-page table td{color:#f0e9ed;border-color:#ffffff13}
+body.app-page table tbody tr:hover{background:#ffffff09}
+body.app-page .empty,body.app-page .empty-state{color:#aca5af;background:#1b1c26}
+body.app-page .alert-bar{border-color:#e99b754a;background:#c8784b19;color:#f4c7a8}
+body.app-page .pill,body.app-page .state{background:#e78b6220;color:#eec3aa;border-color:#edaa8250}
+body.app-page .fine{color:#a0949c!important}
+body.app-page .merchant-tabbar{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #ffffff24;padding-bottom:12px;margin:20px 0}
+body.app-page .merchant-tabbar button{background:transparent;color:#bcb2bc;border:1px solid transparent;border-radius:9px;padding:9px 12px;font-size:12px}
+body.app-page .merchant-tabbar button.active{color:#ffd1b5;background:#e5916423;border-color:#e8a0784f}
+body.app-page .smart-pane{display:none}
+body.app-page .smart-pane.active{display:block}
+body.app-page .policy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+body.app-page .policy-grid article{background:#25212a;border:1px solid #edac7f30;padding:20px;border-radius:12px}
+body.app-page .policy-grid strong{font:650 16px "Space Grotesk";color:#f5eced}
+body.app-page .policy-grid p{margin:10px 0;font-size:13px;line-height:1.6}
+body.app-page .merchant-unavailable{display:inline-block;background:#e99b6c1b;color:#f9c1a0;padding:6px 10px;border:1px solid #e99b6c52;border-radius:9px;font-size:11px}
+body.app-page .merchant-shortcuts{display:flex;gap:10px;margin-top:18px}
+body.app-page .merchant-mobile-bar{display:none}
+body.app-page .table-scroller{max-width:100%;overflow:auto}
+body.app-page .merchant-op-table{width:100%;border-collapse:collapse;min-width:680px;font-size:12px}
+body.app-page .merchant-op-table th{text-align:left;padding:12px;color:#d0c1c1;text-transform:uppercase;font-size:10px}
+body.app-page .merchant-op-table td{padding:12px;border-top:1px solid #ffffff19}
+body.app-page .merchant-op-table td small{display:block;color:#a99fa9}
+body.app-page .two-cols{min-width:0}
+@media(max-width:1050px){body.app-page .policy-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){body.app-page .app-main{padding:12px 12px 100px}body.app-page .app-top{padding:9px 10px}body.app-page .policy-grid{grid-template-columns:1fr}body.app-page .merchant-mobile-bar{position:fixed;bottom:0;left:0;right:0;z-index:140;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:8px 7px calc(8px + env(safe-area-inset-bottom));background:#10121bf8;border-top:1px solid #d8986b42;backdrop-filter:blur(16px)}body.app-page .merchant-mobile-bar button{border:0;background:none;color:#bcb6c2;display:flex;flex-direction:column;gap:0;align-items:center;padding:6px 0;font-size:18px}body.app-page .merchant-mobile-bar button span{font-size:10px}body.app-page .merchant-mobile-bar button.focus{color:#ffb68e}body.app-page .app-title-row{gap:12px}body.app-page .app-title-row h1{font-size:24px}body.app-page .two-cols{grid-template-columns:1fr!important}body.app-page .module{padding:15px}}
+@media(max-width:430px){body.app-page .app-title-actions .search{display:none}body.app-page .policy-grid article{padding:14px}}
+@media(prefers-reduced-motion:reduce){body.app-page *,body.app-page *:before,body.app-page *:after{animation:none!important;transition:none!important}}
