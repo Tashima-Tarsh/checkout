@@ -1,0 +1,13 @@
+name: PDEP replay lab
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  replay-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test research/pdep_replay.spec.mjs
