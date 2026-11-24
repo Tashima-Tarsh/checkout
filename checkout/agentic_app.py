@@ -14,9 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from checkout.agentic_api import ORDER_ID, digest, router
+from checkout.agentic_api import ORDER_ID, digest, now, router
 from checkout.agentic_login import configure, router as login_router
-from checkout.agentic_storage import initialize, make_engine, merchants
+from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders
 from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
 
@@ -129,3 +129,24 @@ def checkout(order_id: str):
     if not ORDER_ID.fullmatch(order_id):
         raise HTTPException(404, "Order not found")
     return FileResponse(ASSETS / "checkout.html")
+
+
+@app.get("/agenticcheckouttest")
+def public_test_checkout(request: Request):
+    # Operator opts in by selecting an already allocated, authorized test order.
+    # Public GET never creates an order, consumes an amount, or changes payment state.
+    order_id = os.environ.get("AGENTIC_TEST_ORDER_ID", "")
+    if not ORDER_ID.fullmatch(order_id):
+        raise HTTPException(404, "Test checkout not configured")
+    with request.app.state.engine.connect() as conn:
+        order = conn.execute(
+            select(orders.c.status, orders.c.expires, amount_reservations.c.payable_minor)
+            .join(amount_reservations, (amount_reservations.c.order_id == orders.c.id)
+                  & (amount_reservations.c.account_id == orders.c.account_id))
+            .where(orders.c.id == order_id)
+        ).mappings().first()
+    if order is None or order["payable_minor"] != 100:
+        raise HTTPException(404, "Test checkout unavailable")
+    if order["status"] != "AWAITING_PAYMENT" or order["expires"] <= now():
+        raise HTTPException(410, "Test checkout expired or already submitted")
+    return RedirectResponse(f"/checkout/{order_id}", status_code=303)
