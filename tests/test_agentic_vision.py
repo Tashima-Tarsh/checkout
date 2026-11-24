@@ -20,6 +20,8 @@ def test_gate(text, expected, decision):
     assert result["advance_research"] == (decision == "VISUAL_SUCCESS")
     assert result["financially_verified"] is False
     assert result["checkout_changed"] is False
+    if decision == "AMOUNT_UNCONFIRMED":
+        assert result["visual_status"] == "SUCCESS_RECOGNIZED"
 
 def test_invalid_image():
     with pytest.raises(ValueError):
@@ -37,4 +39,18 @@ def test_real_ocr(status, expected):
     image.save(stream,format="PNG")
     result = analyze_image(stream.getvalue(),100)
     assert result["decision"] == expected
+    assert result["financially_verified"] is False
+
+@pytest.mark.skipif(shutil.which("tesseract") is None, reason="OCR executable not installed")
+def test_rupee_glyph_uncertainty_does_not_hide_success_heading():
+    image = Image.new("RGB",(900,500),"white")
+    font = ImageFont.truetype("DejaVuSans.ttf",48)
+    draw = ImageDraw.Draw(image)
+    draw.text((60,80),"Payment Successful",font=font,fill="black")
+    draw.text((60,175),"₹1.00",font=font,fill="black")
+    stream = io.BytesIO()
+    image.save(stream,format="PNG")
+    result = analyze_image(stream.getvalue(),100)
+    assert result["visual_status"] == "SUCCESS_RECOGNIZED"
+    assert result["decision"] in {"VISUAL_SUCCESS","AMOUNT_UNCONFIRMED"}
     assert result["financially_verified"] is False

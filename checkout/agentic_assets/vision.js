@@ -27,7 +27,9 @@ button.addEventListener('click', async () => {
     const value = await response.json();
     result.textContent = value.decision === 'VISUAL_SUCCESS' && value.advance_research === true
       ? 'Visual payment success recognized. Research gate passed. Financial verification pending.'
-      : 'Research gate blocked: payment success and amount not established.';
+      : value.visual_status === 'SUCCESS_RECOGNIZED'
+        ? 'Visual payment success recognized. Amount uncertain or mismatched; research gate blocked.'
+        : 'Research gate blocked: payment success not established.';
   } catch { result.textContent = 'Vision analysis unavailable. Research gate blocked.'; }
   finally { file.disabled = false; update(); }
 });

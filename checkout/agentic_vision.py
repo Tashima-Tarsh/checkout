@@ -23,7 +23,9 @@ def classify_text(text, expected_minor):
         decision = "AMOUNT_UNCONFIRMED"
     else:
         decision = "VISUAL_SUCCESS"
-    return {"decision": decision, "advance_research": decision == "VISUAL_SUCCESS",
+    visual_status = "NOT_SUCCESS" if NEGATIVE.search(text) else ("SUCCESS_RECOGNIZED" if recognized else "UNKNOWN")
+    return {"decision": decision, "visual_status": visual_status,
+            "advance_research": decision == "VISUAL_SUCCESS",
             "financially_verified": False, "checkout_changed": False}
 
 def analyze_image(data, expected_minor):
