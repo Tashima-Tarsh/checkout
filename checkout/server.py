@@ -24,7 +24,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from checkout.storage import creation_limits, events, make_engine, metadata, receipts, sessions, vpa_routes
 from checkout.vpa_admin import router as admin_router, enforce_optional_session_allowlist
 from checkout.saas import router as saas_router
-from checkout.agentic_api import router as agentic_router
 from pdep.protocol import Session, SimulatedIssuer, Verifier
 
 ROOT = Path(__file__).parent
@@ -64,7 +63,6 @@ app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/pdep-lab", StaticFiles(directory=ROOT / "static" / "pdep-lab", html=True), name="pdep-lab")
 app.include_router(admin_router)
 app.include_router(saas_router)
-app.include_router(agentic_router)
 
 
 @app.middleware("http")
