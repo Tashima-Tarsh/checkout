@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from checkout.agentic_login import require_session
 from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders
 
 router = APIRouter(prefix="/api")
@@ -33,12 +34,21 @@ def bearer(authorization):
 
 
 def require_owner(request: Request, authorization: Token = None):
+    if authorization is None:
+        require_session(request)
+        return
     token = bearer(authorization)
     if not secrets.compare_digest(digest(token), request.app.state.owner_token_hash):
         raise HTTPException(401, "Invalid credentials")
 
 
 def merchant_id(request: Request, authorization: Token = None):
+    if authorization is None:
+        identity = require_session(request).merchant_id
+        with request.app.state.engine.connect() as conn:
+            if conn.scalar(select(merchants.c.id).where(merchants.c.id == identity)) is None:
+                raise HTTPException(401, "Merchant access unavailable")
+        return identity
     token_hash = digest(bearer(authorization))
     with request.app.state.engine.connect() as conn:
         identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))

@@ -122,3 +122,38 @@ def test_thousand_accounts_get_unique_logical_agents(api):
     assert len({row["agent_id"] for row in agents}) == 1000
     assert {row["state"] for row in agents} == {"AUTH_REQUIRED"}
     assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 409
+
+
+def test_email_session_is_revocable_and_scoped(api, monkeypatch):
+    from checkout.agentic_login import COOKIE, EMAIL, ORIGIN, PasswordLogin, configure
+
+    client, engine, _ = api
+    first = merchant(client, "UAT Merchant")
+    second = merchant(client, "Other Merchant")
+    assert client.post("/api/accounts", headers=first, json=[account()]).status_code == 201
+    assert client.post("/api/accounts", headers=second, json=[account("other@example")]).status_code == 201
+    merchant_id = client.get("/api/owner/merchants", headers=owner()).json()[0]["id"]
+    password = "fixture-password-for-ci"
+    monkeypatch.setenv("AGENTIC_LOGIN_PASSWORD", password)
+    monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant_id)
+    agentic_app.app.state.password_login = configure(engine, "a" * 43)
+    browser = TestClient(agentic_app.app, base_url=ORIGIN)
+    origin = {"Origin": ORIGIN}
+    credentials = {"email": EMAIL, "password": password}
+    assert browser.post("/api/auth/login", json=credentials).status_code == 403
+    assert browser.post("/api/auth/login", headers=origin, json=dict(credentials, password="incorrect")).status_code == 401
+    result = browser.post("/api/auth/login", headers=origin, json=credentials)
+    assert result.status_code == 204
+    cookie = result.headers["set-cookie"]
+    assert all(value in cookie for value in (COOKIE, "HttpOnly", "Secure", "SameSite=strict"))
+    assert len(browser.get("/api/owner/merchants").json()) == 2
+    assert {row["vpa"] for row in browser.get("/api/accounts").json()} == {"first@example"}
+    assert {row["vpa"] for row in browser.get("/api/agents").json()} == {"first@example"}
+    assert browser.post("/api/accounts", json=[account("blocked@example")]).status_code == 403
+    assert browser.get("/api/owner/merchants", headers=second).status_code == 401
+    old_cookie = browser.cookies.get(COOKIE)
+    assert browser.post("/api/auth/logout", headers=origin).status_code == 204
+    assert browser.get("/api/agents", headers={"Cookie": f"{COOKIE}={old_cookie}"}).status_code == 401
+    assert browser.post("/api/auth/login", headers=origin, json=credentials).status_code == 204
+    agentic_app.app.state.password_login = PasswordLogin(password + "-rotated", "a" * 43, merchant_id)
+    assert browser.get("/api/agents").status_code == 401

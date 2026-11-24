@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.agentic_api import ORDER_ID, digest, router
+from checkout.agentic_login import configure, router as login_router
 from checkout.agentic_storage import initialize, make_engine, merchants
 from checkout.agentic_worker import N8nProvider, dispatch_next
 
@@ -46,6 +47,7 @@ async def lifespan(app):
     try:
         initialize(engine)
         app.state.engine = engine
+        app.state.password_login = configure(engine, token)
         webhook = os.environ.get("AGENTIC_N8N_WEBHOOK")
         dispatch_token = os.environ.get("AGENTIC_N8N_TOKEN")
         if bool(webhook) != bool(dispatch_token):
@@ -68,6 +70,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Agentic Pay", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(router)
+app.include_router(login_router)
 app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
 
