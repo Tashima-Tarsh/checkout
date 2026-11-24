@@ -29,9 +29,12 @@ def authorize(request, order_id):
     identity = require_session(request)
     with request.app.state.engine.connect() as conn:
         order = checkout_order(conn, order_id)
+        require_open_checkout(order)
         if order["merchant_id"] != identity.merchant_id:
             raise HTTPException(404, "Order not found")
-    return checkout_info(request, order_id)["amount_minor"]
+    info = checkout_info(request, order_id)
+    require_open_checkout(info)
+    return info["amount_minor"]
 
 @router.get("/checkout/{order_id}/vision")
 def vision_page(request: Request, order_id: str):
@@ -101,6 +104,7 @@ async def receipt_observation(request: Request, order_id: str, dry_run: bool = F
     if synthetic != dry_run:
         raise HTTPException(403, "Synthetic frames are dry-run only")
     expected = await run_in_threadpool(checkout_info, request, order_id)
+    require_open_checkout(expected)
     if request.headers.get("content-type", "").split(";")[0] not in {"image/png", "image/jpeg", "image/webp"}:
         raise HTTPException(415, "Unsupported receipt format")
     if not slots.acquire(blocking=False):

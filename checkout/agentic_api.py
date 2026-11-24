@@ -246,10 +246,14 @@ def checkout_order(conn, order_id, lock=False):
     return row
 
 
-def require_open_checkout(order):
-    # Expire the public payment capability, not the accounting record.
+def require_readable_checkout(order):
     if order["expires"] <= now():
         raise HTTPException(410, "Checkout expired")
+
+
+def require_open_checkout(order):
+    # Expire the public payment capability, not the accounting record.
+    require_readable_checkout(order)
     if order["status"] not in {"AWAITING_PAYMENT", "PENDING"}:
         raise HTTPException(410, "Checkout closed")
 
@@ -258,7 +262,8 @@ def require_open_checkout(order):
 def checkout_info(request: Request, order_id: str):
     with request.app.state.engine.connect() as conn:
         order = checkout_order(conn, order_id)
-        require_open_checkout(order)
+        require_readable_checkout(order)
+        payment_open = order["status"] in {"AWAITING_PAYMENT", "PENDING"}
         vpa = conn.scalar(select(accounts.c.vpa).where(
             accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
         ))
@@ -268,7 +273,8 @@ def checkout_info(request: Request, order_id: str):
         result = {"amount_minor": payable if payable is not None else order["amount_minor"],
                 "original_minor": order["amount_minor"],
                 "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
-                "expires": order["expires"], "upi_id": vpa, "status": order["status"]}
+                "expires": order["expires"], "upi_id": vpa if payment_open else None,
+                 "status": order["status"]}
         observation = conn.execute(select(receipt_observations.c.decision).where(
             receipt_observations.c.order_id == order_id,
             receipt_observations.c.expires > now())).scalar_one_or_none()
