@@ -1,0 +1,2 @@
+# Isolated synthetic vision permission UAT
+Isolated read-only research route; no payment integration. No real banking surface, account, payment, or financial verification. The lab uses a synthetic color classifier, not AI. Choose only this same lab tab; other capture sources rejected before pixel reads. Deadline 120s, browser suspension may delay cleanup. No media storage or uploads. Desktop capture and Android compatibility require real device testing. Run node research/vision-uat-control.cjs. Open /research/vision-uat in UAT.

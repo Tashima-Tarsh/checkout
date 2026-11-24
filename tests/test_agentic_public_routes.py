@@ -203,3 +203,16 @@ def test_split_screen_research_isolated_from_payment_checkout():
     assert client.get("/assets/split-screen-pixel-probe.mjs").status_code == 200
     assert client.post("/research/split-screen").status_code == 405
     assert "/research/split-screen" not in client.get("/checkout/" + "a"*48).text
+
+
+def test_vision_permission_uat_isolated():
+    client = TestClient(app)
+    page = client.get("/research/vision-uat")
+    assert page.status_code == 200
+    assert "Synthetic test only" in page.text
+    assert "/assets/vision-uat.js" in page.text
+    assert "connect-src 'none'" in page.headers["content-security-policy"]
+    assert "display-capture=(self)" in page.headers["permissions-policy"]
+    assert client.get("/assets/vision-uat.js").status_code == 200
+    assert client.post("/research/vision-uat").status_code == 405
+    assert "/research/vision-uat" not in client.get("/checkout/" + "a"*48).text
