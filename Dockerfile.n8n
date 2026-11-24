@@ -1,2 +1,7 @@
+FROM docker.io/cloudflare/cloudflared:2026.11.2 AS tunnel
+FROM docker.io/library/caddy:2.10.2-alpine AS editor_proxy
 FROM docker.io/n8nio/n8n:2.48.7
-COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs /opt/agentic-pay/
+COPY --from=tunnel /usr/local/bin/cloudflared /usr/local/bin/cloudflared
+COPY --from=editor_proxy /usr/bin/caddy /usr/local/bin/caddy
+COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs n8n/preflight.mjs n8n/editor-ingress.sh /opt/agentic-pay/
+ENTRYPOINT ["tini", "--", "/bin/sh", "/opt/agentic-pay/editor-ingress.sh"]
