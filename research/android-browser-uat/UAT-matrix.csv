@@ -1,0 +1,4 @@
+case,expected,observed
+no notification,NO_EXPOSURE_OBSERVED,
+synthetic notification,NO_EXPOSURE_OBSERVED,
+explicit synthetic disclosure,POSITIVE_CONTROL_ONLY,
