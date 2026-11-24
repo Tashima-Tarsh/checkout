@@ -18,6 +18,7 @@ from checkout.agentic_api import ORDER_ID, digest, router
 from checkout.agentic_login import configure, router as login_router
 from checkout.agentic_storage import initialize, make_engine, merchants
 from checkout.agentic_worker import N8nProvider, dispatch_next
+from checkout.agentic_vision_api import router as vision_router
 
 ASSETS = Path(__file__).parent / "agentic_assets"
 log = logging.getLogger(__name__)
@@ -71,6 +72,7 @@ async def lifespan(app):
 app = FastAPI(title="Agentic Pay", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(router)
 app.include_router(login_router)
+app.include_router(vision_router)
 app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
 
@@ -121,6 +123,7 @@ def portal():
     return FileResponse(ASSETS / "portal.html")
 
 
+@app.get("/checkout/{order_id}/diagnostics")
 @app.get("/checkout/{order_id}")
 def checkout(order_id: str):
     if not ORDER_ID.fullmatch(order_id):

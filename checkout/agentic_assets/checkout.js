@@ -2,11 +2,17 @@ const colors=['#ff7085','#aa8afb','#54d6a6','#efb460','#6baaff'];function networ
 network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Data store','▱'],[836,115,'Lookup','⌕'],[836,440,'Verify','✓'],[458,550,'Process','▤']],['M164 150H220Q240 150 240 170V280H400','M164 150H200V75H270','M354 75H740V150H836','M164 475H240V370H400','M600 280H760V150H836','M600 370H760V475H836','M164 475H220V585H458','M542 585H780V475H836','M878 185V440']);network('mobileNetwork',[[18,55,'Trigger','↯'],[285,100,'Session','▤'],[18,710,'Lookup','⌕'],[285,755,'Verify','✓']],['M102 90H220V135H285','M60 125V360H180','M327 170V420H220','M60 710V530H180','M102 745H220V790H285','M327 755V530H220']);
 
 const panel = document.querySelector('#stage');
-const endpoint = '/api' + location.pathname;
+const diagnosticPage = location.pathname.endsWith('/diagnostics');
+const endpoint = '/api' + location.pathname.replace(/\/diagnostics$/, '');
 let order;
+let returnCallback;
+let checkoutRevision = 0;
+const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
+  returnCallback = attachReturnCallback(refreshAfterReturn);
+}).catch(() => {});
 let diagnostics;
 let diagnostic;
-const diagnosticParams = new URLSearchParams(location.search);
+const diagnosticParams = diagnosticPage ? new URLSearchParams(location.search) : new URLSearchParams();
 // Preserve the existing diagnostics flag; activate only one panel per page.
 const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
   ? import('/assets/local-diagnostics.mjs').then(({mountDiagnostics}) => {
@@ -19,13 +25,40 @@ const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
     : Promise.resolve();
 // Opt-in research only; no payment state mutation on return.
 let tracker;
-if (new URLSearchParams(location.search).get('return_lab') === '1') {
+if (diagnosticParams.get('return_lab') === '1') {
   import('/assets/return-tracker.mjs').then(({attachReturnTracker}) => {
     tracker = attachReturnTracker(async trace => {
       console.info('PDEP return research', trace);
       try { const response = await fetch(endpoint, {cache:'no-store'}); if (response.ok) console.info('PDEP status', (await response.json()).status); } catch { /* observational only */ }
     });
   }).catch(() => {});
+}
+// A return is a browser lifecycle callback, NOT a payment provider callback.
+async function refreshAfterReturn(event) {
+  const revision = checkoutRevision;
+  const status = panel.querySelector('[role=status]');
+  if (!status || panel.querySelector('#paid')?.disabled) return;
+  status.textContent = 'Return detected. Checking checkout status…';
+  try {
+    const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+    if (revision !== checkoutRevision) return;
+    if (response.status === 410 || response.status === 404) {
+      panel.textContent = 'Checkout unavailable or expired.';
+      return;
+    }
+    if (!response.ok) throw new Error();
+    const current = await response.json();
+    if (revision !== checkoutRevision) return;
+    if (current.status === 'PENDING') {
+      order = current;
+      pending();
+    } else {
+      status.textContent = 'Return detected. Payment not confirmed. If you paid, select I Paid.';
+    }
+  } catch {
+    if (revision === checkoutRevision)
+      status.textContent = 'Return detected. Status check unavailable; please retry.';
+  }
 }
 function formatAmount(amountMinor) {
   return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(amountMinor / 100);
@@ -44,6 +77,8 @@ function showOrder() {
     const status = panel.querySelector('[role=status]');
     try {
       await navigator.clipboard.writeText(order.upi_id);
+      checkoutRevision++;
+      returnCallback?.arm();
       tracker?.arm();
       diagnostics?.record('copy_ok');
     diagnostic?.record('copy-ok');
@@ -57,6 +92,8 @@ function showOrder() {
   panel.querySelector('#paid').onclick = confirmPayment;
 }
 async function confirmPayment() {
+  checkoutRevision++;
+  returnCallback?.disarm();
   const button = panel.querySelector('#paid');
   const status = panel.querySelector('[role=status]');
   button.disabled = true;
@@ -78,7 +115,7 @@ async function confirmPayment() {
 }
 (async () => {
   try {
-    await diagnosticsReady;
+    await Promise.all([diagnosticsReady, returnReady]);
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error();
     order = await response.json();
@@ -87,3 +124,9 @@ async function confirmPayment() {
     panel.textContent = 'Checkout unavailable or expired.';
   }
 })();
+
+// Only explicitly enabled, authorized receipt analysis; no diagnostic controls on checkout.
+if (!diagnosticPage && new URLSearchParams(location.search).get('vision_lab') === '1') {
+  import('/assets/checkout-vision.mjs?v=2').then(({mountCheckoutVision}) =>
+    mountCheckoutVision({endpoint, host:document.querySelector('main.panel')})).catch(() => {});
+}

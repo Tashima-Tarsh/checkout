@@ -7,3 +7,5 @@ Only fixed first-party event labels and 100 ms relative times are retained, for 
 Controlled Android comparisons: on an authorized test device, use existing OS diagnostic facilities under the operator's control; retain only redacted aggregate experiment labels (success, cancellation, no payment), not private app contents. Compare checkout observations across these labelled trials. Keep ground truth separate from browser observations. An identical observation across labels rejects its use as a deterministic debit proof. Physical trials are not claimed.
 
 Current limits: no screenshot acquisition, no cross-app handshake, no live debit source, no Android trace importer. These are not solved by browser telemetry. Do not enable covert collection or test third-party targets. Do not deploy without green CI and owner approval.
+
+Diagnostics now require the separate `/checkout/<order-id>/diagnostics?diagnostic_lab=1` path. The standard checkout ignores diagnostic query flags and never renders start/stop controls.
