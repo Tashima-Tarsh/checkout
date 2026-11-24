@@ -54,5 +54,6 @@
     "saveDataSuccessExecution": "none",
     "saveManualExecutions": false
   },
-  "active": false
+  "active": false,
+  "id": "AgenticPayDispatch"
 }

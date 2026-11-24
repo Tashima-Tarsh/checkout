@@ -67,3 +67,9 @@ jobs:
           PY
       - if: failure()
         run: docker logs agentic-pay || true
+  n8n-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash n8n/test-dispatch.sh

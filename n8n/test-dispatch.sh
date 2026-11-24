@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+compose() { docker compose -f compose.ci.yml "$@"; }
+trap 'compose down -v' EXIT
+mkdir -p ci-import
+token=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
+export TEST_WEBHOOK_TOKEN="$token"
+python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+directory = Path('ci-import')
+credential = {
+    'id': 'AgenticPayDispatchHeader',
+    'name': 'Agentic Pay dispatch bearer',
+    'type': 'httpHeaderAuth',
+    'data': {'name': 'Authorization', 'value': 'Bearer ' + os.environ['TEST_WEBHOOK_TOKEN']},
+}
+workflow = json.loads(Path('agentic-pay-dispatch.json').read_text())
+workflow['nodes'][0]['credentials'] = {
+    'httpHeaderAuth': {'id': credential['id'], 'name': credential['name']},
+}
+(directory / 'credential.json').write_text(json.dumps([credential]))
+(directory / 'workflow.json').write_text(json.dumps(workflow))
+PY
+compose run --rm main import:credentials --input=/imports/credential.json
+compose run --rm main import:workflow --input=/imports/workflow.json
+compose run --rm main publish:workflow --id=AgenticPayDispatch
+compose up -d main worker
+root=http://127.0.0.1:5678
+curl -fsS --retry 30 --retry-all-errors --retry-delay 2 "$root/healthz"
+endpoint="$root/webhook/agentic-pay-dispatch"
+body='{"order_id":"fixture-order","account_id":"fixture-account"}'
+code=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$body" "$endpoint")
+case "$code" in 401|403) ;; *) echo "Unexpected unauthenticated status $code"; exit 1;; esac
+curl -fsS --max-time 30 -H 'Content-Type: application/json' -H "Authorization: Bearer $token" -d "$body" "$endpoint" \
+  | python -c 'import json,sys; assert json.load(sys.stdin) == {"order_id":"fixture-order","status":"PENDING"}'
+echo "Authenticated webhook returned a correlated PENDING acknowledgment"
