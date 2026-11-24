@@ -8,11 +8,25 @@ let order;
 let returnCallback;
 let checkoutRevision = 0;
 let renderReceiptObservation;
+let receiptRecognized;
 const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=3').then(module => {
   renderReceiptObservation = module.renderReceiptObservation;
+  receiptRecognized = module.receiptRecognized;
 }).catch(() => {});
 function updateReceipt(current) {
   renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation});
+  return receiptRecognized?.(current?.receipt_observation, location.pathname.split('/').pop()) === true;
+}
+let receiptPoll;
+function watchReceiptObservation() {
+  if (diagnosticPage || receiptPoll) return;
+  receiptPoll = setInterval(async () => {
+    try {
+      const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+      if (response.status === 404 || response.status === 410) return clearInterval(receiptPoll);
+      if (response.ok && updateReceipt(await response.json())) clearInterval(receiptPoll);
+    } catch { /* Status polling never changes checkout state. */ }
+  }, 5000);
 }
 const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
   returnCallback = attachReturnCallback(refreshAfterReturn);
@@ -129,6 +143,7 @@ async function confirmPayment() {
     order = await response.json();
     showOrder();
     updateReceipt(order);
+    watchReceiptObservation();
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }

@@ -15,7 +15,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations
+from checkout.agentic_storage import (accounts, agent_sessions, audit, jobs, merchants, orders,
+                                      amount_reservations, receipt_observations)
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -255,10 +256,21 @@ def checkout_info(request: Request, order_id: str):
         payable = conn.scalar(select(amount_reservations.c.payable_minor).where(
             amount_reservations.c.order_id == order_id,
             amount_reservations.c.account_id == order["account_id"]))
-        return {"amount_minor": payable if payable is not None else order["amount_minor"],
+        observation = conn.execute(select(receipt_observations).where(
+            receipt_observations.c.order_id == order_id,
+            receipt_observations.c.expires > now(),
+        )).mappings().first()
+        result = {"amount_minor": payable if payable is not None else order["amount_minor"],
                 "original_minor": order["amount_minor"],
                 "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
                 "expires": order["expires"], "upi_id": vpa, "status": order["status"]}
+        if observation is not None:
+            result["receipt_observation"] = {
+                "order_id": order_id, "decision": observation["decision"],
+                "advance_research": True, "financially_verified": False,
+                "checkout_changed": False,
+            }
+        return result
 
 
 @router.post("/checkout/{order_id}/verify", status_code=202)

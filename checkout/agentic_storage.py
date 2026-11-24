@@ -71,6 +71,17 @@ evidence_consumption = Table(
     Column("order_id", ForeignKey("ap_orders.id"), unique=True, nullable=False),
     Column("created", BigInteger, nullable=False),
 )
+# This is deliberately separate from financial evidence.  It contains only a
+# successful local visual classification and a digest for replay prevention;
+# neither receipt pixels nor OCR text are retained.
+receipt_observations = Table(
+    "ap_receipt_observations", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+    Column("frame_digest", String(64), unique=True, nullable=False),
+    Column("decision", String(32), nullable=False),
+    Column("created", BigInteger, nullable=False),
+    Column("expires", BigInteger, nullable=False),
+)
 audit = Table(
     "ap_audit", metadata,
     Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True),
