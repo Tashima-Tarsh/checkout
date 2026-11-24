@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders
+from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, verification_claims
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -248,6 +248,9 @@ def verify(request: Request, order_id: str, item: VerificationInput):
         if order["status"] == "AWAITING_PAYMENT":
             if order["expires"] <= now():
                 raise HTTPException(410, "Checkout expired")
+            conn.execute(verification_claims.insert().values(
+                order_id=order_id, payer_last4=item.payer_last4, created=now(),
+            ))
             conn.execute(jobs.insert().values(order_id=order_id, created=now()))
             conn.execute(orders.update().where(orders.c.id == order_id).values(status="PENDING"))
             event(conn, order["merchant_id"], "VERIFICATION_REQUESTED")

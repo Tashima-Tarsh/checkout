@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from checkout import agentic_app
 from checkout.agentic_api import digest
-from checkout.agentic_storage import accounts, agent_sessions, isolated_database_url, jobs, merchants, metadata
+from checkout.agentic_storage import accounts, agent_sessions, isolated_database_url, jobs, merchants, metadata, verification_claims
 from checkout.agentic_worker import dispatch_next
 
 
@@ -90,6 +90,9 @@ def test_customer_checkout_is_idempotent_and_only_pending(api):
         assert result.status_code == 202
         assert result.json() == {"status": "PENDING", "financially_verified": False}
 
+    # Repeated public claims cannot replace the first submitted suffix.
+    assert client.post("/api" + path + "/verify", json={"payer_last4": "9999"}).status_code == 202
+
     class Provider:
         def dispatch(self, order_id, assigned_account_id):
             assert order_id == path.split("/")[-1]
@@ -99,6 +102,13 @@ def test_customer_checkout_is_idempotent_and_only_pending(api):
     assert not dispatch_next(engine, Provider())
     with engine.connect() as conn:
         assert conn.execute(select(jobs)).mappings().one()["dispatched"] == 1
+        claim = conn.execute(select(verification_claims)).mappings().one()
+        assert claim["order_id"] == path.split("/")[-1]
+        assert claim["payer_last4"] == "0123"
+        from checkout.agentic_credit_context import credit_match_context
+        ctx = credit_match_context(conn, order_id=claim["order_id"], account_id=account_id)
+        assert ctx["payer_last4"] == "0123" and ctx["amount_minor"] == 500
+        assert credit_match_context(conn, order_id=claim["order_id"], account_id="wrong") is None
     assert client.get("/api" + path).json()["status"] == "PENDING"
     assert client.get("/api/orders", headers=second).json() == []
 

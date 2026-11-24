@@ -54,6 +54,13 @@ jobs = Table(
     Column("dispatched", Integer, nullable=False, server_default="0"),
     Column("retry_at", BigInteger, nullable=False, server_default="0"),
 )
+# Additive table: existing orders and jobs need no column migration.
+verification_claims = Table(
+    "ap_verification_claims", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+    Column("payer_last4", String(4), nullable=False),
+    Column("created", BigInteger, nullable=False),
+)
 # Only an independently authenticated source may eventually consume this ledger.
 # No public or worker ingestion endpoint is enabled by this schema.
 evidence_consumption = Table(
