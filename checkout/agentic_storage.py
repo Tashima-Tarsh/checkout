@@ -54,6 +54,15 @@ jobs = Table(
     Column("dispatched", Integer, nullable=False, server_default="0"),
     Column("retry_at", BigInteger, nullable=False, server_default="0"),
 )
+# Only an independently authenticated source may eventually consume this ledger.
+# No public or worker ingestion endpoint is enabled by this schema.
+evidence_consumption = Table(
+    "ap_evidence_consumption", metadata,
+    Column("reference_namespace", String(64), primary_key=True),
+    Column("reference_digest", String(64), primary_key=True),
+    Column("order_id", ForeignKey("ap_orders.id"), unique=True, nullable=False),
+    Column("created", BigInteger, nullable=False),
+)
 audit = Table(
     "ap_audit", metadata,
     Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True),
