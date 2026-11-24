@@ -16,7 +16,7 @@ def main():
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            page = browser.new_page()
+            page = browser.new_page(permissions=["clipboard-read","clipboard-write"])
             base = f"http://127.0.0.1:{server.server_port}"
             page.route("**/api/checkout/fixture", lambda r: r.fulfill(json={
                 "status":"OPEN","amount_minor":100,"discount_minor":0,"upi_id":"fixture-not-a-payment-address"}))
@@ -32,12 +32,14 @@ def main():
             page.goto(base+"/checkout/fixture?diagnostic_lab=1")
             start=page.get_by_role("button",name="Start local trace")
             start.click()
+            page.get_by_role("button",name="Copy UPI ID").click()
+            page.get_by_text("UPI ID copied.",exact=True).wait_for()
             page.get_by_role("button",name="I Paid").click()
             page.get_by_text("Verification pending.",exact=False).wait_for()
             page.get_by_role("button",name="Stop trace").click()
             result=json.loads(page.get_by_role("textbox",name="Redacted local trace").input_value())
             assert [e["kind"] for e in result["events"] if e["kind"] in
-                {"start","paid_click","verify_ok","stop"}]==["start","paid_click","verify_ok","stop"],result
+                {"start","copy_ok","paid_click","verify_ok","stop"}]==["start","copy_ok","paid_click","verify_ok","stop"],result
             assert result["financially_verified"] is False
             assert "fixture-not-a-payment-address" not in json.dumps(result)
             assert result["active"] is False
