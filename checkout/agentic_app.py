@@ -9,7 +9,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -104,6 +104,16 @@ def health(request: Request):
 
 
 @app.get("/")
+def home():
+    return RedirectResponse("/merchant")
+
+
+@app.get("/admin")
+@app.get("/admin/")
+def legacy_admin():
+    return RedirectResponse("/owner")
+
+
 @app.get("/merchant")
 @app.get("/owner")
 @app.get("/agents")
