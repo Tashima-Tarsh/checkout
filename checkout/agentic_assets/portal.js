@@ -3,10 +3,10 @@ const page = location.pathname.slice(1);
 document.body.dataset.workspace=page;
 let token;
 async function call(path, options = {}) {
-  const headers = {Authorization: 'Bearer ' + token};
+  const headers = token ? {Authorization: 'Bearer ' + token} : {};
   if (options.body) headers['Content-Type'] = options.csv ? 'text/csv' : 'application/json';
   const response = await fetch('/api' + path, {...options, headers});
-  const result = await response.json();
+  const result = response.status === 204 ? null : await response.json();
   if (!response.ok) throw new Error(result.detail || 'Request failed');
   return result;
 }
@@ -50,17 +50,33 @@ if (['owner', 'merchant', 'agents'].includes(page)) {
   $('intro').hidden = true;
   $('login-panel').hidden = false;
   $('landing').hidden = true;
-  submit('sign-in', async (data) => {
-    token = data.token;
-    try { await refresh(); } catch (error) { token = undefined; throw error; }
+  async function openWorkspace() {
+    await refresh();
     $('login-panel').hidden = true;
     $('appSide').hidden=false; $('sideToggle').hidden=false; $('refresh').hidden=false;
     $(page+'-nav').hidden=false; $('workspace-name').textContent=page==='owner'?'Platform Owner':page==='agents'?'Agent Operations':'Merchant Workspace';
     $('workspace').hidden = false;
     $(page).hidden = false;
     view(page==='agents'?'agentmonitor':'overview');
+  }
+  submit('email-sign-in', async (data) => {
+    token = undefined;
+    await call('/auth/login', {method: 'POST', body: JSON.stringify(data)});
+    await openWorkspace();
   }, 'Workspace opened.');
-  $('logout').onclick = () => location.reload();
+  submit('sign-in', async (data) => {
+    token = data.token;
+    try { await openWorkspace(); } catch (error) { token = undefined; throw error; }
+  }, 'Workspace opened.');
+  openWorkspace().catch(() => {});
+  $('logout').onclick = async () => {
+    try {
+      await call('/auth/logout', {method: 'POST'});
+      location.reload();
+    } catch (error) {
+      $('status').textContent = error.message;
+    }
+  };
 }
 submit('new-merchant', async (data) => {
   const row = await call('/owner/merchants', {method: 'POST', body: JSON.stringify(data)});
