@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071225">
+  <title>Merchant Workspace — Agentic Pay</title>
+  
+  <link rel="stylesheet" href="premium.css">
+  <link rel="stylesheet" href="saas-white.css">
+<link rel="stylesheet" href="merchant-mars.css">
+  <link rel="stylesheet" href="merchant-celestial.css">
+  <link rel="stylesheet" href="merchant-reference.css">
+  
+  
+  
+  
+
+</head>
+<body class="app-page"><div role="status" style="padding:8px;text-align:center;background:#fff4dc;color:#624400">Research preview — no live account database, authentication or payment processing connected. Use synthetic account data only.</div>
+  <!-- Purely decorative moonlight and slowly orbiting Earth. No financial data or clicks here. -->
+  <div class="celestial-stage" aria-hidden="true">
+    <div class="celestial-moon"></div>
+    <div class="celestial-clouds"></div>
+    <div class="celestial-earth" role="presentation">
+      
+    </div>
+  </div>
+  <!-- Living Ambient Aurora Mesh -->
+  <div class="mesh" aria-hidden="true">
+    <div class="orb a"></div>
+    <div class="orb b"></div>
+  </div>
+
+  <div class="mobile-side-backdrop" id="sideBackdrop"></div>
+
+  <div class="app-layout">
+    <!-- Executive Dark Sidebar -->
+    <aside class="side" id="appSide">
+      <a href="merchant-console.html" class="brand">
+        <strong style="font-size:24px;letter-spacing:-1px">Agentic Pay</strong>
+      </a>
+
+      <div class="merchant-chip">
+        <div class="merchant-avatar" id="merchantAvatarIcon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </div>
+        <div>
+          <b id="merchantSideName">Merchant Workspace</b>
+          <small id="merchantSideSub">Merchant account</small>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Merchant workspace navigation"><div class="side-group-label">COMMAND CENTER</div><button type="button" data-view="overview" class="active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Overview</span></button>
+<button type="button" data-view="intelligence"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 18V5M9 7a3 3 0 1 0-5 3 3 3 0 0 0 0 5 3 3 0 0 0 5 4M15 7a3 3 0 1 1 5 3 3 3 0 0 1 0 5 3 3 0 0 1-5 4"/><path d="M9 5a3 3 0 0 1 6 0v14a3 3 0 0 1-6 0"/></svg><span>Payment Intelligence</span></button>
+<div class="side-group-label">PAYMENT OPERATIONS</div><button type="button" data-view="create"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>New request</span></button>
+<button type="button" data-view="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h18m-4-4 4 4-4 4M21 16H3m4-4-4 4 4 4"/></svg><span>Transactions</span></button>
+<button type="button" data-view="vpas"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M16 14h3"/></svg><span>UPI Accounts & Routing</span></button>
+<div class="side-group-label">TRUST & FINANCE</div><button type="button" data-view="vault"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9a7 7 0 0 1 14 0M3 13v-3a9 9 0 0 1 18 0v3M8 11v4a6 6 0 0 1-2 5m6-14a4 4 0 0 1 4 4v5m-4-5v8m-1 3a14 14 0 0 0 3-7"/></svg><span>Vault & Evidence</span></button>
+<button type="button" data-view="risk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v7c0 5 3 8 8 10 5-2 8-5 8-10V5L12 2z"/><path d="m9 12 2 2 4-4"/></svg><span>Fraud & Risk</span></button>
+<button type="button" data-view="ledger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h7c2 0 3 1 3 3v13c0-2-1-3-3-3H3zM13 7c0-2 1-3 3-3h5v13h-5c-2 0-3 1-3 3"/></svg><span>Reconciliation & Ledger</span></button>
+<div class="side-group-label">BUSINESS INTELLIGENCE</div><button type="button" data-view="reports"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 16l5-6 4 3 4-7"/><path d="M18 6h1v4"/></svg><span>Analytics & Reports</span></button>
+<button type="button" data-view="notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M10 21h4"/></svg><span>Notifications & Alerts</span></button>
+<div class="side-group-label">PLATFORM & ACCOUNT</div><button type="button" data-view="integrations"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-12-2 16"/></svg><span>Integrations & Automation</span></button>
+<button type="button" data-view="settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 9 4l-3-1-2 3 2 3-1 3 1 3-2 3 2 3 3-1 3 2 3-2 3 1 2-3-2-3 1-3-1-3 2-3-2-3-3 1z"/><circle cx="12" cy="12" r="3"/></svg><span>Business Settings</span></button></nav>
+
+      <div class="side-end">
+        <a id="platformOwnerLink" href="/owner" class="btn ghost" style="display:none;width:100%;margin-bottom:13px;border:1px solid #f5b385;color:#ffe8d8;text-align:center" aria-label="Open Platform Owner Console">✦ Platform Owner Console ↗</a>
+        Merchant operations<br>
+        <span style="color:var(--emerald-light);font-weight:600;">Agentic Pay · Preview</span>
+        <div style="margin-top:14px;">
+          <button type="button" class="btn tiny ghost" id="signOut" style="width:100%;">
+            Sign Out
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Command Center Viewport -->
+    <main class="app-main">
+      <header class="app-top">
+        <div class="flexrow" style="display:flex;align-items:center;gap:12px;">
+          <button id="sideToggle" type="button" class="icon-button sticky-mobile" aria-label="Open Navigation" aria-controls="appSide">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <a class="brand mobile-brand" href="/" aria-label="Agentic Pay Home"><strong style="font-size:24px;letter-spacing:-1px">Agentic Pay</strong></a>
+          <div class="search-wrap">
+            <input class="search" id="globalSearch" placeholder="Search reference, UTR, amount… (Press Enter)" aria-label="Search orders">
+          </div>
+        </div>
+
+        <div class="app-top-right">
+          <span class="env" id="environmentLabel">
+            <span class="dot"></span> Merchant workspace
+          </span>
+          <button class="icon-button" type="button" data-switch="notifications" title="Notifications" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </button>
+          <span class="merchant-avatar" id="merchantInitial" style="width:36px;height:36px;font-size:0.8rem;">D8</span>
+        </div>
+      </header>
+
+      <!-- View Title Row -->
+      <div class="app-title-row">
+        <div>
+          <div class="overline">Agentic Pay / MERCHANT OPERATIONS</div>
+          <h1 id="viewHeading">Merchant overview</h1>
+          <p id="viewSubtitle">Your payment operations, receiving accounts and activity in one workspace.</p>
+        </div>
+        <div class="app-title-actions">
+          <select id="periodSelect" class="search" style="max-width:140px;" aria-label="Date Range">
+            <option value="today">Today</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d" selected>Last 30 Days</option>
+            <option value="all">All Time</option>
+          </select>
+          <button type="button" class="btn primary small" data-switch="create">
+            Create payment
+          </button>
+        </div>
+      </div>
+
+      <div id="appNotice" class="alert-bar" role="status" style="display:none;"></div>
+
+      <!-- VIEW 1: OVERVIEW -->
+      <section id="view-overview" class="view active" aria-labelledby="viewHeading">
+        <div id="merchantSetup" class="module onboarding-module" style="display:none;">
+          <div class="onboarding-top"><span class="overline">GET STARTED / 01</span><span class="onboarding-stage">New workspace</span></div>
+          <div class="onboarding-title-row"><div><h2>Make Agentic Pay your workspace.</h2><p>Connect an account you control. Your payment requests and operating data will appear here.</p></div><div class="onboarding-progress" aria-label="Step one of three"><span class="current"></span><span></span><span></span></div></div>
+          <form id="setupMerchantForm" class="form-grid onboarding-form">
+            <label class="field">Business / trading name<input id="setupBusinessName" autocomplete="organization" required minlength="3" maxlength="150" placeholder="Your registered business name"></label>
+            <label class="field">UPI account holder name<input id="setupHolderName" autocomplete="name" required minlength="2" maxlength="100" placeholder="Name linked to the receiving UPI ID"></label>
+            <label class="field">Receiving UPI ID<input id="setupPrimaryVpa" required autocapitalize="none" spellcheck="false" placeholder="yourbusiness@bank"></label>
+            <label class="field">Bank / UPI provider<input id="setupBankName" maxlength="100" placeholder="e.g. HDFC Bank, SBI, ICICI"></label>
+            <label class="field">Account category<select id="setupAccountType"><option value="PERSONAL">Personal receiving UPI / P2P</option><option value="MERCHANT">Bank-issued merchant UPI / P2M</option></select></label>
+            <label class="field">Bank-issued MCC (P2M only)<input id="setupMcc" maxlength="4" inputmode="numeric" placeholder="Four-digit bank-issued MCC"></label>
+            <div class="form-actions"><button type="submit" class="btn primary">Activate merchant workspace <span aria-hidden="true">→</span></button><small>These details are merchant-provided, not independently bank-verified.</small></div>
+          </form>
+        </div>
+        <div class="command-hero">
+          <div class="command-copy"><div class="overline">OPERATIONS / LIVE</div><h2>Every payment.<br><span>One clear view.</span></h2><p>Manage payment links, receiving UPI IDs and real recorded outcomes in one place. No sample balances or simulated transactions.</p>
+            <div class="command-actions"><button type="button" class="btn ghost" data-switch="vpas">Manage UPI accounts</button></div>
+          </div>
+          <div class="command-orbit" aria-hidden="true"><span>₹</span><div>UPI <small>DIRECT</small></div></div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat">
+            <small>Recorded payment volume</small><span class="stat-mark" aria-hidden="true">₹</span>
+            <strong id="metricVolume">₹0</strong>
+            <div class="note">Completed payment records</div>
+          </div>
+          <div class="stat">
+            <small>Completed records</small><span class="stat-mark" aria-hidden="true">↗</span>
+            <strong id="metricCompleted">0</strong>
+            <div class="note">Recorded completed orders</div>
+          </div>
+          <div class="stat">
+            <small>Pending requests</small><span class="stat-mark" aria-hidden="true">◷</span>
+            <strong id="metricPending">0</strong>
+            <div class="note">Requests currently pending</div>
+          </div>
+          <div class="stat">
+            <small>All requests</small><span class="stat-mark" aria-hidden="true">▦</span>
+            <strong id="metricOrders">0</strong>
+            <div class="note">Requests during this period</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="module">
+            <div class="module-head">
+              <h2>Daily payment volume</h2>
+              <small>Recorded completed orders only</small>
+            </div>
+            <div id="activityChart">
+              <div class="empty">No completed payment records in this period. Your chart will appear here when records exist.</div>
+            </div>
+          </div>
+
+          <div class="module">
+            <div class="module-head">
+              <h2>Order Completion</h2>
+              <button type="button" class="btn linkish" data-switch="payments">Details →</button>
+            </div>
+            <div class="flexrow" style="display:flex;align-items:center;gap:18px;">
+              <div class="progress-circle" id="completionRing">
+                <b id="completionRate">0%</b>
+              </div>
+              <div class="mini-list" style="flex:1;">
+                <span>Completed: <strong id="statusCompleted">0</strong></span>
+                <span>Pending: <strong id="statusPending">0</strong></span>
+                <span>Total Orders: <strong id="statusTotal">0</strong></span>
+              </div>
+            </div>
+            <p class="fine" style="margin-top:16px;">
+              Completion reflects records in your merchant workspace; it is not a bank statement.
+            </p>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="module">
+            <div class="module-head">
+              <h2>Recent payment activity</h2>
+              <button class="btn linkish" type="button" data-switch="payments">View All →</button>
+            </div>
+            <div class="table-scroller">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Created</th>
+                    <th>Amount</th>
+                    <th>Receiving VPA</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentTable">
+                  <tr><td class="empty" colspan="5">No transactions recorded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="module">
+            <div class="module-head">
+              <h2>Receiving Accounts & Alerts</h2>
+              <button class="btn linkish" type="button" data-switch="vpas">Manage →</button>
+            </div>
+            <div class="mini-list">
+              <span>Configured VPAs: <strong id="overviewVpas">0</strong></span>
+              <span>Active Receiving VPAs: <strong id="overviewActiveVpas">0</strong></span>
+            </div>
+            <div class="subtle-divider" style="height:1px;background:var(--border);margin:16px 0;"></div>
+            <div class="activity" id="overviewNotifications">
+              <div class="empty">No new alerts recorded.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: TRANSACTIONS -->
+      <section id="view-payments" class="view">
+        <div class="module">
+          <div class="module-head">
+            <h2>Transaction Ledger</h2>
+            <button type="button" id="exportTop" class="btn small">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export CSV
+            </button>
+          </div>
+          <div class="toolbar">
+            <input id="paymentsSearch" class="search" placeholder="Search order ID, UTR, VPA…">
+            <div class="tabs" id="paymentFilter">
+              <button type="button" data-status="ALL" class="tab active">All</button>
+              <button type="button" data-status="COMPLETED" class="tab">Completed</button>
+              <button type="button" data-status="PENDING" class="tab">Pending</button>
+              <button type="button" data-status="EXPIRED" class="tab">Expired</button>
+            </div>
+          </div>
+          <div class="table-scroller">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Timestamp</th>
+                  <th>Amount</th>
+                  <th>Receiving VPA</th>
+                  <th>Bank UTR</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="paymentsTable">
+                <tr><td colspan="7" class="empty">No transactions found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="txDetails" class="module" style="display:none;margin-top:18px;" aria-live="polite"></div>
+      </section>
+
+      <!-- VIEW 3: CREATE PAYMENT -->
+      <section id="view-create" class="view">
+        <div class="two-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="module">
+            <div class="module-head">
+              <h2>Generate Payment Request</h2>
+              <small>Creates dynamic UPI challenge</small>
+            </div>
+            <form id="createPaymentForm" class="form-grid">
+              <label class="field">
+                Amount (₹)
+                <input id="newAmount" type="number" min="1" step="0.01" required placeholder="e.g. 1500.00">
+              </label>
+              <label class="field">
+                Custom Reference
+                <input id="newPaymentRef" maxlength="120" placeholder="Auto-generated if empty">
+              </label>
+              <label class="field" style="grid-column:1/-1;">
+                Description / Memo
+                <input id="newDesc" maxlength="200" placeholder="e.g. Invoice #2026-A">
+              </label>
+              <label class="field" style="grid-column:1/-1;">
+                Receiving Bank Account
+                <select id="newVpa">
+                  <option value="">Use primary active UPI ID</option>
+                </select>
+              </label>
+              <div class="form-actions" style="grid-column:1/-1;margin-top:16px;">
+                <button type="submit" class="btn primary">
+                  Generate Instant QR & Link ↗
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="module">
+            <div class="module-head">
+              <h2>Live Dynamic QR View</h2>
+              <small>Ready for customer scanning</small>
+            </div>
+            <div id="createResult" class="empty">
+              Fill in the form to generate an authentic dynamic QR code and customer payment link.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: VPAs / ACCOUNTS -->
+      <section id="view-vpas" class="view">
+        <div class="stat-grid">
+          <div class="stat"><span class="stat-portrait" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg></span><small>Total Accounts</small><strong id="vpaTotal">0</strong></div>
+          <div class="stat"><span class="stat-portrait" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l2 12H4L6 8zM9 8V4h6v4"/><path d="m12 11-2 4h3l-1 3 4-5h-3l1-2"/></svg></span><small>Active Receiving</small><strong id="vpaActive" style="color:var(--emerald-light);">0</strong></div>
+          <div class="stat"><span class="stat-portrait" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 8v8m6-8v8"/></svg></span><small>Paused</small><strong id="vpaPaused">0</strong></div>
+          <div class="stat"><span class="stat-portrait" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M15 15h2v2h-2m5-3v3m-5 4h6"/></svg></span><small>Primary UPI ID</small><strong id="vpaDefault">0</strong></div>
+        </div>
+
+        <div class="module">
+          <div class="module-head">
+            <h2>Your receiving UPI accounts</h2>
+            <button type="button" class="btn small" id="refreshVpas"><span aria-hidden="true">⟳</span> Refresh</button>
+          </div>
+          <div class="table-scroller">
+            <table>
+              <thead>
+                <tr>
+                  <th>UPI ID</th>
+                  <th>Account holder</th>
+                  <th>Bank / type</th>
+                  <th>Status</th>
+                  <th>Agent / Authentication</th>
+                  <th>Controls</th>
+                </tr>
+              </thead>
+              <tbody id="vpaTable">
+                <tr><td colspan="6" class="empty">No receiving UPI IDs configured. Add your first account below.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="module" style="margin-top:20px;">
+          <h2>Add a receiving UPI account</h2><p class="module-intro">Record the receiving UPI ID, account holder and bank. These are merchant-provided details, not bank ownership verification.</p>
+          <form id="addVpaForm" class="form-grid" style="margin-top:16px;">
+            <label class="field">
+              UPI Address
+              <input id="vpaAddress" placeholder="yourbusiness@bank" spellcheck="false" autocapitalize="none" required>
+            </label>
+            <label class="field">Account holder / display name<input id="vpaHolder" required minlength="2" maxlength="100" placeholder="Name linked to this UPI ID"></label>
+            <label class="field">Bank / UPI provider<input id="vpaBank" maxlength="100" placeholder="e.g. State Bank of India"></label>
+            <label class="field">Registered mobile (test only)<input id="vpaMobile" inputmode="numeric" pattern="[0-9]{10}" required></label><label class="field">Receiving bank account number (synthetic only)<input id="vpaLast4" inputmode="numeric" pattern="[0-9]{6,34}" required maxlength="34"></label><label class="field">UPI account type
+              <select id="vpaAccountType">
+                <option value="PERSONAL">Personal / P2P</option>
+                <option value="MERCHANT">Bank-issued merchant / P2M</option>
+              </select>
+            </label>
+            <label class="field">Bank-issued MCC (for P2M)
+              <input id="vpaMcc" maxlength="4" inputmode="numeric" placeholder="Four digits from your bank QR">
+            </label>
+            <div class="form-actions" style="grid-column:1/-1;">
+              <button class="btn primary" type="submit"><span aria-hidden="true">⊕</span> Add receiving account</button>
+            </div>
+          </form>
+        </div>
+        <div class="module import-module" style="margin-top:20px;">
+          <div class="module-head"><div><div class="overline">BULK IMPORT</div><h2>Upload UPI accounts</h2></div><button type="button" class="btn ghost small" id="downloadVpaTemplate"><span aria-hidden="true">↓</span> Download CSV template</button></div>
+          <p class="module-intro">Import up to 1,000 synthetic account records including registered mobile and receiving bank last four digits. A duplicate or invalid record cancels the entire import.</p>
+          <div class="import-actions"><label for="vpaCsvFile" class="file-picker"><span class="file-icon" aria-hidden="true">⇪</span><span><strong>Choose CSV file</strong><small>1,000 accounts maximum · 512 KB</small></span><input id="vpaCsvFile" type="file" accept=".csv,text/csv"></label><button type="button" id="importVpaCsv" class="btn primary">Import accounts</button></div>
+          <p class="fine" id="importVpaStatus" role="status" aria-live="polite">Expected columns: upi_id, account_holder, bank_name, account_type, mcc, registered_mobile, receiving_account_number.</p>
+        </div>
+      </section>
+
+      <!-- VIEW 5: ROUTING & HEALTH -->
+      <section id="view-routing" class="view">
+        <div class="two-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="module">
+            <div class="module-head">
+              <h2>Receiving account health</h2>
+              <button class="btn linkish" type="button" data-switch="vpas">Manage →</button>
+            </div>
+            <div id="routingAccounts" class="mini-list">
+              <div class="empty">No receiving accounts found.</div>
+            </div>
+          </div>
+          <div class="module">
+            <div class="module-head">
+              <h2>Routing policy explained</h2>
+            </div>
+            <p>
+              Agentic Pay selects from your active receiving UPI IDs using its internal policy for account availability, cooldown and daily request limits. These metrics reflect platform-side routing observations, not bank connectivity or guaranteed settlement.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 6: RISK & FRAUD -->
+      <section id="view-risk" class="view">
+        <div class="module">
+          <div class="module-head">
+            <h2>Payment Security &amp; Order States</h2>
+            <span class="pill">Live data</span>
+          </div>
+          <p>These counts are calculated from your merchant's actual payment records. There are no simulated transactions in this workspace.</p>
+          <div id="riskResult" aria-live="polite">
+            <div class="empty">Loading current payment states…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 7: ACCESS & IP ALLOWLIST -->
+      <section id="view-access" class="view">
+        <div class="module">
+          <div class="module-head">
+            <h2>Allowed Server IPs</h2>
+            <button type="button" class="btn small" id="refreshAccess">Refresh ↻</button>
+          </div>
+          <p>Manage the IP directory for your integration planning. These entries do not block public checkout requests.</p>
+          <div class="table-scroller" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>IP Address / CIDR</th>
+                  <th>Label</th>
+                  <th>State</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="accessTable">
+                <tr><td colspan="4" class="empty">No server IPs restricted yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="module" style="margin-top:20px;">
+          <h2>Add Approved Server IP</h2>
+          <form id="addAccessForm" class="form-grid" style="margin-top:16px;">
+            <label class="field">
+              IP or CIDR
+              <input id="accessIp" placeholder="e.g. 203.0.113.10" required>
+            </label>
+            <label class="field">
+              Server Description
+              <input id="accessDesc" placeholder="e.g. Production Backend">
+            </label>
+            <div class="form-actions" style="grid-column:1/-1;">
+              <button type="submit" class="btn primary">Add Allowed IP</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- VIEW 8: REPORTS & EXPORTS -->
+      <section id="view-reports" class="view">
+        <div class="module">
+          <h2>Payment Activity Reports</h2>
+          <p>Export your recorded payment request register for review and reconciliation.</p>
+          <div class="stat-grid" style="margin-top:20px;">
+            <div class="stat"><small>Turnover in Period</small><strong id="reportVolume">₹0</strong></div>
+            <div class="stat"><small>Completed Records</small><strong id="reportCompleted">0</strong></div>
+            <div class="stat"><small>Pending Requests</small><strong id="reportPending">0</strong></div>
+            <div class="stat"><small>Platform Fee Charged</small><strong style="color:var(--emerald-light);">₹0.00</strong></div>
+          </div>
+          <div class="form-actions" style="margin-top:24px;">
+            <button class="btn primary" id="exportReport" type="button">
+              Export Payment Register (CSV)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 9: NOTIFICATIONS -->
+      <section id="view-notifications" class="view">
+        <div class="module">
+          <div class="module-head">
+            <h2>Operational Activity Center</h2>
+            <button type="button" class="btn small" id="markRead">Mark All as Read</button>
+          </div>
+          <div class="activity" id="fullNotifications">
+            <div class="empty">No activity notifications recorded.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 10: VOICE SOUNDBOX -->
+      <section id="view-soundbox" class="view">
+        <div class="module">
+          <h2>Payment Voice Alerts</h2>
+          <p>Use browser audio to announce the latest transaction recorded as completed.</p>
+          <div class="form-grid" style="margin-top:18px;">
+            <label class="field">
+              Announcement Language
+              <select id="voiceLanguage">
+                <option value="en-IN">English (India)</option>
+                <option value="hi-IN">Hindi (हिन्दी)</option>
+                <option value="mr-IN">Marathi (मराठी)</option>
+              </select>
+            </label>
+            <label class="field">
+              Speaker Volume
+              <input type="range" id="voiceVolume" min="0" max="100" value="80">
+            </label>
+          </div>
+          <div class="form-actions" style="margin-top:20px;">
+            <button class="btn primary" id="playVoice" type="button">
+              Announce Latest Completed Payment
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 11: DEVELOPER API -->
+      <section id="view-api" class="view">
+        <div class="module">
+          <h2>Connected Merchant API</h2>
+          <p>These APIs are protected by your signed-in merchant session.</p>
+          <pre class="code-preview" style="background:rgba(6,9,16,0.8);border-radius:12px;padding:16px;font-family:var(--mono);font-size:0.8rem;color:var(--emerald-light);border:1px solid var(--border);">
+GET  /api/auth/me              - Merchant authentication
+GET  /api/merchant/dashboard   - Real-time telemetry & volume
+GET  /api/merchant/payments    - Transaction history
+POST /api/merchant/payments    - Generate dynamic payment challenge
+GET  /api/merchant/vpas        - Manage receiving UPI accounts
+POST /api/merchant/vpas        - Register new VPA
+GET  /api/merchant/reports     - Download CSV ledger
+          </pre>
+          <div class="form-grid" style="margin-top:16px;">
+            <label class="field">Read-only API inspector
+              <select id="apiExplorerEndpoint">
+                <option value="/api/auth/me">Account identity</option>
+                <option value="/api/merchant/dashboard">Merchant overview</option>
+                <option value="/api/merchant/vpas">Receiving UPI accounts</option>
+                <option value="/api/merchant/notifications">Notifications</option>
+                <option value="/health">Service health</option>
+              </select>
+            </label>
+            <div class="form-actions" style="align-items:flex-end;">
+              <button type="button" class="btn" id="runApiExplorer">Inspect Endpoint</button>
+            </div>
+          </div>
+          <pre id="apiExplorerResult" aria-live="polite" style="margin-top:14px;">Choose an endpoint to inspect its real response.</pre>
+          <div class="form-actions" style="margin-top:16px;">
+            <button type="button" class="btn small ghost" id="copyEndpoints">Copy Endpoint List</button>
+            <button type="button" class="btn small ghost" id="testHealth">Check Backend Health</button>
+            <span id="healthResult" class="fine" style="margin-left:12px;"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 12: SETTINGS -->
+      <section id="view-settings" class="view">
+        <div class="two-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="module">
+            <h2>Business Details</h2>
+            <form id="settingsForm" class="form-grid" style="margin-top:18px;">
+              <label class="field">
+                Business Name
+                <input id="settingsName" required>
+              </label>
+              <label class="field">
+                Contact Phone
+                <input id="settingsPhone">
+              </label>
+              <label class="field" style="grid-column:1/-1;">
+                Operating City
+                <input id="settingsCity">
+              </label>
+              <div class="form-actions" style="grid-column:1/-1;margin-top:12px;">
+                <button class="btn primary" type="submit">Save Business Profile</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="module">
+            <h2>Security & Sessions</h2>
+            <p>Your session is managed directly by Clerk Enterprise Auth. Banking secrets and UPI PINs are never stored.</p>
+            <button class="btn ghost" id="settingsLogout" type="button" style="margin-top:20px;">
+              Sign Out of Node →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Consolidated premium merchant operation views -->
+<section id="view-intelligence" class="view merchant-operation-panel">
+ <div class="module"><div class="module-head"><h2>Payment Intelligence</h2><span class="pill">Tenant evidence</span></div><p>Review the payment journey and the distinction between a customer-origin observation and an actual recorded payment state.</p><div class="merchant-tabbar"><button type="button" class="active" data-smart-tab="intel-orders">Orders & UTR</button><button type="button" data-smart-tab="intel-exceptions">Exceptions</button><button type="button" data-smart-tab="intel-policy">Evidence policy</button></div>
+ <div class="smart-pane active" id="intel-orders"><div id="intelligence-table" class="table-scroller"><div class="empty">Loading your real transactions…</div></div></div>
+ <div class="smart-pane" id="intel-exceptions"><div id="intelligence-exceptions" class="empty">Loading exceptions…</div></div>
+ <div class="smart-pane" id="intel-policy"><div class="policy-grid"><article><strong>Browser return</strong><p>Observed checkout activity; not evidence of merchant account credit.</p></article><article><strong>UTR candidate</strong><p>A reference that must be checked for order conflicts, matching payee, timing and amount.</p></article><article><strong>Financial credit</strong><p>Requires qualified financial evidence before settlement accounting can be posted.</p></article></div></div></div>
+</section>
+<section id="view-vault" class="view merchant-operation-panel"><div class="module"><div class="module-head"><h2>Vault & Evidence</h2><span class="pill">Recorded events</span></div><p>The order-bound evidence view keeps user-initiated observations separate from verified financial outcomes.</p><div id="vault-table" class="table-scroller"><div class="empty">Loading recorded Vault observations…</div></div><div class="merchant-shortcuts"><button type="button" data-switch="payments" class="btn small">Open transaction details</button><button type="button" data-switch="risk" class="btn small">Security review</button></div></div></section>
+<section id="view-ledger" class="view merchant-operation-panel"><div class="module"><div class="module-head"><h2>Reconciliation & Ledger</h2><span class="pill">Financial separation</span></div><p>Only qualified credit records can reach the posting ledger. Request creation, observed handoffs and a customer UTR alone do not mean money was credited.</p><div class="policy-grid"><article><strong>Recorded payment activity</strong><p>Review all merchant orders in your transaction register.</p><button type="button" class="btn small" data-switch="payments">Transactions</button></article><article><strong>Financial report</strong><p>Download your recorded payment request register with explicit outcomes.</p><button type="button" class="btn small" data-switch="reports">Reports & CSV</button></article><article><strong>Journal explorer</strong><p>Merchant-scoped journal reporting is not connected. No synthetic ledger entries are displayed.</p><div id="merchant-ledger-summary" class="merchant-unavailable">Loading ledger availability…</div></article></div><div id="merchant-ledger-records" class="table-scroller" style="margin-top:16px"><div class="empty">Loading verified journal records…</div></div></div></section>
+<section id="view-integrations" class="view merchant-operation-panel"><div class="module"><div class="module-head"><h2>Integrations & Automation</h2><span class="pill">Workspace configuration</span></div><div class="policy-grid"><article><strong>Developer API</strong><p>Inspect an authenticated merchant API endpoint and its response.</p><button type="button" class="btn small" data-switch="api">Open API explorer</button></article><article><strong>Integration IP directory</strong><p>Manage saved server addresses. These entries are not currently an enforced network allowlist.</p><button type="button" class="btn small" data-switch="access">Configure IPs</button></article><article><strong>Workflow & webhook monitor</strong><p>n8n and delivery telemetry are not yet connected to this workspace.</p><span class="merchant-unavailable">Not connected</span></article></div></div></section>
+<div class="merchant-mobile-bar" aria-label="Quick actions"><button data-switch="overview">◫<span>Overview</span></button><button data-switch="payments">⇄<span>Payments</span></button><button data-switch="create" class="focus">+<span>Create</span></button><button data-switch="notifications">♧<span>Alerts</span></button><button id="merchant-mobile-menu">☰<span>Menu</span></button></div>
+
+<div class="fine" style="margin-top:48px;text-align:center;">
+        Agentic Pay · Merchant-owned payment intelligence · Financial outcomes from real records
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+<script src="merchant-vpa-import.js"></script><script src="agentic-preview.js"></script></body>
+</html>
