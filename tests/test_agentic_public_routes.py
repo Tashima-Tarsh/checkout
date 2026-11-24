@@ -189,3 +189,17 @@ def test_shared_uat_amount_has_no_pool_exhaustion_and_cannot_consume_evidence(mo
                     account_id=account,reference="123456789012",now=now()) == "ORDER_NOT_ELIGIBLE"
     finally:
         engine.dispose()
+
+
+def test_split_screen_research_isolated_from_payment_checkout():
+    client = TestClient(app)
+    page = client.get("/research/split-screen")
+    assert page.status_code == 200
+    assert "synthetic pixel test" in page.text
+    assert "/assets/split-screen-pixel-ui.mjs" in page.text
+    assert "display-capture=(self)" in page.headers["permissions-policy"]
+    assert "default-src 'self'" in page.headers["content-security-policy"]
+    assert client.get("/assets/split-screen-pixel-ui.mjs").status_code == 200
+    assert client.get("/assets/split-screen-pixel-probe.mjs").status_code == 200
+    assert client.post("/research/split-screen").status_code == 405
+    assert "/research/split-screen" not in client.get("/checkout/" + "a"*48).text
