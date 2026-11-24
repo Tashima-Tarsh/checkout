@@ -22,7 +22,7 @@ def main():
                 "status":"OPEN","amount_minor":100,"discount_minor":0,"upi_id":"fixture-not-a-payment-address"}))
             page.route("**/api/checkout/fixture/verify", lambda r: r.fulfill(json={"status":"PENDING"}))
             # Map fixture routes to actual static checkout assets without a backend.
-            page.route("**/checkout/fixture*", lambda r: r.fulfill(
+            page.route(base+"/checkout/fixture*", lambda r: r.fulfill(
                 content_type="text/html",body=(ROOT/"checkout.html").read_text()))
             page.route("**/assets/*", lambda r: r.fulfill(
                 content_type="text/javascript",body=(ROOT/r.request.url.split("/assets/")[1].split("?")[0]).read_text()))
