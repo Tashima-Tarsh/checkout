@@ -9,7 +9,7 @@ function pending() {
 }
 function showOrder() {
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI</button><button class="secondary" id="paid">I Have Paid</button><p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button><button class="secondary" id="paid">I Paid</button><p role="status"></p>';
   panel.querySelector('h2').textContent = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(order.amount_minor / 100);
   if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
     'Merchant discount: ' + new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR'}).format(order.discount_minor/100);
