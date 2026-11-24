@@ -16,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.agentic_api import ORDER_ID, digest, now, router
 from checkout.agentic_login import configure, router as login_router
-from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders
+from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links
 from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
 from checkout.agentic_test_checkout import router as test_checkout_router, auto_enabled, open_test_checkout
@@ -50,6 +50,14 @@ async def lifespan(app):
         initialize(engine)
         app.state.engine = engine
         app.state.password_login = configure(engine, token)
+        cutoff = os.environ.get("AGENTIC_TEST_EXPIRE_BEFORE", "")
+        if cutoff:
+            merchant_id = os.environ.get("AGENTIC_LOGIN_MERCHANT_ID", "")
+            if re.fullmatch(r"[0-9a-f]{32}", merchant_id) and re.fullmatch(r"[0-9]{10}", cutoff) and 0 < int(cutoff) <= now():
+                count = expire_previous_uat_links(engine, merchant_id=merchant_id, cutoff=int(cutoff), timestamp=now())
+                log.info("UAT historical checkout expiry applied: %s open links closed", count)
+            else:
+                log.error("Invalid UAT historical checkout expiry configuration; no links changed")
         webhook = os.environ.get("AGENTIC_N8N_WEBHOOK")
         dispatch_token = os.environ.get("AGENTIC_N8N_TOKEN")
         if bool(webhook) != bool(dispatch_token):

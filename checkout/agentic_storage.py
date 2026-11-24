@@ -126,3 +126,17 @@ def initialize(engine):
         ):
             raise RuntimeError("Legacy checkout objects found in Agentic Pay database")
         metadata.create_all(connection)
+
+
+def expire_previous_uat_links(engine, *, merchant_id, cutoff, timestamp):
+    """Expire open links from a fixed historical window, preserving every record."""
+    if not isinstance(cutoff, int) or not 0 < cutoff <= timestamp:
+        raise ValueError("Invalid checkout expiry cutoff")
+    with engine.begin() as conn:
+        result = conn.execute(orders.update().where(
+            orders.c.merchant_id == merchant_id,
+            orders.c.created <= cutoff,
+            orders.c.expires > timestamp,
+            orders.c.status.in_(("AWAITING_PAYMENT", "PENDING")),
+        ).values(expires=cutoff))
+        return result.rowcount
