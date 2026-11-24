@@ -14,15 +14,19 @@ if (new URLSearchParams(location.search).get('return_lab') === '1') {
     });
   }).catch(() => {});
 }
+function formatAmount(amountMinor) {
+  return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(amountMinor / 100);
+}
 function pending() {
-  panel.innerHTML = '<h2>Verification pending</h2><p role="status">Payment confirmation awaits authorized credit evidence.</p>';
+  panel.innerHTML = '<h2></h2><p role="status">Verification pending. Payment confirmation awaits authorized evidence.</p>';
+  panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
 }
 function showOrder() {
   if (order.status === 'PENDING') return pending();
   panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button><button class="secondary" id="paid">I Paid</button><p role="status"></p>';
-  panel.querySelector('h2').textContent = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(order.amount_minor / 100);
+  panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
   if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
-    'Merchant discount: ' + new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR'}).format(order.discount_minor/100);
+    'Merchant discount: ' + formatAmount(order.discount_minor);
   panel.querySelector('#copy').onclick = async () => {
     const status = panel.querySelector('[role=status]');
     try {
