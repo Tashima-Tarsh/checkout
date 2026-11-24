@@ -108,7 +108,8 @@ async function refreshAfterReturn(event) {
   const revision = checkoutRevision;
   const status = panel.querySelector('[role=status]');
   if (!status || panel.querySelector('#paid')?.disabled) return;
-  status.textContent = 'Checking status…';
+  if (diagnosticPage) status.textContent = 'Checking status…';
+  else status.textContent = '';
   try {
     const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
     if (revision !== checkoutRevision) return;
@@ -124,14 +125,15 @@ async function refreshAfterReturn(event) {
       pending();
     }
     const message = panel.querySelector('[role=status]');
-    if (message) message.textContent = diagnosticPage && current.status !== 'PENDING'
-      ? 'If you paid, select I Paid.'
-      : 'Callback received — awaiting payment evidence';
+    if (message && current.status !== 'PENDING') message.textContent = diagnosticPage
+      ? 'If you paid, select I Paid.' : '';
     updateReceipt(current);
     startObservationPolling();
   } catch {
-    if (revision === checkoutRevision)
-      status.textContent = 'Unable to check status. Please retry.';
+    if (revision === checkoutRevision) {
+      if (diagnosticPage) status.textContent = 'Unable to check status. Please retry.';
+      else startObservationPolling();
+    }
   }
 }
 function formatAmount(amountMinor) {

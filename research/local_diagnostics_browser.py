@@ -120,7 +120,8 @@ def main():
                 window.dispatchEvent(new Event('blur'));
                 window.dispatchEvent(new Event('focus'));
             }""")
-            page.get_by_text("Callback received — awaiting payment evidence",exact=True).wait_for()
+            page.wait_for_function("document.querySelector(\"#stage [role=status]\").textContent === \"\"")
+            assert page.get_by_text("Callback received — awaiting payment evidence",exact=True).count()==0
             assert page.get_by_text("Vision recognized",exact=True).count()==0
             assert page.get_by_role("button",name="I Paid").count()==0
             state["publish"] = True
