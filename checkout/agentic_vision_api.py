@@ -30,6 +30,11 @@ def vision_page(request: Request, order_id: str):
     authorize(request, order_id)
     return FileResponse(Path(__file__).parent / "agentic_assets" / "vision.html")
 
+@router.get("/api/checkout/{order_id}/vision")
+def vision_availability(request: Request, order_id: str):
+    authorize(request, order_id)
+    return {"enabled": True, "research_only": True}
+
 @router.post("/api/checkout/{order_id}/vision")
 async def vision_result(request: Request, order_id: str):
     expected = await run_in_threadpool(authorize, request, order_id)

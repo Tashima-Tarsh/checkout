@@ -87,3 +87,9 @@ async function confirmPayment() {
     panel.textContent = 'Checkout unavailable or expired.';
   }
 })();
+
+// Merchant-only vision research on the original checkout, independent of payment state.
+if (new URLSearchParams(location.search).get('vision_lab') === '1') {
+  import('/assets/checkout-vision.mjs?v=1').then(({mountCheckoutVision}) =>
+    mountCheckoutVision({endpoint, host:document.querySelector('main.panel')})).catch(() => {});
+}

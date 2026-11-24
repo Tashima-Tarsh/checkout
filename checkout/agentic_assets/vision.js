@@ -26,7 +26,7 @@ button.addEventListener('click', async () => {
     if (!response.ok) throw Error();
     const value = await response.json();
     result.textContent = value.decision === 'VISUAL_SUCCESS' && value.advance_research === true
-      ? 'Visual payment success recognized. Research gate passed. Financial verification pending.'
+      ? 'Visual payment success recognized. Research analysis complete.'
       : value.visual_status === 'SUCCESS_RECOGNIZED'
         ? 'Visual payment success recognized. Amount uncertain or mismatched; research gate blocked.'
         : 'Research gate blocked: payment success not established.';
