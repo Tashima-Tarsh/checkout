@@ -7,6 +7,13 @@ const endpoint = '/api' + location.pathname.replace(/\/diagnostics$/, '');
 let order;
 let returnCallback;
 let checkoutRevision = 0;
+let renderReceiptObservation;
+const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=3').then(module => {
+  renderReceiptObservation = module.renderReceiptObservation;
+}).catch(() => {});
+function updateReceipt(current) {
+  renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation});
+}
 const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
   returnCallback = attachReturnCallback(refreshAfterReturn);
 }).catch(() => {});
@@ -38,7 +45,7 @@ async function refreshAfterReturn(event) {
   const revision = checkoutRevision;
   const status = panel.querySelector('[role=status]');
   if (!status || panel.querySelector('#paid')?.disabled) return;
-  status.textContent = 'Return detected. Checking checkout status…';
+  status.textContent = 'Checking status…';
   try {
     const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
     if (revision !== checkoutRevision) return;
@@ -49,22 +56,23 @@ async function refreshAfterReturn(event) {
     if (!response.ok) throw new Error();
     const current = await response.json();
     if (revision !== checkoutRevision) return;
+    updateReceipt(current);
     if (current.status === 'PENDING') {
       order = current;
       pending();
     } else {
-      status.textContent = 'Return detected. Payment not confirmed. If you paid, select I Paid.';
+      status.textContent = 'If you paid, select I Paid.';
     }
   } catch {
     if (revision === checkoutRevision)
-      status.textContent = 'Return detected. Status check unavailable; please retry.';
+      status.textContent = 'Unable to check status. Please retry.';
   }
 }
 function formatAmount(amountMinor) {
   return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(amountMinor / 100);
 }
 function pending() {
-  panel.innerHTML = '<h2></h2><p role="status">Verification pending. Payment confirmation awaits authorized evidence.</p>';
+  panel.innerHTML = '<h2></h2><p role="status">Verification pending.</p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
 }
 function showOrder() {
@@ -115,18 +123,14 @@ async function confirmPayment() {
 }
 (async () => {
   try {
-    await Promise.all([diagnosticsReady, returnReady]);
+    await Promise.all([diagnosticsReady, returnReady, receiptReady]);
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error();
     order = await response.json();
     showOrder();
+    updateReceipt(order);
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }
 })();
 
-// Only explicitly enabled, authorized receipt analysis; no diagnostic controls on checkout.
-if (!diagnosticPage && new URLSearchParams(location.search).get('vision_lab') === '1') {
-  import('/assets/checkout-vision.mjs?v=2').then(({mountCheckoutVision}) =>
-    mountCheckoutVision({endpoint, host:document.querySelector('main.panel')})).catch(() => {});
-}
