@@ -34,6 +34,17 @@ def main():
             start.click()
             page.get_by_role("button",name="Copy UPI ID").click()
             page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            # Synthetic lifecycle dispatch tests browser integration, not Android app access.
+            with page.expect_request(lambda req: req.method == "GET" and req.url.endswith("/api/checkout/fixture")):
+                page.evaluate("""() => {
+                    // Focus-only return models split-screen interaction.
+                    Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
+                    Object.defineProperty(document, 'hasFocus', {configurable:true, value:()=>true});
+                    window.dispatchEvent(new Event('blur'));
+                    window.dispatchEvent(new Event('focus'));
+                }""")
+            page.get_by_text("Return detected. Payment not confirmed.",exact=False).wait_for()
+            assert page.get_by_role("button",name="I Paid").is_enabled()
             page.get_by_role("button",name="I Paid").click()
             page.get_by_text("Verification pending.",exact=False).wait_for()
             page.get_by_role("button",name="Stop trace").click()

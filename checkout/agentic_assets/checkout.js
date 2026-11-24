@@ -4,6 +4,11 @@ network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Da
 const panel = document.querySelector('#stage');
 const endpoint = '/api' + location.pathname;
 let order;
+let returnCallback;
+let checkoutRevision = 0;
+const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
+  returnCallback = attachReturnCallback(refreshAfterReturn);
+}).catch(() => {});
 let diagnostics;
 let diagnostic;
 const diagnosticParams = new URLSearchParams(location.search);
@@ -27,6 +32,33 @@ if (new URLSearchParams(location.search).get('return_lab') === '1') {
     });
   }).catch(() => {});
 }
+// A return is a browser lifecycle callback, NOT a payment provider callback.
+async function refreshAfterReturn(event) {
+  const revision = checkoutRevision;
+  const status = panel.querySelector('[role=status]');
+  if (!status || panel.querySelector('#paid')?.disabled) return;
+  status.textContent = 'Return detected. Checking checkout status…';
+  try {
+    const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+    if (revision !== checkoutRevision) return;
+    if (response.status === 410 || response.status === 404) {
+      panel.textContent = 'Checkout unavailable or expired.';
+      return;
+    }
+    if (!response.ok) throw new Error();
+    const current = await response.json();
+    if (revision !== checkoutRevision) return;
+    if (current.status === 'PENDING') {
+      order = current;
+      pending();
+    } else {
+      status.textContent = 'Return detected. Payment not confirmed. If you paid, select I Paid.';
+    }
+  } catch {
+    if (revision === checkoutRevision)
+      status.textContent = 'Return detected. Status check unavailable; please retry.';
+  }
+}
 function formatAmount(amountMinor) {
   return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(amountMinor / 100);
 }
@@ -44,6 +76,8 @@ function showOrder() {
     const status = panel.querySelector('[role=status]');
     try {
       await navigator.clipboard.writeText(order.upi_id);
+      checkoutRevision++;
+      returnCallback?.arm();
       tracker?.arm();
       diagnostics?.record('copy_ok');
     diagnostic?.record('copy-ok');
@@ -57,6 +91,8 @@ function showOrder() {
   panel.querySelector('#paid').onclick = confirmPayment;
 }
 async function confirmPayment() {
+  checkoutRevision++;
+  returnCallback?.disarm();
   const button = panel.querySelector('#paid');
   const status = panel.querySelector('[role=status]');
   button.disabled = true;
@@ -78,7 +114,7 @@ async function confirmPayment() {
 }
 (async () => {
   try {
-    await diagnosticsReady;
+    await Promise.all([diagnosticsReady, returnReady]);
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error();
     order = await response.json();
