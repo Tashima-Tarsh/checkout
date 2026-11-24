@@ -1,0 +1,6 @@
+# Live evidence and UAT release gates
+No authorized MyUPI machine interface has been established. Existing n8n acknowledgments remain PENDING. Do not automate authenticated browser retrieval without permission; do not collect OTP/PIN or export sessions. A receiving account view is not proof of payer debit. A visible masked suffix is not a unique account identifier.
+
+The production schema now supports a global canonical UPI reference reservation with one reference per order and one order per reference, and an order-lock and rollback-safe primitive. No ingestion route calls it. A fabricated reference can still reserve a slot if an internal caller violates the trust precondition. Source authentication and order correlation must precede any future use, in the same transaction as a financial status transition. A reference reservation is not proof of debit.
+
+UAT: establish approved evidence source and authenticated payer/recipient binding; generate a new ₹1 order from the merchant workspace; record server order ID and time; have user pay manually from a controlled separate payer; verify fresh authoritative evidence, exact recipient, amount, final debit, order correlation, expiry and unique reference; repeat duplicate and wrong-recipient negatives. Never mark PAID on screenshot or fixture. Do not run live payment until source and gate are available.
