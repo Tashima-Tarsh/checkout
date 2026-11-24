@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import BoundedSemaphore, Lock
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from checkout.agentic_api import checkout_order, checkout_info, require_open_checkout, now
@@ -74,7 +74,7 @@ async def vision_result(request: Request, order_id: str):
 _frame_lock = Lock()
 _frame_times = deque()
 
-def authorize_transport(request):
+def authorize_transport(request, order_id):
     if os.getenv("AGENTIC_RECEIPT_INGEST") != "1":
         raise HTTPException(404, "Receipt transport disabled")
     token = os.getenv("AGENTIC_RECEIPT_TOKEN", "")
@@ -85,11 +85,19 @@ def authorize_transport(request):
         raise HTTPException(401, "Receipt transport authentication required")
     with _frame_lock:
         timestamp = time.monotonic()
-        while _frame_times and _frame_times[0] <= timestamp - 60:
+        while _frame_times and _frame_times[0][0] <= timestamp - 120:
             _frame_times.popleft()
-        if len(_frame_times) >= 30:
+        if sum(t > timestamp - 60 for t, _ in _frame_times) >= 30:
             raise HTTPException(429, "Receipt transport busy")
-        _frame_times.append(timestamp)
+        if sum(oid == order_id for _, oid in _frame_times) >= 14:
+            raise HTTPException(429, "Order observation limit reached")
+        _frame_times.append((timestamp, order_id))
+
+def observation_conflict(decision):
+    return JSONResponse({"recognized": False, "decision": decision,
+                         "financially_verified": False, "checkout_changed": False},
+                        status_code=409)
+
 
 def observation_result(order_id, **extra):
     return dict(recognized=True, receipt_observation={
@@ -99,7 +107,7 @@ def observation_result(order_id, **extra):
 
 @router.post("/api/checkout/{order_id}/receipt-observation")
 async def receipt_observation(request: Request, order_id: str, dry_run: bool = False):
-    authorize_transport(request)
+    authorize_transport(request, order_id)
     synthetic = request.headers.get("x-agentic-synthetic") == "1"
     if synthetic != dry_run:
         raise HTTPException(403, "Synthetic frames are dry-run only")
@@ -140,12 +148,23 @@ async def receipt_observation(request: Request, order_id: str, dry_run: bool = F
             previous = conn.execute(select(receipt_observations).where(
                 receipt_observations.c.order_id == order_id)).mappings().first()
             if previous is not None:
-                if previous["reference_digest"] == reference:
+                if previous["reference_digest"] == reference and previous["decision"] == "VISUAL_SUCCESS":
                     return observation_result(order_id, replayed=True)
-                raise HTTPException(409, "Order already has a receipt observation")
+                return observation_conflict("ORDER_OBSERVATION_CONFLICT")
             conn.execute(receipt_observations.insert().values(
                 order_id=order_id, frame_digest=frame, reference_digest=reference,
                 decision="VISUAL_SUCCESS", created=now(), expires=order["expires"]))
     except IntegrityError:
-        raise HTTPException(409, "Receipt already observed for another checkout") from None
+        # The insert transaction has rolled back. Identify known conflicts
+        # without claiming recognition or exposing another order.
+        with request.app.state.engine.connect() as conn:
+            if conn.scalar(select(receipt_observations.c.order_id).where(
+                receipt_observations.c.reference_digest == reference,
+                receipt_observations.c.order_id != order_id)):
+                return observation_conflict("REFERENCE_REPLAYED")
+            if conn.scalar(select(receipt_observations.c.order_id).where(
+                receipt_observations.c.frame_digest == frame,
+                receipt_observations.c.order_id != order_id)):
+                return observation_conflict("FRAME_REPLAYED")
+        return observation_conflict("OBSERVATION_CONFLICT")
     return observation_result(order_id)
