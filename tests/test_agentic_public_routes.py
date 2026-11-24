@@ -19,7 +19,7 @@ def test_checkout_uses_existing_customer_assets_and_valid_identifier_shape():
     assert client.get("/checkout/invalid").status_code == 404
     page = client.get("/checkout/" + "a" * 48)
     assert page.status_code == 200
-    asset = "/assets/checkout.js?v=clean-checkout-5"
+    asset = "/assets/checkout.js?v=clean-checkout-6"
     assert asset in page.text
     assert client.get(asset).status_code == 200
     assert client.get('/assets/return-callback.mjs?v=1').status_code == 200

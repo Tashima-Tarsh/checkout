@@ -67,7 +67,7 @@ function startObservationPolling() {
   observationTimer = setTimeout(poll, 1000);
 }
 let renderReceiptObservation;
-const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=4').then(module => {
+const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=5').then(module => {
   renderReceiptObservation = module.renderReceiptObservation;
 }).catch(() => {});
 function updateReceipt(current) {
