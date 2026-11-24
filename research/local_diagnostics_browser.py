@@ -113,6 +113,7 @@ def main():
             page.goto(base+"/checkout/fixture")
             page.get_by_role("button",name="Copy UPI ID").click()
             page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            assert page.get_by_text("Vision not observed",exact=True).count()==0
             state["returned"] = True
             page.evaluate("""() => {
                 Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
@@ -120,12 +121,13 @@ def main():
                 window.dispatchEvent(new Event('blur'));
                 window.dispatchEvent(new Event('focus'));
             }""")
-            page.wait_for_function("document.querySelector(\"#stage [role=status]\").textContent === \"\"")
+            page.get_by_text("Vision not observed",exact=True).wait_for()
             assert page.get_by_text("Callback received — awaiting payment evidence",exact=True).count()==0
             assert page.get_by_text("Vision recognized",exact=True).count()==0
             assert page.get_by_role("button",name="I Paid").count()==0
             state["publish"] = True
             page.get_by_text("Vision recognized",exact=True).wait_for(timeout=15000)
+            assert page.get_by_text("Vision not observed",exact=True).count()==0
             assert state["polls"] >= 2
             assert state["posts"] == 0
             assert page.get_by_text("Callback received — awaiting payment evidence",exact=True).count()==0
@@ -137,6 +139,7 @@ def main():
             assert page.get_by_role("button",name="Copy UPI ID").count()==0
             assert page.get_by_role("button",name="I Paid").count()==0
             assert page.get_by_text("Vision recognized",exact=True).count()==0
+            assert page.get_by_text("Vision not observed",exact=True).count()==0
             browser.close()
     finally:
         server.shutdown();server.server_close();worker.join()
