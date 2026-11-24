@@ -70,6 +70,8 @@ def open_test_checkout(request, assets):
 
 @router.post("/api/agenticcheckouttest")
 def allocate_test(request: Request):
+    if os.getenv("AGENTIC_TEST_VISION_DEMO") == "1":
+        raise HTTPException(404, "Synthetic vision demo: payment allocation disabled")
     if not auto_enabled():
         raise HTTPException(404, "Test checkout disabled")
     require_same_origin(request)

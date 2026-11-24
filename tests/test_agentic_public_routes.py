@@ -216,3 +216,20 @@ def test_vision_permission_uat_isolated():
     assert client.get("/assets/vision-uat.js").status_code == 200
     assert client.post("/research/vision-uat").status_code == 405
     assert "/research/vision-uat" not in client.get("/checkout/" + "a"*48).text
+
+
+def test_existing_uat_alias_synthetic_demo_mode(monkeypatch):
+    monkeypatch.setenv("AGENTIC_TEST_VISION_DEMO", "1")
+    monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
+    client = TestClient(app)
+    page = client.get("/agenticcheckouttest")
+    assert page.status_code == 200
+    assert "Synthetic test only" in page.text
+    assert "/assets/vision-uat.js" in page.text
+    assert "connect-src 'none'" in page.headers["content-security-policy"]
+    assert "display-capture=(self)" in page.headers["permissions-policy"]
+    assert client.post("/api/agenticcheckouttest").status_code == 404
+    monkeypatch.setenv("AGENTIC_TEST_VISION_DEMO", "0")
+    monkeypatch.setenv("AGENTIC_TEST_AUTO", "0")
+    monkeypatch.delenv("AGENTIC_TEST_ORDER_ID", raising=False)
+    assert client.get("/agenticcheckouttest").status_code == 404

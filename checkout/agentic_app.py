@@ -105,7 +105,7 @@ async def security_headers(request, call_next):
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     })
-    if request.url.path == "/research/vision-uat":
+    if request.url.path == "/research/vision-uat" or (request.url.path == "/agenticcheckouttest" and os.getenv("AGENTIC_TEST_VISION_DEMO") == "1"):
         response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; media-src 'self' blob:; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
         response.headers["Permissions-Policy"] = "display-capture=(self), camera=(), microphone=()"
     return response
@@ -156,6 +156,8 @@ def split_screen_research():
 
 @app.get("/agenticcheckouttest")
 def public_test_checkout(request: Request):
+    if os.getenv("AGENTIC_TEST_VISION_DEMO") == "1":
+        return FileResponse(ASSETS / "vision-uat.html")
     if auto_enabled():
         return open_test_checkout(request, ASSETS)
     # Operator opts in by selecting an already allocated, authorized test order.
