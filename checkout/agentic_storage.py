@@ -114,6 +114,44 @@ def make_engine():
     return create_engine(isolated_database_url(), pool_pre_ping=True, hide_parameters=True)
 
 
+def ensure_visual_uniqueness(connection):
+    """Repair old Agentic Pay schemas, never discard duplicate evidence."""
+    # A valid, immediate, unconditional unique index on exactly one column
+    # is sufficient; a partial/expression/invalid index is not.
+    unique = text("""
+        SELECT EXISTS (
+            SELECT 1 FROM pg_index i
+            JOIN pg_attribute a ON a.attrelid = i.indrelid
+                                AND a.attnum = i.indkey[0]
+            WHERE i.indrelid = 'public.ap_receipt_observations'::regclass
+              AND i.indisunique AND i.indisvalid AND i.indisready
+              AND i.indimmediate AND i.indnkeyatts = 1
+              AND i.indpred IS NULL AND i.indexprs IS NULL
+              AND a.attname = :column
+        )
+    """)
+    columns = ("reference_digest", "frame_digest")
+    if all(connection.scalar(unique, {"column": col}) for col in columns):
+        return
+    connection.execute(text("LOCK TABLE public.ap_receipt_observations IN SHARE ROW EXCLUSIVE MODE"))
+    for col in columns:
+        if connection.scalar(unique, {"column": col}):
+            continue
+        # Names are fixed constants above, never user input.
+        duplicate = connection.scalar(text(
+            f"SELECT 1 FROM public.ap_receipt_observations GROUP BY {col} "
+            "HAVING count(*) > 1 LIMIT 1"
+        ))
+        if duplicate:
+            raise RuntimeError("Duplicate visual evidence: operator reconciliation required")
+        connection.execute(text(
+            f"CREATE UNIQUE INDEX uq_ap_receipt_observations_{col} "
+            f"ON public.ap_receipt_observations ({col})"
+        ))
+        if not connection.scalar(unique, {"column": col}):
+            raise RuntimeError("Visual evidence uniqueness not established")
+
+
 def initialize(engine):
     with engine.begin() as connection:
         database, role = connection.execute(text("SELECT current_database(), current_user")).one()
@@ -126,6 +164,7 @@ def initialize(engine):
         ):
             raise RuntimeError("Legacy checkout objects found in Agentic Pay database")
         metadata.create_all(connection)
+        ensure_visual_uniqueness(connection)
 
 
 def expire_previous_uat_links(engine, *, merchant_id, cutoff, timestamp):
