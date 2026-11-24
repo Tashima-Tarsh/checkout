@@ -54,3 +54,20 @@ def test_rupee_glyph_uncertainty_does_not_hide_success_heading():
     assert result["visual_status"] == "SUCCESS_RECOGNIZED"
     assert result["decision"] in {"VISUAL_SUCCESS","AMOUNT_UNCONFIRMED"}
     assert result["financially_verified"] is False
+
+
+@pytest.mark.parametrize("tail,decision", [
+    ("Paid to: fixture@example\nUPI Ref No: 123456789012", "VISUAL_SUCCESS"),
+    ("Paid to: other@example\nUPI Ref No: 123456789012", "RECIPIENT_UNCONFIRMED"),
+    ("Paid from: fixture@example\nUPI Ref No: 123456789012", "RECIPIENT_UNCONFIRMED"),
+    ("Paid to: fixture@example\nPaid to: other@example\nUTR: 123456789012", "RECIPIENT_UNCONFIRMED"),
+    ("Paid to: fixture@example\nUTR: 12345678901", "REFERENCE_UNCONFIRMED"),
+    ("Paid to: fixture@example\nUTR: 123456789012\nRRN: 999999999999", "REFERENCE_UNCONFIRMED"),
+    ("Paid to:\nfixture@example\nRRN:\n123456789012", "VISUAL_SUCCESS"),
+])
+def test_strict_receipt_fields(tail, decision):
+    from checkout.agentic_vision import match_receipt
+    result = match_receipt("Payment Successful\nINR 1.00\n" + tail,100,"fixture@example")
+    assert result["decision"] == decision
+    assert result["financially_verified"] is False
+    assert ("reference_digest" in result) == (decision == "VISUAL_SUCCESS")

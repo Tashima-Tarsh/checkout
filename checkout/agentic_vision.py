@@ -28,7 +28,29 @@ def classify_text(text, expected_minor):
             "advance_research": decision == "VISUAL_SUCCESS",
             "financially_verified": False, "checkout_changed": False}
 
-def analyze_image(data, expected_minor):
+# Conservative labeled fields only. No fuzzy recipient correction.
+VPA_FIELD = re.compile(r"^(?:paid\s+to|sent\s+to|recipient(?:\s+upi\s+id)?|payee(?:\s+upi\s+id)?|to\s+upi\s+id)\s*:?\s*([a-z0-9._-]+@[a-z0-9._-]+)\s*$", re.I)
+REF_FIELD = re.compile(r"^(?:upi\s+(?:ref(?:erence)?(?:\s+(?:no\.?|number))?|transaction\s+id)|rrn|utr(?:\s+(?:no\.?|number))?)\s*:?\s*([0-9]{12})\s*$", re.I)
+
+def match_receipt(text, expected_minor, expected_vpa):
+    result = classify_text(text, expected_minor)
+    if result["decision"] != "VISUAL_SUCCESS":
+        return result
+    lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+    # Support label/value on adjacent OCR lines; never infer from unlabeled IDs.
+    candidates = lines + [a + " " + b for a, b in zip(lines, lines[1:])]
+    recipients = {m.group(1).casefold() for line in candidates if (m := VPA_FIELD.fullmatch(line))}
+    references = {m.group(1) for line in candidates if (m := REF_FIELD.fullmatch(line))}
+    if not expected_vpa or recipients != {expected_vpa.casefold()}:
+        return dict(result, decision="RECIPIENT_UNCONFIRMED", advance_research=False)
+    if len(references) != 1:
+        return dict(result, decision="REFERENCE_UNCONFIRMED", advance_research=False)
+    # Internal-only reference fingerprint. Never returned from public endpoints.
+    import hashlib
+    reference_digest = hashlib.sha256(("visual-upi:" + next(iter(references))).encode("ascii")).hexdigest()
+    return dict(result, reference_digest=reference_digest)
+
+def analyze_image(data, expected_minor, expected_vpa=None):
     if not data or len(data) > MAX_BYTES:
         raise ValueError("Invalid image size")
     try:
@@ -47,4 +69,5 @@ def analyze_image(data, expected_minor):
     proc = subprocess.run(["tesseract", "stdin", "stdout", "-l", "eng", "--psm", "11"],
                           input=png.getvalue(), stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL, timeout=10, check=True)
-    return classify_text(proc.stdout.decode("utf-8", errors="replace"), expected_minor)
+    text = proc.stdout.decode("utf-8", errors="replace")
+    return classify_text(text, expected_minor) if expected_vpa is None else match_receipt(text, expected_minor, expected_vpa)

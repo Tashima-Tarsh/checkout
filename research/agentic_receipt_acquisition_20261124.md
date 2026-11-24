@@ -1,0 +1,10 @@
+# Receipt-only acquisition research, 2026-11-24
+This PR integrates the useful backend publication concept from b0723e6 onto current main, keeping current bounded polling and expiry. It uses a separate disabled-by-default server credential (AGENTIC_RECEIPT_INGEST and AGENTIC_RECEIPT_TOKEN), never the owner token or customer-side capture. Transport accepts only explicitly authorized receipt images; it never acquires frames itself. Strict OCR requires a success heading, exact currency amount, one labeled paid-to VPA matching the order, and one labeled 12-digit reference. Ambiguous/missing fields fail closed. Atomic visual uniqueness prevents reuse of the same reference across orders even when image bytes change. This does not authenticate payment or establish a trusted order binding; visual matches remain non-financial and do not consume the financial evidence ledger. Raw images/text are not persisted; SHA-256 reference fingerprint is pseudonymous, not anonymous. Receipt timestamps and real-world app layout coverage remain unverified.
+## Acquisition candidates
+- Android app sandbox: https://source.android.com/docs/security/app-sandbox
+- Screen projection: https://developer.android.com/media/grow/media-projection (native provider and consent; protected surfaces must be respected).
+- Chrome Android display capture: https://web-platform-dx.github.io/web-features-explorer/features/screen-capture/ (unsupported).
+- Web share target: https://developer.chrome.com/docs/capabilities/web-apis/web-share-target (requires installed PWA and share action).
+- WebOTP: https://developer.mozilla.org/en-US/docs/Web/API/WebOTP_API (origin-bound OTP, not debit SMS ingestion).
+- MyUPI: https://www.npci.org.in/product/myupi.html (cross-app transaction history, no demonstrated authorized automatic handoff). Seek documented permitted receipt-only export/consent integration; no session or OTP capture, scraping or bypass.
+No universal same-device automatic browser-only source has been demonstrated. Do not enable transport or label payment verified on the basis of this research. Tests include synthetic fixtures only, not actual payer receipts.

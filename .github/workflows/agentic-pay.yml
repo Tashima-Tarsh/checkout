@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements-dev.txt
-      - run: python -m pytest -q tests/test_agentic_registration_privacy.py tests/test_agentic_myupi.py tests/test_agentic_public_routes.py
+      - run: python -m pytest -q tests/test_agentic_registration_privacy.py tests/test_agentic_myupi.py tests/test_agentic_public_routes.py tests/test_agentic_receipt_observation.py
       - name: Prove legacy connection rejected before any Agentic Pay DDL
         run: |
           python - <<'PY'
