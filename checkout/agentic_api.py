@@ -246,12 +246,19 @@ def checkout_order(conn, order_id, lock=False):
     return row
 
 
+def require_open_checkout(order):
+    # Expire the public payment capability, not the accounting record.
+    if order["expires"] <= now():
+        raise HTTPException(410, "Checkout expired")
+    if order["status"] not in {"AWAITING_PAYMENT", "PENDING"}:
+        raise HTTPException(410, "Checkout closed")
+
+
 @router.get("/checkout/{order_id}")
 def checkout_info(request: Request, order_id: str):
     with request.app.state.engine.connect() as conn:
         order = checkout_order(conn, order_id)
-        if order["expires"] <= now() and order["status"] == "AWAITING_PAYMENT":
-            raise HTTPException(410, "Checkout expired")
+        require_open_checkout(order)
         vpa = conn.scalar(select(accounts.c.vpa).where(
             accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
         ))
@@ -268,9 +275,8 @@ def checkout_info(request: Request, order_id: str):
 def verify(request: Request, order_id: str):
     with request.app.state.engine.begin() as conn:
         order = checkout_order(conn, order_id, lock=True)
+        require_open_checkout(order)
         if order["status"] == "AWAITING_PAYMENT":
-            if order["expires"] <= now():
-                raise HTTPException(410, "Checkout expired")
             conn.execute(jobs.insert().values(order_id=order_id, created=now()))
             conn.execute(orders.update().where(orders.c.id == order_id).values(status="PENDING"))
             event(conn, order["merchant_id"], "VERIFICATION_REQUESTED")

@@ -179,3 +179,32 @@ def test_no_input_and_unique_discount_reservations(api, monkeypatch):
     with engine.begin() as conn:
         conn.execute(orders.update().values(expires=1))
     assert client.post("/api/orders", headers=headers, json=payload).status_code == 409
+
+
+def test_checkout_expiry_and_terminal_state_close_public_access(api):
+    from checkout.agentic_api import now
+    from checkout.agentic_storage import orders, amount_reservations
+    from sqlalchemy import func
+
+    client, engine, _ = api
+    headers = merchant(client, "Expiry fixture")
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 201
+    aid = client.get("/api/accounts", headers=headers).json()[0]["id"]
+    for amount, state, expired in [(101, "AWAITING_PAYMENT", True), (102, "PENDING", True),
+                                   (103, "PAID", False)]:
+        data = client.post("/api/orders", headers=headers,
+            json={"account_id": aid, "amount_minor": amount}).json()
+        path = "/api" + data["checkout_path"]
+        if state == "PENDING":
+            assert client.post(path+"/verify").status_code == 202
+        with engine.begin() as conn:
+            conn.execute(orders.update().where(orders.c.id == data["id"]).values(
+                status=state, expires=now()-1 if expired else now()+1800))
+        response = client.get(path)
+        assert response.status_code == 410
+        assert "upi_id" not in response.json()
+        assert client.post(path+"/verify").status_code == 410
+    with engine.connect() as conn:
+        assert conn.scalar(select(func.count()).select_from(orders)) == 3
+        assert conn.scalar(select(func.count()).select_from(amount_reservations)) == 3
+        assert conn.scalar(select(func.count()).select_from(jobs)) == 1

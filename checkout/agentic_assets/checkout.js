@@ -7,6 +7,65 @@ const endpoint = '/api' + location.pathname.replace(/\/diagnostics$/, '');
 let order;
 let returnCallback;
 let checkoutRevision = 0;
+let observationTimer;
+let expiryTimer;
+function closeCheckout(message) {
+  checkoutRevision++;
+  stopObservationPolling();
+  clearTimeout(expiryTimer);
+  returnCallback?.disarm();
+  updateReceipt(null);
+  panel.textContent = message;
+}
+function scheduleExpiry() {
+  clearTimeout(expiryTimer);
+  if (!Number.isFinite(order?.expires)) return;
+  const check = () => {
+    const remaining = order.expires * 1000 - Date.now();
+    if (remaining <= 0) closeCheckout('Checkout expired.');
+    else expiryTimer = setTimeout(check, Math.min(remaining, 60000));
+  };
+  check();
+}
+
+let observationGeneration = 0;
+function stopObservationPolling() {
+  clearTimeout(observationTimer);
+  observationGeneration++;
+}
+function startObservationPolling() {
+  stopObservationPolling();
+  if (diagnosticPage || document.querySelector('#checkout-vision')) return;
+  const generation = observationGeneration;
+  const revision = checkoutRevision;
+  const deadline = Date.now() + 120000;
+  const valid = () => generation === observationGeneration && revision === checkoutRevision;
+  async function poll() {
+    if (!valid() || Date.now() >= deadline) return;
+    if (!document.hidden) {
+      try {
+        const response = await fetch(endpoint, {cache:'no-store',signal:AbortSignal.timeout(8000)});
+        if (!valid()) return;
+        if ([404,410].includes(response.status)) {
+          closeCheckout('Checkout expired or closed.');
+          return;
+        }
+        if (response.ok) {
+          const current = await response.json();
+          if (!valid()) return;
+          updateReceipt(current);
+          if (current.status === 'PENDING' && order.status !== 'PENDING') {
+            order = current;
+            pending();
+          }
+          if (document.querySelector('#checkout-vision')) return;
+        }
+      } catch { /* A temporary network failure is not a result. */ }
+    }
+    if (valid() && Date.now() < deadline) observationTimer = setTimeout(poll, 3000);
+  }
+  observationTimer = setTimeout(poll, 1000);
+}
 let renderReceiptObservation;
 const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=3').then(module => {
   renderReceiptObservation = module.renderReceiptObservation;
@@ -50,7 +109,7 @@ async function refreshAfterReturn(event) {
     const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
     if (revision !== checkoutRevision) return;
     if (response.status === 410 || response.status === 404) {
-      panel.textContent = 'Checkout unavailable or expired.';
+      closeCheckout('Checkout expired or closed.');
       return;
     }
     if (!response.ok) throw new Error();
@@ -63,6 +122,7 @@ async function refreshAfterReturn(event) {
     } else {
       status.textContent = 'If you paid, select I Paid.';
     }
+    startObservationPolling();
   } catch {
     if (revision === checkoutRevision)
       status.textContent = 'Unable to check status. Please retry.';
@@ -86,6 +146,7 @@ function showOrder() {
     try {
       await navigator.clipboard.writeText(order.upi_id);
       checkoutRevision++;
+      stopObservationPolling();
       returnCallback?.arm();
       tracker?.arm();
       diagnostics?.record('copy_ok');
@@ -101,6 +162,8 @@ function showOrder() {
 }
 async function confirmPayment() {
   checkoutRevision++;
+  const revision = checkoutRevision;
+  stopObservationPolling();
   returnCallback?.disarm();
   const button = panel.querySelector('#paid');
   const status = panel.querySelector('[role=status]');
@@ -110,11 +173,16 @@ async function confirmPayment() {
   status.textContent = 'Submitting verification request';
   try {
     const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
+    if (revision !== checkoutRevision) return;
+    if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     diagnostics?.record('verify_ok');
     diagnostic?.record('request-ok');
+    order = {...order, status:'PENDING'};
     pending();
+    startObservationPolling();
   } catch {
+    if (revision !== checkoutRevision) return;
     diagnostics?.record('verify_failed');
     diagnostic?.record('request-failed');
     status.textContent = 'Unable to submit or checkout expired. Please retry.';
@@ -125,10 +193,13 @@ async function confirmPayment() {
   try {
     await Promise.all([diagnosticsReady, returnReady, receiptReady]);
     const response = await fetch(endpoint);
+    if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     order = await response.json();
     showOrder();
     updateReceipt(order);
+    if (order.status === 'PENDING') startObservationPolling();
+    scheduleExpiry();
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }
