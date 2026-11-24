@@ -53,11 +53,11 @@ function startObservationPolling() {
         if (response.ok) {
           const current = await response.json();
           if (!valid()) return;
-          updateReceipt(current);
           if (current.status === 'PENDING' && order.status !== 'PENDING') {
             order = current;
             pending();
           }
+          updateReceipt(current);
           if (document.querySelector('#checkout-vision')) return;
         }
       } catch { /* A temporary network failure is not a result. */ }
@@ -67,11 +67,15 @@ function startObservationPolling() {
   observationTimer = setTimeout(poll, 1000);
 }
 let renderReceiptObservation;
-const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=3').then(module => {
+const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=5').then(module => {
   renderReceiptObservation = module.renderReceiptObservation;
 }).catch(() => {});
 function updateReceipt(current) {
   renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation});
+  if (!diagnosticPage && document.querySelector('#checkout-vision')) {
+    const status = panel.querySelector('[role=status]');
+    if (status) status.textContent = '';
+  }
 }
 const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
   returnCallback = attachReturnCallback(refreshAfterReturn);
@@ -104,7 +108,8 @@ async function refreshAfterReturn(event) {
   const revision = checkoutRevision;
   const status = panel.querySelector('[role=status]');
   if (!status || panel.querySelector('#paid')?.disabled) return;
-  status.textContent = 'Checking status…';
+  if (diagnosticPage) status.textContent = 'Checking status…';
+  else status.textContent = '';
   try {
     const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
     if (revision !== checkoutRevision) return;
@@ -115,17 +120,20 @@ async function refreshAfterReturn(event) {
     if (!response.ok) throw new Error();
     const current = await response.json();
     if (revision !== checkoutRevision) return;
-    updateReceipt(current);
     if (current.status === 'PENDING') {
       order = current;
       pending();
-    } else {
-      status.textContent = 'If you paid, select I Paid.';
     }
+    const message = panel.querySelector('[role=status]');
+    if (message && current.status !== 'PENDING') message.textContent = diagnosticPage
+      ? 'If you paid, select I Paid.' : '';
+    updateReceipt(current);
     startObservationPolling();
   } catch {
-    if (revision === checkoutRevision)
-      status.textContent = 'Unable to check status. Please retry.';
+    if (revision === checkoutRevision) {
+      if (diagnosticPage) status.textContent = 'Unable to check status. Please retry.';
+      else startObservationPolling();
+    }
   }
 }
 function formatAmount(amountMinor) {
@@ -137,7 +145,7 @@ function pending() {
 }
 function showOrder() {
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button><button class="secondary" id="paid">I Paid</button><p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '') + '<p role="status"></p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
   if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
     'Merchant discount: ' + formatAmount(order.discount_minor);
@@ -154,6 +162,7 @@ function showOrder() {
       diagnostics?.record('copy_ok');
     diagnostic?.record('copy-ok');
       status.textContent = 'UPI ID copied.';
+      if (!diagnosticPage) startObservationPolling();
     } catch {
       if (revision !== checkoutRevision) return;
       diagnostics?.record('copy_failed');
@@ -161,7 +170,8 @@ function showOrder() {
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
-  panel.querySelector('#paid').onclick = confirmPayment;
+  const paid = panel.querySelector('#paid');
+  if (paid) paid.onclick = confirmPayment;
 }
 async function confirmPayment() {
   checkoutRevision++;
@@ -204,7 +214,7 @@ async function confirmPayment() {
     order = await response.json();
     showOrder();
     updateReceipt(order);
-    if (order.status === 'PENDING') startObservationPolling();
+    if (!diagnosticPage) startObservationPolling();
     scheduleExpiry();
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
