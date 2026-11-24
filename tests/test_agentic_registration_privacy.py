@@ -1,6 +1,9 @@
+from ipaddress import ip_address
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from checkout import vpa_admin
 from checkout.agentic_api import require_admin, router
 
 
@@ -25,11 +28,12 @@ def test_account_validation_redacts_sensitive_input():
 
 def test_account_inventory_rejects_missing_authentication(monkeypatch):
     monkeypatch.setenv("PDEP_ADMIN_TOKEN", "a" * 32)
-    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "0.0.0.0/0,::/0")
+    monkeypatch.setenv("PDEP_ADMIN_IP_ALLOWLIST", "127.0.0.1/32")
+    monkeypatch.setattr(vpa_admin, "_client_ip", lambda request: ip_address("127.0.0.1"))
     app = FastAPI()
     app.include_router(router)
 
-    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    with TestClient(app) as client:
         response = client.get("/api/admin/agentic/accounts")
 
     assert response.status_code == 401
