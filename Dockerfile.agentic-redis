@@ -1,3 +1,0 @@
-FROM redis:7.4-alpine
-COPY n8n/redis-start.sh /usr/local/bin/agentic-redis-start
-CMD ["sh", "/usr/local/bin/agentic-redis-start"]

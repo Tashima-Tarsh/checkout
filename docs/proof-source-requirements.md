@@ -1,3 +1,0 @@
-# Requirements for real debit evidence
-
-The current checkout does **not** verify actual bank debits. A future real-world source must deliver a financially authoritative signed transaction event into the payer's browser without our native app, along with independently authenticated issuer public keys. The signed event must bind amount, currency, recipient, transaction ID, debit status, time, session relationship and reversal semantics. All signature/replay verification must execute on the server. P2P and P2M must be supported with MCC optional for P2M. Screenshots, UTR strings, passkeys, mobile-return callbacks and locally generated simulated receipts are not adequate debit proof.

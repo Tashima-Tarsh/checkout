@@ -1,11 +1,6 @@
-FROM python:3.12-slim
+FROM node:22-alpine
 WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PDEP_REQUIRE_POSTGRES=1
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && useradd --system checkout
-COPY checkout checkout
-COPY pdep pdep
-COPY alembic.ini .
-COPY migrations migrations
-USER checkout
-CMD ["sh", "-ec", "alembic upgrade head; exec uvicorn checkout.server:app --host 0.0.0.0 --port ${PORT:-8080} --no-access-log"]
+COPY index.html lab.js server.cjs test-control.cjs ./
+RUN node --check server.cjs && node test-control.cjs
+USER node
+CMD ["node","server.cjs"]

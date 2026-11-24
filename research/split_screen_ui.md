@@ -1,2 +1,0 @@
-# Isolated browser test UI
-Use /research/split-screen only with the generated synthetic browser tab. Explicit picker consent, browser-tab surface required, one frame locally, no storage or upload. Unsupported browsers display CAPTURE_UNSUPPORTED. No payment, actual receipt collection or checkout status changes. The customer checkout is unchanged. CI tests the served module and route; physical acquisition still needs device validation.

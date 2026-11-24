@@ -1,5 +1,0 @@
-experiment	candidate	positive_trace	negative_trace	false_verified_debit	result
-001	pagehide+visibilitychange+return	identical	identical	0	Browser handoff observed; debit indistinguishable
-002	duplicate lifecycle events	3 unique events	3 unique events	0	Duplicates suppressed
-003	expired lifecycle return	ignored	ignored	0	15-minute cutoff
-004	session attempt switch	new attempt isolated	new attempt isolated	0	No callback attributed to prior session

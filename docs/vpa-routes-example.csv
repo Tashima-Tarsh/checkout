@@ -1,4 +1,0 @@
-route_key,mode,vpa,mcc,priority,enabled
-primary,P2P,person@upi,,10,true
-business,P2M,merchant@upi,5411,10,true
-business,P2M,backupmerchant@upi,,20,true
