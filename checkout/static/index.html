@@ -6,14 +6,18 @@
   <meta name="theme-color" content="#0c1425">
   <meta name="description" content="P2P and P2M browser-based UPI checkout initiation">
   <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=pdep-v04">
+  <link rel="stylesheet" href="/static/style.css?v=pdep-v05">
 </head>
-<body>
+<body class="checkout-page">
 <main class="shell">
   <header class="topbar">
     <a class="brand" href="/" aria-label="PDEP home"><span id="brandIcon" class="brandmark">P</span><span><span id="brandName">PDEP</span> <small>CHECKOUT</small></span></a>
     <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
   </header>
+  <section class="hero" aria-label="Checkout introduction">
+    <div><span class="eyebrow">DIRECT UPI / 01</span><h2>Payments, simplified.</h2><p>Set your payment details, generate a QR and continue in your preferred UPI app.</p></div>
+    <div class="flowline" aria-hidden="true"><span>01 · Configure</span><i></i><span>02 · Scan or open</span><i></i><span>03 · Review</span></div>
+  </section>
   <div class="workspace">
     <section class="config panel" aria-label="Payment configuration">
       <div class="sectionheading"><span class="step">01</span><div><h1 id="checkoutHeadline">Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
@@ -54,7 +58,7 @@
     <section id="paypanel" class="payment panel" aria-label="Payment status">
       <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any supported UPI app</h2><p>Scan or open from your phone</p></div></div>
       <div id="empty" class="empty">
-        <div class="qrpreview" aria-hidden="true"><span class="scanline"></span>▦</div>
+        <div class="qrpreview" aria-hidden="true"><span class="qr-corner tl"></span><span class="qr-corner tr"></span><span class="qr-corner bl"></span><span class="scanline"></span><span class="qr-caption">QR READY AREA</span></div>
         <strong>Your payment QR appears here</strong>
         <p>Enter the payment details to begin. Nothing to download.</p>
       </div>
@@ -75,7 +79,7 @@
     </section>
   </div>
   <footer class="footer">
-    <span>🔒 Payment initiation only. A return from an app is not proof of debit.</span>
+    <span>Payment initiation only · A return from an app is not proof of debit.</span>
     <span><a href="/admin">Manage VPA inventory</a></span>
   </footer>
   <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>

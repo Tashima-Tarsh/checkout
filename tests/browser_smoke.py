@@ -16,6 +16,7 @@ with sync_playwright() as playwright:
         page = browser.new_page(**options)
         page.goto(os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080"))
         expect(page.get_by_role("heading", name="Make a payment")).to_be_visible()
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.locator("#mode").select_option(mode)
         if mode == "P2M":
             page.locator("#mcc").fill("5411")
@@ -24,6 +25,7 @@ with sync_playwright() as playwright:
         page.locator("#amount").fill("1.00")
         page.get_by_role("button", name="Create secure checkout").click()
         expect(page.locator("#qr")).to_be_visible()
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
         uri = page.locator("#launch").get_attribute("href")
         parsed = urlsplit(uri)
