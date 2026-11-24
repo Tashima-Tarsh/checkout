@@ -9,8 +9,10 @@ function pending() {
 }
 function showOrder() {
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p>Copy the receiving address and pay using your UPI app.</p><button class="primary" id="copy">Copy UPI</button><button class="secondary" id="paid">I Have Paid</button><p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI</button><button class="secondary" id="paid">I Have Paid</button><p role="status"></p>';
   panel.querySelector('h2').textContent = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(order.amount_minor / 100);
+  if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
+    'Merchant discount: ' + new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR'}).format(order.discount_minor/100);
   panel.querySelector('#copy').onclick = async () => {
     const status = panel.querySelector('[role=status]');
     try {
@@ -22,33 +24,19 @@ function showOrder() {
   };
   panel.querySelector('#paid').onclick = confirmPayment;
 }
-function confirmPayment() {
-  panel.innerHTML = '<form><h2>Confirm payment</h2><p>Enter the last four digits of your paying account.</p><input class="digits" aria-label="Last four digits" pattern="[0-9]{4}" inputmode="numeric" maxlength="4" required><button class="primary">Submit & Verify</button><p role="status"></p></form>';
-  panel.querySelector('form').onsubmit = async (event) => {
-    event.preventDefault();
-    const button = panel.querySelector('button');
-    const status = panel.querySelector('[role=status]');
-    button.disabled = true;
-    let remaining = 10;
-    status.textContent = 'Submitting verification request';
-    const countdown = setInterval(() => {
-      if (remaining > 0) status.textContent = 'Waiting for acknowledgment · ' + --remaining + 's';
-    }, 1000);
-    try {
-      const response = await fetch(endpoint + '/verify', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({payer_last4: panel.querySelector('input').value}),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!response.ok) throw new Error();
-      pending();
-    } catch {
-      status.textContent = 'Could not confirm submission. Please retry.';
-      button.disabled = false;
-    } finally {
-      clearInterval(countdown);
-    }
-  };
+async function confirmPayment() {
+  const button = panel.querySelector('#paid');
+  const status = panel.querySelector('[role=status]');
+  button.disabled = true;
+  status.textContent = 'Submitting verification request';
+  try {
+    const response = await fetch(endpoint + '/verify', {method:'POST', signal:AbortSignal.timeout(10000)});
+    if (!response.ok) throw new Error();
+    pending();
+  } catch {
+    status.textContent = 'Unable to submit or checkout expired. Please retry.';
+    button.disabled = false;
+  }
 }
 (async () => {
   try {

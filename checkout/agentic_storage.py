@@ -54,6 +54,14 @@ jobs = Table(
     Column("dispatched", Integer, nullable=False, server_default="0"),
     Column("retry_at", BigInteger, nullable=False, server_default="0"),
 )
+# Pilot: never recycle an allocated amount automatically, including expired orders.
+amount_reservations = Table(
+    "ap_amount_reservations", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+    Column("account_id", ForeignKey("ap_accounts.id"), nullable=False),
+    Column("payable_minor", Integer, nullable=False),
+    UniqueConstraint("account_id", "payable_minor"),
+)
 # Only an independently authenticated source may eventually consume this ledger.
 # No public or worker ingestion endpoint is enabled by this schema.
 evidence_consumption = Table(
