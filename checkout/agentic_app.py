@@ -105,7 +105,15 @@ async def security_headers(request, call_next):
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     })
+    if request.url.path == "/research/vision-uat":
+        response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; media-src 'self' blob:; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        response.headers["Permissions-Policy"] = "display-capture=(self), camera=(), microphone=()"
     return response
+
+
+@app.get("/research/vision-uat")
+def vision_permission_uat():
+    return FileResponse(ASSETS / "vision-uat.html")
 
 
 @app.get("/healthz")
