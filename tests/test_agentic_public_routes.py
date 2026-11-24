@@ -43,6 +43,7 @@ def test_public_test_checkout_is_opt_in_read_only_and_exact_amount(monkeypatch, 
     try:
         monkeypatch.setattr(app.state, "engine", engine, raising=False)
         client = TestClient(app, follow_redirects=False)
+        monkeypatch.delenv("AGENTIC_TEST_AUTO", raising=False)
         monkeypatch.delenv("AGENTIC_TEST_AMOUNT_MINOR", raising=False)
         monkeypatch.delenv("AGENTIC_TEST_ORDER_ID", raising=False)
         assert client.get("/agenticcheckouttest").status_code == 404
@@ -82,5 +83,58 @@ def test_public_test_checkout_is_opt_in_read_only_and_exact_amount(monkeypatch, 
         with engine.begin() as conn:
             conn.execute(orders.update().values(expires=now()+1800, status="PENDING"))
         assert client.get("/agenticcheckouttest").status_code == 410
+    finally:
+        engine.dispose()
+
+
+def test_automatic_test_checkout_allocates_distinct_amounts_and_reuses_session(monkeypatch, tmp_path):
+    from sqlalchemy import create_engine, select, func
+    from checkout.agentic_api import now
+    from checkout.agentic_storage import accounts, amount_reservations, merchants, metadata, orders
+
+    engine = create_engine("sqlite:///" + str(tmp_path / "auto-checkout.db"))
+    metadata.create_all(engine)
+    merchant, account = "a"*32, "b"*32
+    origin = "https://agenticpay.thenitishkr.in"
+    try:
+        monkeypatch.setattr(app.state, "engine", engine, raising=False)
+        monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
+        monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
+        monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
+        with engine.begin() as conn:
+            conn.execute(merchants.insert().values(id=merchant, name="fixture", token_hash="d"*64))
+            conn.execute(accounts.insert().values(id=account, merchant_id=merchant, vpa="fixture@example",
+                bank="fixture", holder="fixture", account_cipher="fixture", mobile_cipher="fixture",
+                last4="0000", account_type="PERSONAL"))
+            conn.execute(orders.insert().values(id="e"*48, merchant_id=merchant, account_id=account,
+                amount_minor=100, created=now()-7200, expires=now()-3600, status="AWAITING_PAYMENT"))
+        clients = [TestClient(app, base_url=origin, follow_redirects=False) for _ in range(2)]
+        paths = []
+        for client in clients:
+            assert client.post("/api/agenticcheckouttest", headers={"origin":origin}).status_code == 403
+            page = client.get("/agenticcheckouttest")
+            assert page.status_code == 200
+            assert "/assets/test-checkout-entry.js" in page.text
+            assert client.post("/api/agenticcheckouttest", headers={"origin":"https://example.invalid"}).status_code == 403
+            with engine.connect() as conn:
+                assert conn.scalar(select(func.count()).select_from(amount_reservations)) == len(paths)
+            result = client.post("/api/agenticcheckouttest", headers={"origin":origin})
+            assert result.status_code == 200
+            path = result.json()["checkout_path"]
+            assert client.post("/api/agenticcheckouttest", headers={"origin":origin}).json()["checkout_path"] == path
+            assert client.get("/agenticcheckouttest").headers["location"] == path
+            paths.append(path)
+        assert paths[0] != paths[1]
+        with engine.connect() as conn:
+            assert set(conn.scalars(select(amount_reservations.c.payable_minor))) == {101,102}
+            assert conn.scalar(select(func.count()).select_from(orders)) == 3
+        with engine.begin() as conn:
+            conn.execute(orders.update().where(orders.c.id == paths[0].split("/")[-1]).values(status="PENDING"))
+        assert clients[0].get("/agenticcheckouttest").status_code == 200
+        fresh = clients[0].post("/api/agenticcheckouttest", headers={"origin":origin}).json()["checkout_path"]
+        assert fresh not in paths
+        assert clients[0].get("/api"+fresh).json()["amount_minor"] == 103
+        monkeypatch.setenv("AGENTIC_TEST_AUTO", "0")
+        assert clients[0].post("/api/agenticcheckouttest", headers={"origin":origin}).status_code == 404
     finally:
         engine.dispose()

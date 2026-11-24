@@ -190,6 +190,20 @@ def inventory(request: Request, identity: Merchant):
         ]
 
 
+def unused_payable(conn, account, lower, upper, *, ascending=False):
+    """Caller holds the receiving-account row lock; never recycle amounts."""
+    used = set(conn.scalars(select(amount_reservations.c.payable_minor).where(
+        amount_reservations.c.account_id == account,
+        amount_reservations.c.payable_minor.between(lower, upper))))
+    used.update(conn.scalars(select(orders.c.amount_minor).where(
+        orders.c.account_id == account,
+        orders.c.amount_minor.between(lower, upper),
+        ~select(amount_reservations.c.order_id).where(
+            amount_reservations.c.order_id == orders.c.id).exists())))
+    candidates = range(lower, upper + 1) if ascending else range(upper, lower - 1, -1)
+    return next((value for value in candidates if value not in used), None)
+
+
 @router.post("/orders", status_code=201)
 def create_order(request: Request, identity: Merchant, item: OrderInput):
     order_id = secrets.token_hex(24)
@@ -200,19 +214,8 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         ).with_for_update())
         if account is None:
             raise HTTPException(404, "Account not found")
-        # Serialize allocations per receiving account. Include all historical
-        # original amounts conservatively (legacy links may still be payable).
         lower = max(100, item.amount_minor - item.max_discount_minor)
-        used = set(conn.scalars(select(amount_reservations.c.payable_minor).where(
-            amount_reservations.c.account_id == account,
-            amount_reservations.c.payable_minor.between(lower, item.amount_minor))))
-        used.update(conn.scalars(select(orders.c.amount_minor).where(
-            orders.c.account_id == account,
-            orders.c.amount_minor.between(lower, item.amount_minor),
-            ~select(amount_reservations.c.order_id).where(
-                amount_reservations.c.order_id == orders.c.id).exists())))
-        payable = next((value for value in range(item.amount_minor, lower-1, -1)
-                        if value not in used), None)
+        payable = unused_payable(conn, account, lower, item.amount_minor)
         if payable is None:
             raise HTTPException(409, "Payment amount pool exhausted; no safe unused amount")
         conn.execute(orders.insert().values(
