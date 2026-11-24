@@ -35,10 +35,12 @@ def main():
             page.route("**/assets/*", lambda r: r.fulfill(
                 content_type="text/javascript",body=(ROOT/r.request.url.split("/assets/")[1].split("?")[0]).read_text()))
             page.goto(base+"/checkout/fixture")
-            page.get_by_role("button",name="I Paid").wait_for()
+            page.get_by_role("button",name="Copy UPI ID").wait_for()
+            assert page.get_by_role("button",name="I Paid").count()==0
             assert page.get_by_text("Local research diagnostics",exact=True).count()==0
             page.goto(base+"/checkout/fixture?diagnostic_lab=1&diagnostics=1")
-            page.get_by_role("button",name="I Paid").wait_for()
+            page.get_by_role("button",name="Copy UPI ID").wait_for()
+            assert page.get_by_role("button",name="I Paid").count()==0
             assert page.get_by_role("button",name="Start local trace").count()==0
             assert page.get_by_text("Local research diagnostics",exact=True).count()==0
             navigation = page.goto(base+"/checkout/fixture/diagnostics?diagnostic_lab=1")
@@ -69,10 +71,11 @@ def main():
             assert result["active"] is False
             # Synthetic checkout API observation: tests rendering, not evidence acquisition.
             page.goto(base+"/checkout/fixture?vision_lab=1&diagnostic_lab=1")
-            page.get_by_role("button",name="I Paid").wait_for()
+            page.get_by_role("button",name="Copy UPI ID").wait_for()
+            assert page.get_by_role("button",name="I Paid").count()==0
             assert page.locator('input[type=file]').count()==0
             assert page.get_by_role("button",name="Analyze payment image").count()==0
-            assert page.get_by_text("Receipt recognized",exact=True).count()==0
+            assert page.get_by_text("Vision recognized",exact=True).count()==0
             assert page.get_by_role("button",name="Start local trace").count()==0
             page.get_by_role("button",name="Copy UPI ID").click()
             page.get_by_text("UPI ID copied.",exact=True).wait_for()
@@ -87,31 +90,44 @@ def main():
                 window.dispatchEvent(new Event('blur'));
                 window.dispatchEvent(new Event('focus'));
             }""")
-            page.get_by_text("Receipt recognized",exact=True).wait_for()
-            assert page.get_by_role("button",name="I Paid").is_enabled()
+            page.get_by_text("Vision recognized",exact=True).wait_for()
+            assert page.get_by_role("button",name="I Paid").count()==0
             assert page.get_by_text("Payment Done",exact=True).count()==0
-            # Delayed observation after I Paid: a pending page must keep checking.
-            state = {"submitted": False, "polls": 0}
+            # No-click automatic callback: unpaid stays without a tick, later
+            # a synthetic server observation appears without a verification POST.
+            state = {"returned": False, "polls": 0, "posts": 0, "publish": False}
             def delayed_status(route):
-                payload = {"status":"PENDING" if state["submitted"] else "OPEN",
-                    "amount_minor":100,"discount_minor":0,"upi_id":"fixture-not-a-payment-address"}
-                if state["submitted"]:
+                payload = {"status":"OPEN","amount_minor":100,"discount_minor":0,
+                    "upi_id":"fixture-not-a-payment-address"}
+                if state["returned"]:
                     state["polls"] += 1
-                    if state["polls"] >= 2:
+                    if state["publish"] and state["polls"] >= 2:
                         payload["receipt_observation"] = {"order_id":"fixture","decision":"VISUAL_SUCCESS",
                             "advance_research":True,"financially_verified":False,"checkout_changed":False}
                 route.fulfill(json=payload)
             def submit(route):
-                state["submitted"] = True
+                state["posts"] += 1
                 route.fulfill(status=202,json={"status":"PENDING","financially_verified":False})
             page.route("**/api/checkout/fixture", delayed_status)
             page.route("**/api/checkout/fixture/verify", submit)
             page.goto(base+"/checkout/fixture")
-            page.get_by_role("button",name="I Paid").click()
-            page.get_by_text("Verification pending.",exact=True).wait_for()
-            assert page.get_by_text("Receipt recognized",exact=True).count()==0
-            page.get_by_text("Receipt recognized",exact=True).wait_for(timeout=15000)
+            page.get_by_role("button",name="Copy UPI ID").click()
+            page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            state["returned"] = True
+            page.evaluate("""() => {
+                Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
+                Object.defineProperty(document, 'hasFocus', {configurable:true, value:()=>true});
+                window.dispatchEvent(new Event('blur'));
+                window.dispatchEvent(new Event('focus'));
+            }""")
+            page.get_by_text("Callback received — awaiting payment evidence",exact=True).wait_for()
+            assert page.get_by_text("Vision recognized",exact=True).count()==0
+            assert page.get_by_role("button",name="I Paid").count()==0
+            state["publish"] = True
+            page.get_by_text("Vision recognized",exact=True).wait_for(timeout=15000)
             assert state["polls"] >= 2
+            assert state["posts"] == 0
+            assert page.get_by_text("Callback received — awaiting payment evidence",exact=True).count()==0
             assert page.get_by_text("Payment Done",exact=True).count()==0
             # Expired session must not display copy or submit controls.
             page.route("**/api/checkout/fixture", lambda r: r.fulfill(status=410,json={"detail":"Checkout expired"}))
@@ -119,7 +135,7 @@ def main():
             page.get_by_text("Checkout expired or closed.",exact=True).wait_for()
             assert page.get_by_role("button",name="Copy UPI ID").count()==0
             assert page.get_by_role("button",name="I Paid").count()==0
-            assert page.get_by_text("Receipt recognized",exact=True).count()==0
+            assert page.get_by_text("Vision recognized",exact=True).count()==0
             browser.close()
     finally:
         server.shutdown();server.server_close();worker.join()
