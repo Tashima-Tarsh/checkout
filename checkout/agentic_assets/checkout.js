@@ -14,7 +14,7 @@ let liveVerification;
 let liveResult;
 let verificationRequested = false;
 let mountLiveVerification;
-const liveVerificationReady = import('/assets/live-verification.mjs?v=1').then(module => {
+const liveVerificationReady = import('/assets/live-verification.mjs?v=2').then(module => {
   mountLiveVerification = module.mountLiveVerification;
 }).catch(() => {});
 function closeCheckout(message) {
@@ -177,10 +177,11 @@ function finish(success, message) {
 }
 function updateSettlement(current) {
   const result = current?.settlement;
-  if (!result?.satisfied && liveResult?.state === 'VERIFICATION_UNAVAILABLE') {
+  if (!result?.satisfied && liveResult?.state === 'VERIFICATION_UNAVAILABLE' && verificationRequested) {
     say(liveResult.reason, '#ff7085'); return;
   }
   if (!result) return;
+  if (!returned && !liveResult && !result.satisfied && ['NOT_YET','ORDER_NOT_ELIGIBLE'].includes(result.state)) return;
   if (result.satisfied) finish(true, result.reason || 'Payment verified.');
   else if (['WRONG_AMOUNT', 'WRONG_PAYEE', 'AMOUNT_UNCONFIRMED', 'REPLAY_OR_ORDER_CONFLICT', 'INVALID_REFERENCE', 'ORDER_NOT_ELIGIBLE', 'EXPIRED', 'CHALLENGE_EXPIRED', 'SENSITIVE_CONTENT_REJECTED', 'VERIFICATION_UNAVAILABLE'].includes(result.state)) finish(false, result.reason);
   else if (result.state === 'AMBIGUOUS') say('Two matching payments — confirming', '#8a6d00');
@@ -196,13 +197,26 @@ function pending() {
 function showOrder() {
   if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label><p>Share only the UPI payment result if supported. Hide PIN, OTP, balances and account details.</p>') + '<p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>Share only the payment result if supported. Hide PIN, OTP, balances and account details.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
-  if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
-    'Merchant discount: ' + formatAmount(order.discount_minor);
+  if (order.discount_minor > 0) {
+    const discount = panel.querySelector('#discount');
+    discount.hidden = false;
+    discount.textContent = 'Merchant discount: ' + formatAmount(order.discount_minor);
+  }
+  if (order.session_reference) {
+    const reference = panel.querySelector('#session-reference');
+    reference.hidden = false;
+    reference.textContent = 'Checkout reference: ' + order.session_reference;
+    reference.style.overflowWrap = 'anywhere';
+  }
   const copy = panel.querySelector('#copy');
   const verification = panel.querySelector('#live-verify');
   if (verification && order.settlement) copy.disabled = true;
+  if (verification && !mountLiveVerification) {
+    verification.disabled = true;
+    say('Verification unavailable. Reload to retry.', '#ff7085');
+  }
   copy.onclick = async () => {
     const status = panel.querySelector('[role=status]');
     const revision = checkoutRevision;
