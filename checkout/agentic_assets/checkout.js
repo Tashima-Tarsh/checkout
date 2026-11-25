@@ -213,7 +213,7 @@ function showOrder() {
   const copy = panel.querySelector('#copy');
   const verification = panel.querySelector('#live-verify');
   if (verification && order.settlement) copy.disabled = true;
-  if (verification && !mountLiveVerification) {
+  if (verification && !order.shared_amount && !mountLiveVerification) {
     verification.disabled = true;
     say('Verification unavailable. Reload to retry.', '#ff7085');
   }
@@ -232,7 +232,7 @@ function showOrder() {
       diagnostics?.record('copy_ok');
     diagnostic?.record('copy-ok');
       status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
-      copy.textContent = '✓ Copied — Verification ready';
+      copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
       setTimeout(() => {
         if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
       }, 2500);
@@ -246,7 +246,13 @@ function showOrder() {
   };
   const paid = panel.querySelector('#paid');
   if (paid) paid.onclick = confirmPayment;
-  if (!diagnosticPage && mountLiveVerification) {
+  if (!diagnosticPage && order.shared_amount) {
+    verification.addEventListener('change', () => {
+      verificationRequested = verification.checked;
+      copy.disabled = !verificationRequested;
+      say(verificationRequested ? 'Verification requested. Pay and return.' : 'Enable verification before copying.', '#b0afbd');
+    });
+  } else if (!diagnosticPage && mountLiveVerification) {
     liveVerification = mountLiveVerification({
       button:verification, endpoint,
       onRequested: requested => { verificationRequested = requested; liveResult = undefined; copy.disabled = !requested; },
