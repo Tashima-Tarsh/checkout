@@ -302,3 +302,31 @@ def test_whole_rupee_shared_sessions_are_distinct_and_fail_closed(api):
         assert set(conn.scalars(select(shared_test_orders.c.order_id))) == ids
         assert list(conn.scalars(select(evidence_consumption.c.order_id))) == []
         assert set(conn.scalars(select(orders.c.status))) == {"AWAITING_PAYMENT"}
+
+
+def test_new_checkout_expires_after_exactly_120_seconds(api, monkeypatch):
+    from checkout import agentic_api
+    from checkout.agentic_storage import orders
+    client, engine, _ = api
+    headers = merchant(client, "Expiry Merchant")
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 201
+    aid = client.get("/api/accounts", headers=headers).json()[0]["id"]
+    clock = [1_800_000_000]
+    monkeypatch.setattr(agentic_api, "now", lambda: clock[0])
+    for shared, amount in [(False, 200), (True, 100)]:
+        start = clock[0]
+        response = client.post("/api/orders", headers=headers, json={
+            "account_id": aid, "amount_minor": amount, "shared_amount": shared})
+        assert response.status_code == 201
+        order = response.json()
+        path = "/api" + order["checkout_path"]
+        with engine.connect() as conn:
+            row = conn.execute(select(orders).where(orders.c.id == order["id"])).mappings().one()
+            assert row["expires"] - row["created"] == 120
+        if shared:
+            assert order["expires"] == start + 120
+        clock[0] = start + 119
+        assert client.get(path).status_code == 200
+        clock[0] = start + 120
+        assert client.get(path).status_code == 410
+        assert client.post(path + "/verify").status_code == 410
