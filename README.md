@@ -47,7 +47,7 @@ testing. Do not send money during automated checks.
 
 ## Agentic Pay live vision verification
 
-Checkout assigns a non-recycled payable paise amount and a 30-minute session.
+Checkout assigns a non-recycled payable paise amount and a 120-second session.
 The customer copies the receiving UPI ID, pays that exact ID and amount in a
 UPI app, then explicitly starts live screen verification. Each analyzed frame
 requires a short-lived, single-use server challenge. Only a fresh successful
