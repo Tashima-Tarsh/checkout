@@ -10,7 +10,6 @@ jobs:
     # Playwright 1.51 supports Ubuntu 24.04; avoid runner OS drift.
     runs-on: ubuntu-24.04
     timeout-minutes: 12
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
