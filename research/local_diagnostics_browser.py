@@ -48,7 +48,7 @@ def main():
             start=page.get_by_role("button",name="Start local trace")
             start.click()
             page.get_by_role("button",name="Copy UPI ID").click()
-            page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            page.get_by_text("✓ UPI ID copied. Live verification ready.",exact=True).wait_for()
             # Synthetic lifecycle dispatch tests browser integration, not Android app access.
             with page.expect_request(lambda req: req.method == "GET" and req.url.endswith("/api/checkout/fixture")):
                 page.evaluate("""() => {
@@ -78,7 +78,7 @@ def main():
             assert page.get_by_text("Vision recognized",exact=True).count()==0
             assert page.get_by_role("button",name="Start local trace").count()==0
             page.get_by_role("button",name="Copy UPI ID").click()
-            page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            page.get_by_text("✓ UPI ID copied. Live verification ready.",exact=True).wait_for()
             page.route("**/api/checkout/fixture", lambda r: r.fulfill(json={
                 "status":"OPEN","amount_minor":100,"discount_minor":0,
                 "upi_id":"fixture-not-a-payment-address",
@@ -112,7 +112,7 @@ def main():
             page.route("**/api/checkout/fixture/verify", submit)
             page.goto(base+"/checkout/fixture")
             page.get_by_role("button",name="Copy UPI ID").click()
-            page.get_by_text("UPI ID copied.",exact=True).wait_for()
+            page.get_by_text("✓ UPI ID copied. Live verification ready.",exact=True).wait_for()
             assert page.get_by_text("Vision not observed",exact=True).count()==0
             state["returned"] = True
             page.evaluate("""() => {
