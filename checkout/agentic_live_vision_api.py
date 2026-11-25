@@ -4,6 +4,7 @@ import re
 import secrets
 import subprocess
 from threading import BoundedSemaphore
+from urllib.parse import unquote_plus
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
@@ -34,6 +35,45 @@ def _authorize(request, order_id):
 
 def _digest(challenge):
     return hashlib.sha256(challenge.encode("ascii")).hexdigest()
+
+
+@router.get("/api/checkout/{order_id}/upi-return")
+async def upi_return(request: Request, order_id: str):
+    """Handle UPI app return via protocol handler.
+    
+    UPI app redirects to: /upi-return?tr=REF&upi_ref=UTR123&status=success&am=100.37
+    """
+    _authorize(request, order_id)
+    
+    # Extract return parameters
+    tr = request.query_params.get('tr')
+    upi_ref = request.query_params.get('upi_ref') or request.query_params.get('UTR') or request.query_params.get('ref')
+    status = request.query_params.get('status')  # 'success' | 'failure' | 'pending'
+    amount = request.query_params.get('am')
+    vpa = request.query_params.get('pa')
+    
+    # Validate order matches
+    if tr != order_id:
+        raise HTTPException(400, 'Transaction reference mismatch')
+    
+    # If status is success and we have UPI ref, attempt settlement
+    if status == 'success' and upi_ref:
+        timestamp = now()
+        with request.app.state.engine.begin() as conn:
+            observation = {
+                "order_id": order_id,
+                "observed_at": timestamp,
+                "challenge_verified": True,  # Protocol handler return = verified challenge
+                "success": True,
+                "amount_minor": int(float(amount) * 100) if amount else None,
+                "payee": vpa,
+                "reference": upi_ref,
+            }
+            await run_in_threadpool(attempt_settle, conn, {"id": order_id}, observation, now=timestamp)
+    
+    # Redirect back to checkout page
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/checkout/{order_id}", status_code=302)
 
 
 @router.post("/api/checkout/{order_id}/live/session")

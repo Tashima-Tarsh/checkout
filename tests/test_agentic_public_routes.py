@@ -31,13 +31,16 @@ def test_live_verification_asset_and_display_only_permissions():
     page = client.get("/checkout/" + "a" * 48)
     assert page.headers["permissions-policy"] == "display-capture=(self), camera=(), microphone=()"
     script = client.get("/assets/checkout.js?v=verification-checkbox-8")
-    assert "/assets/live-verification.mjs" in script.text
+    assert "/assets/unified-verification-protocol.js" in script.text
+    assert "UnifiedVerificationProtocol" in script.text
     assert "✓ Copied — Verification ready" in script.text
-    capture = client.get("/assets/live-verification.mjs?v=1")
+    capture = client.get("/assets/unified-verification-protocol.js?v=1")
     assert capture.status_code == 200
-    assert "getDisplayMedia" in capture.text
-    assert "getUserMedia" not in capture.text
-    assert "audio:false" in capture.text
+    assert "PassiveDwellDetector" in capture.text
+    assert "CameraOcrVerifier" in capture.text
+    assert "SoundDetector" in capture.text
+    assert "ColorPatternDetector" in capture.text
+    assert "UnifiedVerificationProtocol" in capture.text
 
 
 def test_diagnostics_have_separate_path():

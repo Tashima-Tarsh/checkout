@@ -1,5 +1,5 @@
 const colors=['#ff7085','#aa8afb','#54d6a6','#efb460','#6baaff'];function network(id,nodes,paths){document.getElementById(id).innerHTML=paths.map((d,i)=>`<path class="wire" d="${d}"/><path class="signal" stroke="${colors[i%5]}" style="animation-delay:-${i%5}s" d="${d}"/>`).join('')+nodes.map(([x,y,label,mark],i)=>`<g transform="translate(${x} ${y})"><rect class="node" width="84" height="70" rx="10"/><rect x="27" y="10" width="30" height="30" rx="7" fill="${colors[i%5]}22"/><text x="42" y="32" fill="${colors[i%5]}" font-size="19" text-anchor="middle">${mark}</text><text x="42" y="56" fill="#aaa9b5" font-size="10" text-anchor="middle">${label}</text><circle cx="0" cy="35" r="3" fill="#9995a4"/><circle cx="84" cy="35" r="3" fill="#9995a4"/></g>`).join('')}
-network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Data store','▱'],[836,115,'Lookup','⌕'],[836,440,'Verify','✓'],[458,550,'Process','▤']],['M164 150H220Q240 150 240 170V280H400','M164 150H200V75H270','M354 75H740V150H836','M164 475H240V370H400','M600 280H760V150H836','M600 370H760V475H836','M164 475H220V585H458','M542 585H780V475H836','M878 185V440']);network('mobileNetwork',[[18,55,'Trigger','↯'],[285,100,'Session','▤'],[18,710,'Lookup','⌕'],[285,755,'Verify','✓']],['M102 90H220V135H285','M60 125V360H180','M327 170V420H220','M60 710V530H180','M102 745H220V790H285','M327 755V530H220']);
+network('mobileNetwork',[[18,55,'Trigger','↯'],[285,100,'Session','▤'],[18,710,'Lookup','⌕'],[285,755,'Verify','✓']],['M102 90H220V135H285','M60 125V360H180','M327 170V420H220','M60 710V530H180','M102 745H220V790H285','M327 755V530H220']);
 
 const panel = document.querySelector('#stage');
 const diagnosticPage = location.pathname.endsWith('/diagnostics');
@@ -10,15 +10,13 @@ let checkoutRevision = 0;
 let observationTimer;
 let expiryTimer;
 let returned = false;
-let liveVerification;
-let liveResult;
-let verificationRequested = false;
-let mountLiveVerification;
-const liveVerificationReady = import('/assets/live-verification.mjs?v=2').then(module => {
-  mountLiveVerification = module.mountLiveVerification;
+let unifiedProtocol;
+const unifiedProtocolReady = import('/assets/unified-verification-protocol.js?v=1').then(module => {
+  window.UnifiedVerificationProtocol = module.UnifiedVerificationProtocol;
 }).catch(() => {});
+
 function closeCheckout(message) {
-  liveVerification?.stop();
+  unifiedProtocol?.stopAllChannels?.();
   checkoutRevision++;
   stopObservationPolling();
   clearTimeout(expiryTimer);
@@ -68,11 +66,9 @@ function startObservationPolling() {
           order = current;
           if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
           updateReceipt(current);
-          // Don't overwrite live verification errors with polling results
           if (!liveResult?.state || liveResult.state === 'VERIFICATION_UNAVAILABLE') {
             updateSettlement(current);
           } else if (!current.settlement?.satisfied) {
-            // Preserve live verification errors, only update on settlement
             updateSettlement({...current, settlement: {satisfied: false, state: liveResult.state, reason: liveResult.reason}});
           }
           if (!current.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) return;
@@ -81,76 +77,7 @@ function startObservationPolling() {
     }
     if (valid() && Date.now() < deadline) observationTimer = setTimeout(poll, 5000);
   }
-  observationTimer = setTimeout(poll, 1000);
-}
-let renderReceiptObservation;
-const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checkout-vision.mjs?v=6').then(module => {
-  renderReceiptObservation = module.renderReceiptObservation;
-}).catch(() => {});
-function updateReceipt(current) {
-  if (current?.settlement) { document.querySelector('#checkout-vision')?.remove(); return; }
-  renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation, returned:returned && current != null});
-}
-const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
-  returnCallback = attachReturnCallback(refreshAfterReturn);
-}).catch(() => {});
-let diagnostics;
-let diagnostic;
-const diagnosticParams = diagnosticPage ? new URLSearchParams(location.search) : new URLSearchParams();
-// Preserve the existing diagnostics flag; activate only one panel per page.
-const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
-  ? import('/assets/local-diagnostics.mjs').then(({mountDiagnostics}) => {
-      diagnostics = mountDiagnostics();
-    }).catch(() => {})
-  : diagnosticParams.get('diagnostics') === '1'
-    ? import('/assets/checkout-diagnostics.mjs').then(({mountDiagnostics}) => {
-        diagnostic = mountDiagnostics({host:document.querySelector('main.panel')});
-      }).catch(() => {})
-    : Promise.resolve();
-// Opt-in research only; no payment state mutation on return.
-let tracker;
-if (diagnosticParams.get('return_lab') === '1') {
-  import('/assets/return-tracker.mjs').then(({attachReturnTracker}) => {
-    tracker = attachReturnTracker(async trace => {
-      console.info('PDEP return research', trace);
-      try { const response = await fetch(endpoint, {cache:'no-store'}); if (response.ok) console.info('PDEP status', (await response.json()).status); } catch { /* observational only */ }
-    });
-  }).catch(() => {});
-}
-// A return is a browser lifecycle callback, NOT a payment provider callback.
-async function refreshAfterReturn(event) {
-  const revision = checkoutRevision;
-  const status = panel.querySelector('[role=status]');
-  if (!status || panel.querySelector('#paid')?.disabled) return;
-  if (diagnosticPage) status.textContent = 'Checking status…';
-  else status.textContent = '';
-  try {
-    const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
-    if (revision !== checkoutRevision) return;
-    if (response.status === 410 || response.status === 404) {
-      closeCheckout('Checkout expired or closed.');
-      return;
-    }
-    if (!response.ok) throw new Error();
-    const current = await response.json();
-    if (revision !== checkoutRevision) return;
-    const previousStatus = order?.status;
-    order = current;
-    if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
-    const message = panel.querySelector('[role=status]');
-    if (!current.settlement && message && current.status !== 'PENDING') message.textContent = diagnosticPage
-      ? 'If you paid, select I Paid.' : '';
-    if (!diagnosticPage) returned = true;
-    updateReceipt(current);
-    updateSettlement(current);
-    if (verificationRequested && !current.settlement?.satisfied) liveVerification?.checkNow();
-    startObservationPolling();
-  } catch {
-    if (revision === checkoutRevision) {
-      if (diagnosticPage) status.textContent = 'Unable to check status. Please retry.';
-      else startObservationPolling();
-    }
-  }
+  poll();
 }
 function formatAmount(amountMinor) {
   return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR', minimumFractionDigits: amountMinor % 100 === 0 ? 0 : 2, maximumFractionDigits: 2}).format(amountMinor / 100);
@@ -164,12 +91,10 @@ function say(message, color) {
 }
 function finish(success, message) {
   if (!success) {
-    // Red is the current diagnosis, not a terminal UI state. Keep polling until
-    // the order expires; a later matching live result can still settle it.
     say(message, '#ff7085');
     return;
   }
-  liveVerification?.stop();
+  unifiedProtocol?.stopAllChannels?.();
   stopObservationPolling();
   clearTimeout(expiryTimer);
   returnCallback?.disarm();
@@ -179,98 +104,90 @@ function finish(success, message) {
 }
 function updateSettlement(current) {
   const result = current?.settlement;
-  if (!result?.satisfied && liveResult?.state === 'VERIFICATION_UNAVAILABLE' && verificationRequested) {
-    say(liveResult.reason, '#ff7085'); return;
-  }
   if (!result) return;
-  if (!returned && !liveResult && !result.satisfied && ['NOT_YET','ORDER_NOT_ELIGIBLE'].includes(result.state)) return;
   if (result.satisfied) finish(true, result.reason || 'Payment verified.');
   else if (['WRONG_AMOUNT', 'WRONG_PAYEE', 'AMOUNT_UNCONFIRMED', 'REPLAY_OR_ORDER_CONFLICT', 'INVALID_REFERENCE', 'ORDER_NOT_ELIGIBLE', 'EXPIRED', 'CHALLENGE_EXPIRED', 'SENSITIVE_CONTENT_REJECTED', 'VERIFICATION_UNAVAILABLE'].includes(result.state)) finish(false, result.reason);
   else if (result.state === 'AMBIGUOUS') say('Two matching payments — confirming', '#8a6d00');
   else say(result.reason || 'Checking…', '#8a6d00');
 }
 function pending() {
-  liveVerification?.stop();
-  liveVerification = undefined;
   panel.innerHTML = '<h2></h2><p role="status">Verification pending.</p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
-  updateSettlement(order);
 }
 function showOrder() {
   if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>Share only the payment result if supported. Hide PIN, OTP, balances and account details.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
-  panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
-  if (order.discount_minor > 0) {
-    const discount = panel.querySelector('#discount');
-    discount.hidden = false;
-    discount.textContent = 'Merchant discount: ' + formatAmount(order.discount_minor);
-  }
-  if (order.session_reference) {
-    const reference = panel.querySelector('#session-reference');
-    reference.hidden = false;
-    reference.textContent = 'Checkout reference: ' + order.session_reference;
-    reference.style.overflowWrap = 'anywhere';
-  }
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label><p class="privacy">Share only the UPI payment result. Hide PIN, OTP, balances and account details. Live frames are analyzed in memory and never stored.</p>') + '<p role="status"></p>';
   const copy = panel.querySelector('#copy');
-  const verification = panel.querySelector('#live-verify');
-  if (verification && order.settlement) copy.disabled = true;
-  if (verification && !order.shared_amount && !mountLiveVerification) {
-    verification.disabled = true;
-    say('Verification unavailable. Reload to retry.', '#ff7085');
-  }
-copy.onclick = async () => {
-    const status = panel.querySelector('[role=status]');
-    const revision = checkoutRevision;
-    try {
-      await navigator.clipboard.writeText(order.upi_id);
-      if (revision !== checkoutRevision) return;
-      checkoutRevision++;
-      returned = false;
-      document.querySelector('#checkout-vision[data-result=not-observed]')?.remove();
-      stopObservationPolling();
-      returnCallback?.arm();
-      tracker?.arm();
-      diagnostics?.record('copy_ok');
-      diagnostic?.record('copy-ok');
-      // Arm verification when UPI ID is copied - prepares for live verification
-      if (liveVerification) {
-        liveVerification.checkNow();
-      }
-      status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
-      copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
-      setTimeout(() => {
-        if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
-      }, 2500);
-      if (!diagnosticPage) startObservationPolling();
-    } catch {
-      if (revision !== checkoutRevision) return;
-      diagnostics?.record('copy_failed');
-      diagnostic?.record('copy-failed');
-      status.textContent = 'Unable to copy. Please retry.';
-    }
-  };
   const paid = panel.querySelector('#paid');
+  const liveVerify = panel.querySelector('#live-verify');
+  if (copy) copy.onclick = copyUpiId;
   if (paid) paid.onclick = confirmPayment;
-  if (!diagnosticPage && order.shared_amount) {
-    verification.addEventListener('change', () => {
-      verificationRequested = verification.checked;
-      copy.disabled = !verificationRequested;
-      say(verificationRequested ? 'Verification requested. Pay and return.' : 'Enable verification before copying.', '#b0afbd');
-    });
-  } else if (!diagnosticPage && mountLiveVerification) {
-    liveVerification = mountLiveVerification({
-      button:verification, endpoint,
-      onRequested: requested => { verificationRequested = requested; liveResult = undefined; copy.disabled = !requested; },
-      onResult:result => {
-        liveResult = result;
-        order = {...order, status:result.satisfied ? 'PAID' : order.status, settlement:result};
-        updateSettlement(order);
-      },
+  if (liveVerify) {
+    liveVerify.addEventListener('change', async (e) => {
+      const checked = e.target.checked;
+      if (checked) {
+        // Initialize unified verification protocol
+        const { UnifiedVerificationProtocol } = await unifiedProtocolReady;
+        unifiedProtocol = new UnifiedVerificationProtocol({
+          vpa: order.upi_id,
+          amount: order.amount_minor / 100,
+          ref: order.id,
+          colorSeq: order.color_seq || [],
+          onResult: (result) => {
+            liveResult = result;
+            order = {...order, status: result.verified ? 'PAID' : order.status, settlement: result};
+            updateSettlement(order);
+            if (result.verified) {
+              e.target.checked = false;
+              finish(true, result.reason || 'Payment verified.');
+            } else if (result.requireManualReview) {
+              say(result.reason, '#ff7085');
+            }
+          }
+        });
+        await unifiedProtocol.initialize();
+        // Launch UPI intent
+        window.location.href = unifiedProtocol.getUpiIntent();
+        // Start sound detection
+        // Start passive dwell detection (already armed in protocol)
+      } else {
+        unifiedProtocol?.stopAllChannels?.();
+        unifiedProtocol = null;
+      }
     });
   }
   updateSettlement(order);
 }
+
+async function copyUpiId() {
+  const status = panel.querySelector('[role=status]');
+  const revision = checkoutRevision;
+  try {
+    await navigator.clipboard.writeText(order.upi_id);
+    if (revision !== checkoutRevision) return;
+    checkoutRevision++;
+    returned = false;
+    document.querySelector('#checkout-vision[data-result=not-observed]')?.remove();
+    stopObservationPolling();
+    returnCallback?.arm();
+    tracker?.arm();
+    diagnostics?.record('copy_ok');
+    diagnostic?.record('copy-ok');
+    status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
+    copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
+    setTimeout(() => {
+      if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
+    }, 2500);
+    if (!diagnosticPage) startObservationPolling();
+  } catch {
+    if (revision !== checkoutRevision) return;
+    diagnostics?.record('copy_failed');
+    diagnostic?.record('copy-failed');
+    status.textContent = 'Unable to copy. Please retry.';
+  }
+}
+
 async function confirmPayment() {
   checkoutRevision++;
   const revision = checkoutRevision;
@@ -303,9 +220,77 @@ async function confirmPayment() {
     if (copy) copy.disabled = false;
   }
 }
-(async () => {
+
+async function refreshAfterReturn(event) {
+  const revision = checkoutRevision;
+  const status = panel.querySelector('[role=status]');
+  if (!status || panel.querySelector('#paid')?.disabled) return;
+  if (diagnosticPage) status.textContent = 'Checking status…';
+  else status.textContent = '';
   try {
-    await Promise.all([diagnosticsReady, returnReady, receiptReady, liveVerificationReady]);
+    const response = await fetch(endpoint, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+    if (revision !== checkoutRevision) return;
+    if (response.status === 410 || response.status === 404) {
+      closeCheckout('Checkout expired or closed.');
+      return;
+    }
+    if (!response.ok) throw new Error();
+    const current = await response.json();
+    if (revision !== checkoutRevision) return;
+    const previousStatus = order?.status;
+    order = current;
+    if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
+    const message = panel.querySelector('[role=status]');
+    if (!current.settlement && message && current.status !== 'PENDING') message.textContent = diagnosticPage
+      ? 'If you paid, select I Paid.' : '';
+    if (!diagnosticPage) returned = true;
+    updateReceipt(current);
+    // On return from UPI app, trigger unified protocol verification
+    if (unifiedProtocol) {
+      await unifiedProtocol.onUserReturn();
+    }
+    updateSettlement(current);
+    startObservationPolling();
+  } catch {
+    if (revision === checkoutRevision) {
+      if (diagnosticPage) status.textContent = 'Unable to check status. Please retry.';
+      else startObservationPolling();
+    }
+  }
+}
+function updateReceipt(current) {
+  if (current?.settlement) { document.querySelector('#checkout-vision')?.remove(); return; }
+  renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation, returned:returned && current != null});
+}
+function renderReceiptObservation({host, orderId, observation, returned}) {
+  if (!host || !observation) return;
+  const container = host.querySelector('#checkout-vision') || document.createElement('div');
+  container.id = 'checkout-vision';
+  if (observation.decision === 'VISUAL_SUCCESS') {
+    container.dataset.result = 'recognized';
+    container.innerHTML = '<div class="vision-success"><span class="tick">✓</span> Receipt recognized</div>';
+  } else if (observation.decision === 'AMOUNT_UNCONFIRMED') {
+    container.dataset.result = 'amount-unconfirmed';
+    container.innerHTML = '<div class="vision-warning">⚠ Amount not clear</div>';
+  } else if (observation.decision === 'RECIPIENT_UNCONFIRMED') {
+    container.dataset.result = 'recipient-unconfirmed';
+    container.innerHTML = '<div class="vision-warning">⚠ Recipient not confirmed</div>';
+  } else if (observation.decision === 'REFERENCE_UNCONFIRMED') {
+    container.dataset.result = 'reference-unconfirmed';
+    container.innerHTML = '<div class="vision-warning">⚠ Reference not found</div>';
+  } else if (observation.decision === 'NOT_SUCCESS') {
+    container.dataset.result = 'not-success';
+    container.innerHTML = '<div class="vision-error">✗ Payment not successful</div>';
+  } else {
+    container.dataset.result = 'not-observed';
+    container.innerHTML = '<div class="vision-pending">🔍 Looking for receipt…</div>';
+  }
+  if (!host.contains(container)) host.appendChild(container);
+}
+
+async function init() {
+  try {
+    await Promise.all([diagnosticsReady, returnReady, receiptReady, unifiedProtocolReady]);
     const response = await fetch(endpoint);
     if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
@@ -319,5 +304,6 @@ async function confirmPayment() {
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }
-})();
+}
 
+init();

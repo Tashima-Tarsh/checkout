@@ -5,12 +5,18 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
   let generation = 0;
   let inFlight = false;
   let video, canvas;
+  let readyPromise = null;
+  let readyResolve = null;
   let isAndroidChrome = false;
 
   // Detect Android Chrome where getDisplayMedia can't capture other apps
   if (typeof navigator !== 'undefined') {
     const ua = navigator.userAgent;
     isAndroidChrome = /Android/.test(ua) && /Chrome/.test(ua) && !/Firefox|Edg|OPR/.test(ua);
+  }
+
+  function ready() {
+    return new Promise((resolve) => { readyResolve = resolve; });
   }
 
   function resetButton() {
@@ -23,6 +29,8 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     clearTimeout(timer);
     stream?.getTracks().forEach(track => track.stop());
     stream = undefined;
+    readyPromise = null;
+    readyResolve = null;
     resetButton();
   }
   function fail(reason) {
@@ -71,6 +79,18 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     if (running && current === generation) timer = setTimeout(() => capture(video, canvas), 2500);
   }
 
+  async function ensureReady() {
+    if (running && video && canvas) return true;
+    if (readyPromise) return readyPromise;
+    readyPromise = new Promise((resolve) => { readyResolve = resolve; });
+    try {
+      await Promise.race([readyPromise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))]);
+      return running && video && canvas;
+    } catch {
+      return false;
+    }
+  }
+
   button.addEventListener('change', async () => {
     onRequested(button.checked);
     if (!button.checked) {
@@ -111,6 +131,8 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       }, {once:true}));
 
       button.disabled = false;
+      readyResolve?.(true);
+      readyPromise = null;
       // Wait for checkout return before sending frames; never capture while entering a PIN.
     } catch {
       if (current === generation) {
@@ -121,5 +143,14 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     }
   });
 
-  return {stop, checkNow() { if (running && video && canvas) capture(video, canvas); else fail(); }, get active() { return running; }};
+  return {
+    stop, 
+    async checkNow() { 
+      const ready = await ensureReady();
+      if (!ready) { fail(); return; }
+      if (running && video && canvas) capture(video, canvas); 
+      else fail(); 
+    }, 
+    get active() { return running; }
+  };
 }

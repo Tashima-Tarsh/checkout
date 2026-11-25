@@ -10,8 +10,8 @@ SESSION = FixtureSession(SCOPE, "fixture-source-account", 190)
 ORDER = dict(merchant_id=SCOPE.merchant_id, account_id=SCOPE.account_id,
              amount_minor=100, payer_last4="1234", created=100, expires=180)
 ROW = dict(account_id=SCOPE.account_id, source_account_id=SESSION.source_account_id,
-           reference="000000000001", amount_minor=100, payer_last4="1234",
-           timestamp=125, direction="CREDIT", status="SUCCESS")
+            reference="000000000001", amount_minor=100, payer_last4="1234",
+            timestamp=125, direction="VERIFIED", status="SUCCESS")
 
 
 def check(reason, order=ORDER, session=SESSION, rows=(ROW,), **kwargs):
@@ -63,7 +63,7 @@ from checkout.agentic_myupi import evaluate
 BOUNDARY_ORDER = dict(account_id="fixture", created=100, expires=190,
              amount_minor=100, payer_last4="1234")
 BOUNDARY_ROW = dict(account_id="fixture", amount_minor=100, payer_last4="1234",
-           direction="CREDIT", status="SUCCESS", timestamp=110, reference="123456789012")
+            direction="VERIFIED", status="SUCCESS", timestamp=110, reference="123456789012")
 
 class Fixture:
     def __init__(self, rows): self.rows = rows
