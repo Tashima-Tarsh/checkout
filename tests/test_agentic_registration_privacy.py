@@ -272,3 +272,33 @@ def test_expire_old_uat_links_only_preserves_records_and_new_orders(api):
         assert conn.scalar(select(func.count()).select_from(amount_reservations))==5
         assert conn.scalar(select(func.count()).select_from(jobs))==1
         assert conn.scalar(select(orders.c.status).where(orders.c.id==ids[2]))=="PAID"
+
+
+def test_whole_rupee_shared_sessions_are_distinct_and_fail_closed(api):
+    from checkout.agentic_storage import shared_test_orders, evidence_consumption, orders
+    client, engine, _ = api
+    headers = merchant(client, "Shared Amount Merchant")
+    assert client.post("/api/accounts", headers=headers, json=[account()]).status_code == 201
+    aid = client.get("/api/accounts", headers=headers).json()[0]["id"]
+    payload = {"account_id": aid, "amount_minor": 100, "shared_amount": True}
+    created = [client.post("/api/orders", headers=headers, json=payload) for _ in range(3)]
+    assert all(r.status_code == 201 for r in created)
+    ids = {r.json()["session_reference"] for r in created}
+    assert len(ids) == 3
+    for response in created:
+        data = response.json()
+        assert data["payable_minor"] == 100 and data["discount_minor"] == 0
+        assert data["id"] == data["session_reference"]
+        assert data["expires"] > 0
+        path = "/api" + data["checkout_path"]
+        info = client.get(path).json()
+        assert info["amount_minor"] == 100 and info["upi_id"] == "first@example"
+        assert info["shared_amount"] is True and not info["settlement"]["satisfied"]
+        assert client.post(path + "/live/session", headers={"Origin": "https://agenticpay.thenitishkr.in"}).status_code == 409
+    assert client.post("/api/orders", headers=headers, json=dict(payload, amount_minor=199)).status_code == 422
+    assert client.post("/api/orders", headers=headers, json=dict(payload, max_discount_minor=1)).status_code == 422
+    assert all(not row["settlement"]["satisfied"] for row in client.get("/api/orders", headers=headers).json())
+    with engine.connect() as conn:
+        assert set(conn.scalars(select(shared_test_orders.c.order_id))) == ids
+        assert list(conn.scalars(select(evidence_consumption.c.order_id))) == []
+        assert set(conn.scalars(select(orders.c.status))) == {"AWAITING_PAYMENT"}
