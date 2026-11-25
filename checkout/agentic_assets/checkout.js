@@ -233,10 +233,8 @@ copy.onclick = async () => {
       tracker?.arm();
       diagnostics?.record('copy_ok');
       diagnostic?.record('copy-ok');
-      // Arm verification when UPI ID is copied - prepares for live verification
-      if (liveVerification) {
-        liveVerification.checkNow();
-      }
+      // Copying arms return detection only. Capture starts after checkout return,
+      // never before the payer has completed payment.
       status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
       copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
       setTimeout(() => {
