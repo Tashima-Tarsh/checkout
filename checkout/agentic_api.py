@@ -232,7 +232,10 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         else:
             conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=payable))
         event(conn, identity, "ORDER_CREATED")
-    return {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
+    result = {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
+    if item.shared_amount:
+        result.update(session_reference=order_id, expires=created+1800)
+    return result
 
 
 @router.get("/orders")
@@ -243,15 +246,17 @@ def list_orders(request: Request, identity: Merchant):
         settlement_states.c.state.label("settlement_state"),
         settlement_states.c.observed_minor,
         evidence_consumption.c.order_id.label("consumed_order_id"),
+        shared_test_orders.c.order_id.label("shared_order_id"),
     ).outerjoin(amount_reservations, amount_reservations.c.order_id == orders.c.id
     ).outerjoin(settlement_states, settlement_states.c.order_id == orders.c.id
     ).outerjoin(evidence_consumption, evidence_consumption.c.order_id == orders.c.id
+    ).outerjoin(shared_test_orders, shared_test_orders.c.order_id == orders.c.id
     ).where(orders.c.merchant_id == identity).order_by(orders.c.created.desc()).limit(100)
     with request.app.state.engine.connect() as conn:
         results = []
         for row in conn.execute(query).mappings():
             result = dict(row)
-            for key in ("payable_minor", "settlement_state", "observed_minor", "consumed_order_id"):
+            for key in ("payable_minor", "settlement_state", "observed_minor", "consumed_order_id", "shared_order_id"):
                 result.pop(key, None)
             current = dict(row, payable_minor=row["payable_minor"] or row["amount_minor"])
             observation = (dict(state=row["settlement_state"], observed_minor=row["observed_minor"])
@@ -259,6 +264,8 @@ def list_orders(request: Request, identity: Merchant):
             result["settlement"] = public_settlement(
                 current, observation, consumed=row["consumed_order_id"] is not None,
             )
+            if row["shared_order_id"] is not None:
+                result["settlement"] = {"satisfied": False, "state": "ORDER_NOT_ELIGIBLE", "reason": "Awaiting independently correlated payment evidence."}
             results.append(result)
         return results
 
