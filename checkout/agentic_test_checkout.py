@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, select
 
-from checkout.agentic_api import event, now, unused_payable
+from checkout.agentic_api import CHECKOUT_TTL_SECONDS, event, now, unused_payable
 from checkout.agentic_login import require_same_origin
 from checkout.agentic_storage import accounts, amount_reservations, orders, shared_test_orders
 
@@ -100,7 +100,7 @@ def allocate_test(request: Request):
             if payable is None:
                 raise HTTPException(409, "Test amount pool exhausted")
         conn.execute(orders.insert().values(id=oid, merchant_id=identity, account_id=account,
-            amount_minor=payable, created=timestamp, expires=timestamp+1800, status="AWAITING_PAYMENT"))
+            amount_minor=payable, created=timestamp, expires=timestamp+CHECKOUT_TTL_SECONDS, status="AWAITING_PAYMENT"))
         if shared:
             # Deliberately ambiguous amount; this order cannot consume financial evidence.
             # The regular allocator also excludes unreserved historical order amounts.
