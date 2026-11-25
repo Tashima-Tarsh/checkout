@@ -1,12 +1,14 @@
-export function mountLiveVerification({button, endpoint, onResult}) {
+export function mountLiveVerification({button, endpoint, onResult, onRequested = () => {}}) {
   let stream;
   let timer;
   let running = false;
   let generation = 0;
+  let inFlight = false;
+  let video, canvas;
 
   function resetButton() {
     button.disabled = false;
-    button.textContent = 'Start live verification';
+    button.checked = false;
   }
   function stop() {
     running = false;
@@ -29,7 +31,9 @@ export function mountLiveVerification({button, endpoint, onResult}) {
   }
 
   async function capture(video, canvas) {
-    if (!running) return;
+    if (!running || inFlight) return;
+    inFlight = true;
+    clearTimeout(timer);
     const current = generation;
     try {
       // A chime is only an accelerator. No microphone or audio recording is used.
@@ -56,11 +60,13 @@ export function mountLiveVerification({button, endpoint, onResult}) {
     } catch {
       if (running && current === generation) fail();
     }
+    finally { inFlight = false; }
     if (running && current === generation) timer = setTimeout(() => capture(video, canvas), 2500);
   }
 
-  button.addEventListener('click', async () => {
-    if (running) {
+  button.addEventListener('change', async () => {
+    onRequested(button.checked);
+    if (!button.checked) {
       stop();
       return;
     }
@@ -71,7 +77,7 @@ export function mountLiveVerification({button, endpoint, onResult}) {
     running = true;
     const current = ++generation;
     button.disabled = true;
-    button.textContent = 'Starting live verification…';
+
     try {
       // Display capture is user-initiated and time-bound. No camera, microphone,
       // file upload, recording, or persistent media object is created.
@@ -82,22 +88,23 @@ export function mountLiveVerification({button, endpoint, onResult}) {
         stream.getTracks().forEach(track => track.stop());
         return;
       }
-      const video = document.createElement('video');
+      video = document.createElement('video');
       video.muted = true;
       video.srcObject = stream;
       await video.play();
-      const canvas = document.createElement('canvas');
+      canvas = document.createElement('canvas');
       stream.getVideoTracks().forEach(track => track.addEventListener('ended', stop, {once:true}));
-      button.textContent = 'Stop live verification';
+
       button.disabled = false;
       capture(video, canvas);
     } catch {
       if (current === generation) {
         stop();
+        button.checked = true;
         fail();
       }
     }
   });
 
-  return {stop, get active() { return running; }};
+  return {stop, checkNow() { if (running && video && canvas) capture(video, canvas); else fail(); }, get active() { return running; }};
 }
