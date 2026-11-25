@@ -46,7 +46,7 @@ function stopObservationPolling() {
 function startObservationPolling() {
   stopObservationPolling();
   if (order?.settlement?.satisfied) return;
-  if (diagnosticPage || (!order?.settlement && document.querySelector('#checkout-vision[data-result=recognized]'))) return;
+  if (diagnosticPage) return;
   const generation = observationGeneration;
   const revision = checkoutRevision;
   const deadline = Number.isFinite(order?.expires) ? order.expires * 1000 : Date.now() + 120000;
@@ -68,7 +68,13 @@ function startObservationPolling() {
           order = current;
           if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
           updateReceipt(current);
-          updateSettlement(current);
+          // Don't overwrite live verification errors with polling results
+          if (!liveResult?.state || liveResult.state === 'VERIFICATION_UNAVAILABLE') {
+            updateSettlement(current);
+          } else if (!current.settlement?.satisfied) {
+            // Preserve live verification errors, only update on settlement
+            updateSettlement({...current, settlement: {satisfied: false, state: liveResult.state, reason: liveResult.reason}});
+          }
           if (!current.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) return;
         }
       } catch { /* A temporary network failure is not a result. */ }
@@ -84,10 +90,6 @@ const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checko
 function updateReceipt(current) {
   if (current?.settlement) { document.querySelector('#checkout-vision')?.remove(); return; }
   renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation, returned:returned && current != null});
-  if (!diagnosticPage && !order?.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) {
-    const status = panel.querySelector('[role=status]');
-    if (status) status.textContent = '';
-  }
 }
 const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
   returnCallback = attachReturnCallback(refreshAfterReturn);
@@ -217,7 +219,7 @@ function showOrder() {
     verification.disabled = true;
     say('Verification unavailable. Reload to retry.', '#ff7085');
   }
-  copy.onclick = async () => {
+copy.onclick = async () => {
     const status = panel.querySelector('[role=status]');
     const revision = checkoutRevision;
     try {
@@ -230,7 +232,11 @@ function showOrder() {
       returnCallback?.arm();
       tracker?.arm();
       diagnostics?.record('copy_ok');
-    diagnostic?.record('copy-ok');
+      diagnostic?.record('copy-ok');
+      // Arm verification when UPI ID is copied - prepares for live verification
+      if (liveVerification) {
+        liveVerification.checkNow();
+      }
       status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
       copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
       setTimeout(() => {
@@ -240,7 +246,7 @@ function showOrder() {
     } catch {
       if (revision !== checkoutRevision) return;
       diagnostics?.record('copy_failed');
-    diagnostic?.record('copy-failed');
+      diagnostic?.record('copy-failed');
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
