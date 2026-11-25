@@ -21,6 +21,7 @@ from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merc
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
 ORDER_ID = re.compile(r"[0-9a-f]{48}")
+CHECKOUT_TTL_SECONDS = 120
 
 
 def digest(value):
@@ -224,7 +225,7 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
             raise HTTPException(409, "Payment amount pool exhausted; no safe unused amount")
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
-            created=created, expires=created + 1800, status="AWAITING_PAYMENT",
+            created=created, expires=created + CHECKOUT_TTL_SECONDS, status="AWAITING_PAYMENT",
         ))
         if item.shared_amount:
             # Repeated amounts lack independent order-to-payment binding. Keep observational only.
@@ -234,7 +235,7 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         event(conn, identity, "ORDER_CREATED")
     result = {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
     if item.shared_amount:
-        result.update(session_reference=order_id, expires=created+1800)
+        result.update(session_reference=order_id, expires=created+CHECKOUT_TTL_SECONDS)
     return result
 
 
