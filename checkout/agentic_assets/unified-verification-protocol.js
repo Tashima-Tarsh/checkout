@@ -48,29 +48,93 @@ function throttle(fn, limit) {
   };
 }
 
-/** Preprocess image for better OCR */
+/** Preprocess image for better OCR - only process center 70% where text likely appears */
 function preprocessImageForOCR(canvas) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
+  const w = canvas.width, h = canvas.height;
   
-  // Convert to grayscale and increase contrast
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    const enhanced = Math.min(255, Math.max(0, (gray - 128) * 1.5 + 128));
-    data[i] = data[i + 1] = data[i + 2] = Math.round(enhanced);
+  // Only process center 80% x 60% where text likely appears
+  const startX = Math.floor(canvas.width * 0.1);
+  const endX = Math.floor(canvas.width * 0.9);
+  const startY = Math.floor(canvas.height * 0.2);
+  const endY = Math.floor(canvas.height * 0.8);
+  
+  for (let y = startY; y < endY; y++) {
+    const rowStart = (y * canvas.width + Math.floor(canvas.width * 0.1)) * 4;
+    const rowEnd = (y * canvas.width + Math.floor(canvas.width * 0.9)) * 4;
+    for (let i = rowStart; i < (y * canvas.width + Math.floor(canvas.width * 0.9)) * 4; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const enhanced = Math.min(255, Math.max(0, (gray - 128) * 1.5 + 128));
+      data[i] = data[i + 1] = data[i + 2] = Math.round(enhanced);
+    }
   }
   return imageData;
 }
 
-/** Compute color histogram for better color matching */
-function computeColorHistogram(imageData, sampleSize = 50) {
-  const data = imageData.data;
-  const width = 0; // placeholder
-  const histogram = { r: new Array(256).fill(0), g: new Array(256).fill(0), b: new Array(256).fill(0) };
+/** Shared camera constraints for camera-based verifiers */
+const CAMERA_CONSTRAINTS = {
+  video: { 
+    facingMode: 'environment', 
+    width: { ideal: 1280, min: 640 }, 
+    height: { ideal: 720, min: 480 },
+    frameRate: { ideal: 30, max: 30 }
+  },
+  audio: false
+};
+
+/** Shared camera setup - avoids duplication between CameraOcrVerifier and ColorPatternDetector */
+async function setupCamera(constraints = CAMERA_CONSTRAINTS) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('Camera not supported');
+  }
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.srcObject = stream;
+  video.playsInline = true;
+  await video.play();
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  return { stream, video, canvas, ctx };
+}
+
+/** Precompiled regex patterns for OCR extraction - compiled once */
+const REGEX_PATTERNS = {
+  AMOUNT: /(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/gi,
+  SUCCESS: /\b(success(ful)?|paid|payment (done|complete(d)?)|sent successfully|transaction complete|txn successful)\b/i,
+  FAILURE: /\b(failed|declined|unsuccessful|insufficient (balance|funds)|could not be processed)\b/i,
+  VPA: /\b[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}\b/g,
+  REF: /\b(\d{12})\b/g,
+  SUCCESS_KEYWORDS: /\b(success(ful)?|paid|payment (done|complete(d)?)|sent successfully|transaction complete|txn successful)\b/i,
+  FAILURE_KEYWORDS: /\b(failed|declined|unsuccessful|insufficient (balance|funds)|could not be processed)\b/i,
+  VPA_PATTERN: /\b[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}\b/g,
+  REF_PATTERN: /\b(\d{12})\b/g,
+  AMOUNT_PATTERN: /(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/gi
+};
+
+/** Extract evidence from OCR text - uses precompiled regexes */
+function extractEvidence(text) {
+  const amounts = [...text.matchAll(REGEX_PATTERNS.AMOUNT)]
+    .map(m => m[1] ? Number(m[1].replace(/,/g, '')) : NaN)
+    .filter(n => Number.isFinite(n) && n > 0);
   
-  // We'll compute this in ColorPatternDetector where we have proper context
-  return histogram;
+  return {
+    text,
+    amounts,
+    successKeyword: REGEX_PATTERNS.SUCCESS.test(text),
+    failureKeyword: REGEX_PATTERNS.FAILURE.test(text),
+    vpas: [...new Set(text.match(REGEX_PATTERNS.VPA) ?? [])],
+    refs: [...new Set(text.match(REGEX_PATTERNS.REF) ?? [])]
+  };
+}
+
+/** Amount matching with tolerance */
+function amountMatches(found, expected) {
+  return expected === undefined 
+    ? found.length > 0 
+    : found.some(n => Math.abs(n - expected) < 0.01);
 }
 
 // ============================================================================
@@ -456,30 +520,25 @@ export class CameraOcrVerifier {
     }
     
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment', 
-          width: { ideal: 1280, min: 640 }, 
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, max: 30 }
-        },
-        audio: false
+      const { stream, video, canvas, ctx } = await setupCamera();
+      this.stream = stream;
+      this.video = video;
+      this.canvas = canvas;
+      this.ctx = ctx;
+      this.running = true;
+      this.frameResults = [];
+      this.bestResult = null;
+      
+      // Initialize Tesseract worker ONCE and reuse
+      const { createWorker } = await import('tesseract.js');
+      this.ocrWorker = await createWorker('eng', 1, {
+        logger: m => console.debug('OCR:', m.status, m.progress)
       });
+      
+      this.analyzeFrames();
     } catch (e) {
       throw new Error(`Camera access denied: ${e.message}`);
     }
-    
-    this.video = document.createElement('video');
-    this.video.muted = true;
-    this.video.srcObject = this.stream;
-    this.video.playsInline = true;
-    await this.video.play();
-    
-    this.canvas = document.createElement('canvas');
-    this.running = true;
-    this.frameResults = [];
-    this.bestResult = null;
-    this.analyzeFrames();
   }
   
   async analyzeFrames() {
@@ -543,19 +602,12 @@ export class CameraOcrVerifier {
     });
   }
   
-  async analyzeFrame(blob) {
-    // OCR via Tesseract.js (WASM) - runs in browser
-    const { createWorker } = await import('tesseract.js');
-    const worker = await createWorker('eng', 1, {
-      logger: m => console.debug('OCR:', m.status, m.progress)
-    });
-    
+  async analyzeFrame(worker, blob) {
     try {
       const { data: { text, confidence } } = await worker.recognize(blob);
-      await worker.terminate();
       
-      // Extract evidence
-      const evidence = this.extractEvidence(text);
+      // Use shared extractEvidence function
+      const evidence = extractEvidence(text);
       
       // Verify against expected with confidence scoring
       const amountMatch = this.expectedAmount ? evidence.amounts.some(a => 
@@ -575,50 +627,25 @@ export class CameraOcrVerifier {
       const verified = amountMatch && vpaMatch && refMatch && successKeyword;
       const confidence = (amountMatch ? 0.3 : 0) + (vpaMatch ? 0.25 : 0) + (refMatch ? 0.25 : 0) + (successKeyword ? 0.2 : 0);
       
-      return {
-        verified: verified && confidence >= 0.7,
-        evidence,
-        amountMatch,
-        vpaMatch,
-        refMatch,
-        successKeyword,
-        confidence,
-        rawText: text
-      };
-    } catch (e) {
-      return {
-        verified: false,
-        error: e.message,
-        evidence: { amounts: [], vpas: [], refs: [], successKeyword: false },
-        amountMatch: false,
-        vpaMatch: false,
-        refMatch: false,
-        successKeyword: false,
-        confidence: 0
-      };
-    }
-  }
-  
-  extractEvidence(text) {
-    const AMOUNT = /(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/gi;
-    const SUCCESS = /\b(success(ful)?|paid|payment (done|complete(d)?)|sent successfully|transaction complete|txn successful)\b/i;
-    const VPA = /\b[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}\b/g;
-    const REF = /\b(\d{12})\b/g;
-    
-    const amounts = [...text.matchAll(/(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/gi)]
-      .map(m => m[1] ? Number(m[1].replace(/,/g, '')) : NaN)
-      .filter(n => Number.isFinite(n) && n > 0);
-    
-    return {
-      text,
-      amounts,
-      successKeyword: /\b(success(ful)?|paid|payment (done|complete(d)?)|sent successfully|transaction complete|txn successful)\b/i.test(text),
-      vpas: [...new Set(text.match(/\b[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}\b/g) ?? [])],
-      refs: [...new Set(text.match(/\b(\d{12})\b/g) ?? [])]
-    };
-  }
-  
-  stop() {
+637:         rawText: text
+639:       };
+640:     } catch (e) {
+641:       return {
+641:         verified: false,
+642:         error: e.message,
+643:         evidence: { amounts: [], vpas: [], refs: [], successKeyword: false },
+642:         amountMatch: false,
+649:         vpaMatch: false,
+650:         refMatch: false,
+650:         successKeyword: false,
+650:         confidence: 0
+650:       };
+650:     }
+650:   }
+650:   
+650:   // Use shared extractEvidence function - removed duplicate implementation
+650:   
+650:   stop() {
     this.running = false;
     this.stream?.getTracks().forEach(t => t.stop());
     this.stream = null;
