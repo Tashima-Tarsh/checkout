@@ -1,0 +1,62 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=8080
+      - NODE_ENV=uat
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  agentic-pay:
+    build:
+      context: .
+      dockerfile: Dockerfile.agentic
+    ports:
+      - "8081:8080"
+    environment:
+      - AGENTIC_DATABASE_URL=${AGENTIC_DATABASE_URL}
+      - AGENTIC_N8N_WEBHOOK=${AGENTIC_N8N_WEBHOOK}
+      - AGENTIC_N8N_TOKEN=${AGENTIC_N8N_TOKEN}
+    depends_on:
+      - db
+      - redis
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: uat
+      POSTGRES_USER: uat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redis_data:
