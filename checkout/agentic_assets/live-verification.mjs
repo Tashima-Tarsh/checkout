@@ -5,6 +5,13 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
   let generation = 0;
   let inFlight = false;
   let video, canvas;
+  let isAndroidChrome = false;
+
+  // Detect Android Chrome where getDisplayMedia can't capture other apps
+  if (typeof navigator !== 'undefined') {
+    const ua = navigator.userAgent;
+    isAndroidChrome = /Android/.test(ua) && /Chrome/.test(ua) && !/Firefox|Edg|OPR/.test(ua);
+  }
 
   function resetButton() {
     button.disabled = false;
@@ -18,9 +25,9 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     stream = undefined;
     resetButton();
   }
-  function fail() {
+  function fail(reason) {
     onResult({satisfied:false, state:'VERIFICATION_UNAVAILABLE',
-      reason:'Live verification is unavailable on this browser or sharing was stopped. Payment not verified.'});
+      reason: reason || 'Live verification is unavailable on this browser or sharing was stopped. Payment not verified.'});
   }
   async function post(path, options={}) {
     const response = await fetch(endpoint + path, {
@@ -68,6 +75,12 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     onRequested(button.checked);
     if (!button.checked) {
       stop();
+      return;
+    }
+    // Android Chrome cannot capture other apps' screens via getDisplayMedia
+    if (isAndroidChrome) {
+      fail('Android Chrome cannot capture the UPI app screen. Use the Verification checkbox below to upload a screenshot instead.');
+      button.checked = false;
       return;
     }
     if (!navigator.mediaDevices?.getDisplayMedia) {
