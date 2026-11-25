@@ -12,9 +12,9 @@ from checkout.agentic_storage import evidence_consumption, orders, shared_test_o
 def reserve_reference(conn, *, order_id, merchant_id, account_id, reference, now):
     """Reserve one canonical UPI reference globally across accounts and merchants.
 
-    Caller owns the transaction. Must only be called after independent evidence
-    authentication and authoritative checkout binding in a future trusted service.
-    No current runtime invokes this primitive; it never changes order status.
+    Caller owns the transaction and must validate the fresh live evidence first.
+    This primitive never changes order status; the settlement policy does that
+    only after a successful reservation.
     """
     if not isinstance(reference, str) or not re.fullmatch(r"[0-9]{12}", reference):
         return "INVALID_REFERENCE"
@@ -27,7 +27,7 @@ def reserve_reference(conn, *, order_id, merchant_id, account_id, reference, now
     if conn.scalar(select(shared_test_orders.c.order_id).where(
         shared_test_orders.c.order_id == order_id)) is not None:
         return "ORDER_NOT_ELIGIBLE"
-    if order["status"] != "PENDING" or not order["created"] <= now < order["expires"]:
+    if order["status"] not in {"AWAITING_PAYMENT", "PENDING"} or not order["created"] <= now < order["expires"]:
         return "ORDER_NOT_ELIGIBLE"
     if conn.dialect.name == "postgresql":
         insert = pg_insert

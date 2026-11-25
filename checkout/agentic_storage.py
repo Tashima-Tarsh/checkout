@@ -76,6 +76,24 @@ evidence_consumption = Table(
     Column("order_id", ForeignKey("ap_orders.id"), unique=True, nullable=False),
     Column("created", BigInteger, nullable=False),
 )
+# Latest live-evidence verdict used by both checkout and the merchant ledger.
+# No image, audio, raw reference, payee text, balance, or account data is stored.
+settlement_states = Table(
+    "ap_settlement_states", metadata,
+    Column("order_id", ForeignKey("ap_orders.id"), primary_key=True),
+    Column("state", String(32), nullable=False),
+    Column("observed_minor", Integer),
+    Column("updated", BigInteger, nullable=False),
+)
+# Short-lived, single-use capabilities bind each live frame to one checkout.
+# Only the challenge digest is stored; the browser holds the raw challenge.
+live_verification_challenges = Table(
+    "ap_live_verification_challenges", metadata,
+    Column("challenge_digest", String(64), primary_key=True),
+    Column("order_id", ForeignKey("ap_orders.id"), nullable=False, index=True),
+    Column("created", BigInteger, nullable=False),
+    Column("expires", BigInteger, nullable=False),
+)
 # Visual deduplication only; never consumes the financial evidence ledger.
 receipt_observations = Table(
     "ap_receipt_observations", metadata,
