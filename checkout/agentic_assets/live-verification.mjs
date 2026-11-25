@@ -20,7 +20,7 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
   }
   function fail() {
     onResult({satisfied:false, state:'VERIFICATION_UNAVAILABLE',
-      reason:'Live verification is temporarily unavailable. Please retry.'});
+      reason:'Live verification is unavailable on this browser or sharing was stopped. Payment not verified.'});
   }
   async function post(path, options={}) {
     const response = await fetch(endpoint + path, {
@@ -93,10 +93,12 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       video.srcObject = stream;
       await video.play();
       canvas = document.createElement('canvas');
-      stream.getVideoTracks().forEach(track => track.addEventListener('ended', stop, {once:true}));
+      stream.getVideoTracks().forEach(track => track.addEventListener('ended', () => {
+        if (current === generation) { stop(); button.checked = true; fail(); }
+      }, {once:true}));
 
       button.disabled = false;
-      capture(video, canvas);
+      // Wait for checkout return before sending frames; never capture while entering a PIN.
     } catch {
       if (current === generation) {
         stop();
