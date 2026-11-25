@@ -19,7 +19,7 @@ def test_checkout_uses_existing_customer_assets_and_valid_identifier_shape():
     assert client.get("/checkout/invalid").status_code == 404
     page = client.get("/checkout/" + "a" * 48)
     assert page.status_code == 200
-    asset = "/assets/checkout.js?v=verification-checkbox-8"
+    asset = "/assets/checkout.js?v=verification-checkbox-9"
     assert asset in page.text
     assert client.get(asset).status_code == 200
     assert client.get('/assets/return-callback.mjs?v=1').status_code == 200
@@ -30,7 +30,7 @@ def test_live_verification_asset_and_display_only_permissions():
     client = TestClient(app)
     page = client.get("/checkout/" + "a" * 48)
     assert page.headers["permissions-policy"] == "display-capture=(self), camera=(), microphone=()"
-    script = client.get("/assets/checkout.js?v=verification-checkbox-8")
+    script = client.get("/assets/checkout.js?v=verification-checkbox-9")
     assert "/assets/unified-verification-protocol.js" in script.text
     assert "UnifiedVerificationProtocol" in script.text
     assert "MerchantWebRTCClient" in script.text
