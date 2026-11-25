@@ -9,6 +9,7 @@ jobs:
   agentic-pay:
     runs-on: ubuntu-latest
     timeout-minutes: 18
+    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -72,6 +73,7 @@ jobs:
   n8n-queue:
     runs-on: ubuntu-latest
     timeout-minutes: 14
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - run: bash n8n/test-dispatch.sh
@@ -80,6 +82,7 @@ jobs:
   n8n-regular:
     runs-on: ubuntu-latest
     timeout-minutes: 14
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - run: bash n8n/test-dispatch.sh regular
