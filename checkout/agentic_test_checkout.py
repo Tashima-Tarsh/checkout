@@ -89,10 +89,10 @@ def allocate_test(request: Request):
             orders.c.account_id == account, orders.c.created > timestamp - 60))
         if recent >= MAX_NEW_PER_MINUTE:
             raise HTTPException(429, "Please retry shortly")
-        shared = os.getenv("AGENTIC_TEST_SHARED_AMOUNT") == "1"
+        shared = os.getenv("AGENTIC_TEST_SHARED_AMOUNT", "1") == "1"
         if shared:
             configured = os.getenv("AGENTIC_TEST_AMOUNT_MINOR", "100")
-            if not re.fullmatch(r"1[0-9]{2}", configured):
+            if configured != "100":
                 raise HTTPException(503, "Test amount configuration invalid")
             payable = int(configured)
         else:
