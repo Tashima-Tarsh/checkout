@@ -132,6 +132,33 @@ def main():
             assert state["posts"] == 0
             assert page.get_by_text("Callback received — awaiting payment evidence",exact=True).count()==0
             assert page.get_by_text("Payment Done",exact=True).count()==0
+            # Production-shaped shared-amount session: explicit checkbox, whole rupee,
+            # no duplicate legacy status, no financial claim on browser return.
+            page.route("**/api/checkout/fixture", lambda r: r.fulfill(json={
+                "status":"AWAITING_PAYMENT","amount_minor":100,"discount_minor":0,
+                "upi_id":"fixture-not-a-payment-address","shared_amount":True,
+                "session_reference":"a"*48,
+                "settlement":{"satisfied":False,"state":"ORDER_NOT_ELIGIBLE",
+                    "reason":"Awaiting independently correlated payment evidence."}}))
+            page.goto(base+"/checkout/fixture")
+            checkbox = page.get_by_role("checkbox", name="Verification")
+            checkbox.wait_for()
+            assert page.locator("#stage h2").inner_text() == "₹1"
+            assert page.get_by_role("button",name="Start live verification").count()==0
+            assert page.get_by_role("button",name="Copy UPI ID").is_disabled()
+            checkbox.check()
+            page.get_by_role("button",name="Copy UPI ID").click()
+            page.get_by_text("✓ UPI ID copied. Pay and return to checkout.",exact=True).wait_for()
+            with page.expect_request(lambda req: req.method=="GET" and req.url.endswith("/api/checkout/fixture")):
+                page.evaluate("""() => {
+                    Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
+                    Object.defineProperty(document, 'hasFocus', {configurable:true, value:()=>true});
+                    window.dispatchEvent(new Event('blur'));
+                    window.dispatchEvent(new Event('focus'));
+                }""")
+            page.get_by_text("Awaiting independently correlated payment evidence.",exact=True).wait_for()
+            assert page.get_by_text("Vision not observed",exact=True).count()==0
+            assert page.get_by_text("Payment verified",exact=False).count()==0
             # Expired session must not display copy or submit controls.
             page.route("**/api/checkout/fixture", lambda r: r.fulfill(status=410,json={"detail":"Checkout expired"}))
             page.goto(base+"/checkout/fixture")

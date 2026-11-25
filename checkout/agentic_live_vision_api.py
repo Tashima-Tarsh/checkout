@@ -26,7 +26,10 @@ CHALLENGE = re.compile(r"[A-Za-z0-9_-]{43}")
 
 def _authorize(request, order_id):
     require_same_origin(request)
-    return checkout_info(request, order_id)
+    info = checkout_info(request, order_id)
+    if info.get('shared_amount'):
+        raise HTTPException(409, 'Shared amount requires independently correlated payment evidence')
+    return info
 
 
 def _digest(challenge):

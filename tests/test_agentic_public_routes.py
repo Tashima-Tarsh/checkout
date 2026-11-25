@@ -19,7 +19,7 @@ def test_checkout_uses_existing_customer_assets_and_valid_identifier_shape():
     assert client.get("/checkout/invalid").status_code == 404
     page = client.get("/checkout/" + "a" * 48)
     assert page.status_code == 200
-    asset = "/assets/checkout.js?v=clean-checkout-7"
+    asset = "/assets/checkout.js?v=verification-checkbox-8"
     assert asset in page.text
     assert client.get(asset).status_code == 200
     assert client.get('/assets/return-callback.mjs?v=1').status_code == 200
@@ -30,7 +30,7 @@ def test_live_verification_asset_and_display_only_permissions():
     client = TestClient(app)
     page = client.get("/checkout/" + "a" * 48)
     assert page.headers["permissions-policy"] == "display-capture=(self), camera=(), microphone=()"
-    script = client.get("/assets/checkout.js?v=clean-checkout-7")
+    script = client.get("/assets/checkout.js?v=verification-checkbox-8")
     assert "/assets/live-verification.mjs" in script.text
     assert "✓ Copied — Verification ready" in script.text
     capture = client.get("/assets/live-verification.mjs?v=1")
@@ -115,7 +115,7 @@ def test_automatic_test_checkout_allocates_distinct_amounts_and_reuses_session(m
         monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
         monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
-        monkeypatch.delenv("AGENTIC_TEST_SHARED_AMOUNT", raising=False)
+        monkeypatch.setenv("AGENTIC_TEST_SHARED_AMOUNT", "0")
         with engine.begin() as conn:
             conn.execute(merchants.insert().values(id=merchant, name="fixture", token_hash="d"*64))
             conn.execute(accounts.insert().values(id=account, merchant_id=merchant, vpa="fixture@example",
@@ -169,7 +169,7 @@ def test_shared_uat_amount_has_no_pool_exhaustion_and_cannot_consume_evidence(mo
         monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
         monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
-        monkeypatch.setenv("AGENTIC_TEST_SHARED_AMOUNT", "1")
+        monkeypatch.delenv("AGENTIC_TEST_SHARED_AMOUNT", raising=False)
         monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", "100")
         with engine.begin() as conn:
             conn.execute(merchants.insert().values(id=merchant,name="fixture",token_hash="d"*64))
