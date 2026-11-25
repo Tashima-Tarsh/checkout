@@ -1,20 +1,7 @@
-FROM python:3.12-slim AS python-base
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && rm -rf /var/lib/apt/lists/*
-
 FROM docker.io/cloudflare/cloudflared:2026.11.2 AS tunnel
 FROM docker.io/library/caddy:2.10.2-alpine AS editor_proxy
 FROM docker.io/n8nio/n8n:2.48.7
-
 COPY --from=tunnel /usr/local/bin/cloudflared /usr/local/bin/cloudflared
-COPY --from=editor_proxy /usr/bin/caddy /usr/bin/caddy
-
-# Add Python from python-base
-COPY --from=python-base /usr/local/bin/python3 /usr/local/bin/python3
-COPY --from=python-base /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=python-base /usr/lib/python3.12 /usr/lib/python3.12
-ENV PATH="/usr/local/bin:${PATH}"
-
-COPY --from=tunnel /usr/local/bin/cloudflared /usr/local/bin/cloudflared
-COPY --from=editor_proxy /usr/bin/caddy /usr/bin/caddy
+COPY --from=editor_proxy /usr/bin/caddy /usr/local/bin/caddy
 COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs n8n/preflight.mjs n8n/editor-ingress.sh /opt/agentic-pay/
 ENTRYPOINT ["tini", "--", "/bin/sh", "/opt/agentic-pay/editor-ingress.sh"]
