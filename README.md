@@ -44,3 +44,21 @@ Set a deployment-specific access and data retention policy before sharing stagin
 Before promotion, confirm the CI workflow, staging health, database persistence,
 and browser smoke tests. Actual UPI app compatibility needs physical-device
 testing. Do not send money during automated checks.
+
+## Agentic Pay live vision verification
+
+Checkout assigns a non-recycled payable paise amount and a 30-minute session.
+The customer copies the receiving UPI ID, pays that exact ID and amount in a
+UPI app, then explicitly starts live screen verification. Each analyzed frame
+requires a short-lived, single-use server challenge. Only a fresh successful
+result with the exact payee, exact amount, and an unused transaction reference
+can become `PAID` and green. Wrong payees, wrong amounts, missing references,
+expired challenges, and replays remain red with a specific explanation.
+
+No screenshot upload or microphone recording is used. Frames and OCR text are
+processed in memory and never stored. Responses contain only amount and
+payee-match status; raw payee identifiers and transaction references are not
+returned. Only a transaction-reference digest is stored for replay prevention.
+PIN/OTP labels, balances, and unmasked account numbers cause rejection. No
+account history, available balance, full account number, or other payment
+sessions are read or retained. Camera and microphone permissions are disabled.

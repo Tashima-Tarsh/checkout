@@ -1,4 +1,4 @@
-"""Local OCR research: screen recognition is never financial proof."""
+"""In-memory OCR with minimized live observations and no media retention."""
 import io
 import re
 import subprocess
@@ -50,7 +50,7 @@ def match_receipt(text, expected_minor, expected_vpa):
     reference_digest = hashlib.sha256(("visual-upi:" + next(iter(references))).encode("ascii")).hexdigest()
     return dict(result, reference_digest=reference_digest)
 
-def analyze_image(data, expected_minor, expected_vpa=None):
+def _read_text(data):
     if not data or len(data) > MAX_BYTES:
         raise ValueError("Invalid image size")
     try:
@@ -69,5 +69,43 @@ def analyze_image(data, expected_minor, expected_vpa=None):
     proc = subprocess.run(["tesseract", "stdin", "stdout", "-l", "eng", "--psm", "11"],
                           input=png.getvalue(), stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL, timeout=10, check=True)
-    text = proc.stdout.decode("utf-8", errors="replace")
+    return proc.stdout.decode("utf-8", errors="replace")
+
+
+def analyze_image(data, expected_minor, expected_vpa=None):
+    text = _read_text(data)
     return classify_text(text, expected_minor) if expected_vpa is None else match_receipt(text, expected_minor, expected_vpa)
+
+
+SECRET_LABEL = re.compile(r"\b(?:upi\s+pin|pin|otp|cvv|password)\b", re.I)
+UNMASKED_ACCOUNT = re.compile(
+    r"\b(?:account(?:\s+(?:number|no\.?))?|a/c|card(?:\s+number)?)\s*[:#-]?\s*[0-9]{9,18}\b",
+    re.I,
+)
+BALANCE = re.compile(r"\b(?:available\s+)?balance\b", re.I)
+
+
+def observe_live_text(text):
+    """Return only fields needed for the current checkout; discard all other OCR."""
+    if SECRET_LABEL.search(text) or UNMASKED_ACCOUNT.search(text) or BALANCE.search(text):
+        return {"sensitive_content": True}
+    lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+    candidates = lines + [a + " " + b for a, b in zip(lines, lines[1:])]
+    recipients = {m.group(1).casefold() for line in candidates if (m := VPA_FIELD.fullmatch(line))}
+    references = {m.group(1) for line in candidates if (m := REF_FIELD.fullmatch(line))}
+    amounts = {int(Decimal(value) * 100) for value in AMOUNT.findall(text)}
+    recognized = any(SUCCESS.fullmatch(line) for line in lines)
+    # Raw payee/reference values remain transient inputs to the server policy.
+    # They are never included in an API response or written to storage.
+    return {
+        "sensitive_content": False,
+        "success": recognized and not NEGATIVE.search(text),
+        "amount_minor": next(iter(amounts)) if len(amounts) == 1 else None,
+        "payee": next(iter(recipients)) if len(recipients) == 1 else None,
+        "reference": next(iter(references)) if len(references) == 1 else None,
+    }
+
+
+def analyze_live_frame(data):
+    """Analyze one live frame in memory. Neither the frame nor OCR text is stored."""
+    return observe_live_text(_read_text(data))

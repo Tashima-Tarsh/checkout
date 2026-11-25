@@ -10,7 +10,13 @@ let checkoutRevision = 0;
 let observationTimer;
 let expiryTimer;
 let returned = false;
+let liveVerification;
+let mountLiveVerification;
+const liveVerificationReady = import('/assets/live-verification.mjs?v=1').then(module => {
+  mountLiveVerification = module.mountLiveVerification;
+}).catch(() => {});
 function closeCheckout(message) {
+  liveVerification?.stop();
   checkoutRevision++;
   stopObservationPolling();
   clearTimeout(expiryTimer);
@@ -37,7 +43,8 @@ function stopObservationPolling() {
 }
 function startObservationPolling() {
   stopObservationPolling();
-  if (diagnosticPage || document.querySelector('#checkout-vision[data-result=recognized]')) return;
+  if (order?.settlement?.satisfied) return;
+  if (diagnosticPage || (!order?.settlement && document.querySelector('#checkout-vision[data-result=recognized]'))) return;
   const generation = observationGeneration;
   const revision = checkoutRevision;
   const deadline = Number.isFinite(order?.expires) ? order.expires * 1000 : Date.now() + 120000;
@@ -55,12 +62,12 @@ function startObservationPolling() {
         if (response.ok) {
           const current = await response.json();
           if (!valid()) return;
-          if (current.status === 'PENDING' && order.status !== 'PENDING') {
-            order = current;
-            pending();
-          }
+          const previousStatus = order?.status;
+          order = current;
+          if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
           updateReceipt(current);
-          if (document.querySelector('#checkout-vision[data-result=recognized]')) return;
+          updateSettlement(current);
+          if (!current.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) return;
         }
       } catch { /* A temporary network failure is not a result. */ }
     }
@@ -74,7 +81,7 @@ const receiptReady = diagnosticPage ? Promise.resolve() : import('/assets/checko
 }).catch(() => {});
 function updateReceipt(current) {
   renderReceiptObservation?.({host:document.querySelector('main.panel'), orderId:location.pathname.split('/').pop(), observation:current?.receipt_observation, returned:returned && current != null});
-  if (!diagnosticPage && document.querySelector('#checkout-vision[data-result=recognized]')) {
+  if (!diagnosticPage && !order?.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) {
     const status = panel.querySelector('[role=status]');
     if (status) status.textContent = '';
   }
@@ -122,15 +129,15 @@ async function refreshAfterReturn(event) {
     if (!response.ok) throw new Error();
     const current = await response.json();
     if (revision !== checkoutRevision) return;
-    if (current.status === 'PENDING') {
-      order = current;
-      pending();
-    }
+    const previousStatus = order?.status;
+    order = current;
+    if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
     const message = panel.querySelector('[role=status]');
-    if (message && current.status !== 'PENDING') message.textContent = diagnosticPage
+    if (!current.settlement && message && current.status !== 'PENDING') message.textContent = diagnosticPage
       ? 'If you paid, select I Paid.' : '';
     if (!diagnosticPage) returned = true;
     updateReceipt(current);
+    updateSettlement(current);
     startObservationPolling();
   } catch {
     if (revision === checkoutRevision) {
@@ -142,13 +149,47 @@ async function refreshAfterReturn(event) {
 function formatAmount(amountMinor) {
   return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(amountMinor / 100);
 }
+function say(message, color) {
+  const status = panel.querySelector('[role=status]');
+  if (status) {
+    status.textContent = message;
+    status.style.color = color;
+  }
+}
+function finish(success, message) {
+  if (!success) {
+    // Red is the current diagnosis, not a terminal UI state. Keep polling until
+    // the order expires; a later matching live result can still settle it.
+    say(message, '#ff7085');
+    return;
+  }
+  liveVerification?.stop();
+  stopObservationPolling();
+  clearTimeout(expiryTimer);
+  returnCallback?.disarm();
+  panel.innerHTML = '<h2>✓ Payment verified</h2><p role="status"></p>';
+  panel.querySelector('h2').style.color = '#54d6a6';
+  say(message || 'Payment verified.', '#54d6a6');
+}
+function updateSettlement(current) {
+  const result = current?.settlement;
+  if (!result) return;
+  if (result.satisfied) finish(true, result.reason || 'Payment verified.');
+  else if (['WRONG_AMOUNT', 'WRONG_PAYEE', 'AMOUNT_UNCONFIRMED', 'REPLAY_OR_ORDER_CONFLICT', 'INVALID_REFERENCE', 'ORDER_NOT_ELIGIBLE', 'EXPIRED', 'CHALLENGE_EXPIRED', 'SENSITIVE_CONTENT_REJECTED', 'VERIFICATION_UNAVAILABLE'].includes(result.state)) finish(false, result.reason);
+  else if (result.state === 'AMBIGUOUS') say('Two matching payments — confirming', '#8a6d00');
+  else say(result.reason || 'Checking…', '#8a6d00');
+}
 function pending() {
+  liveVerification?.stop();
+  liveVerification = undefined;
   panel.innerHTML = '<h2></h2><p role="status">Verification pending.</p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
+  updateSettlement(order);
 }
 function showOrder() {
+  if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '') + '<p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<button class="secondary" id="live-verify">Start live verification</button><p>Share only the UPI payment result. Hide PIN, OTP, balances and account details. Live frames are analyzed in memory and never stored.</p>') + '<p role="status"></p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
   if (order.discount_minor > 0) panel.querySelector('#discount').textContent =
     'Merchant discount: ' + formatAmount(order.discount_minor);
@@ -166,7 +207,11 @@ function showOrder() {
       tracker?.arm();
       diagnostics?.record('copy_ok');
     diagnostic?.record('copy-ok');
-      status.textContent = 'UPI ID copied.';
+      status.textContent = '✓ UPI ID copied. Live verification ready.';
+      copy.textContent = '✓ Copied — Verification ready';
+      setTimeout(() => {
+        if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
+      }, 2500);
       if (!diagnosticPage) startObservationPolling();
     } catch {
       if (revision !== checkoutRevision) return;
@@ -177,6 +222,16 @@ function showOrder() {
   };
   const paid = panel.querySelector('#paid');
   if (paid) paid.onclick = confirmPayment;
+  if (!diagnosticPage && mountLiveVerification) {
+    liveVerification = mountLiveVerification({
+      button:panel.querySelector('#live-verify'), endpoint,
+      onResult:result => {
+        order = {...order, status:result.satisfied ? 'PAID' : order.status, settlement:result};
+        updateSettlement(order);
+      },
+    });
+  }
+  updateSettlement(order);
 }
 async function confirmPayment() {
   checkoutRevision++;
@@ -212,15 +267,17 @@ async function confirmPayment() {
 }
 (async () => {
   try {
-    await Promise.all([diagnosticsReady, returnReady, receiptReady]);
+    await Promise.all([diagnosticsReady, returnReady, receiptReady, liveVerificationReady]);
     const response = await fetch(endpoint);
     if (response.status === 410) { closeCheckout('Checkout expired or closed.'); return; }
     if (!response.ok) throw new Error();
     order = await response.json();
     showOrder();
     updateReceipt(order);
-    if (!diagnosticPage) startObservationPolling();
-    scheduleExpiry();
+    if (!order.settlement?.satisfied) {
+      if (!diagnosticPage) startObservationPolling();
+      scheduleExpiry();
+    }
   } catch {
     panel.textContent = 'Checkout unavailable or expired.';
   }

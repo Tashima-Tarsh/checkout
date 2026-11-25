@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.agentic_api import ORDER_ID, digest, now, router
 from checkout.agentic_login import configure, router as login_router
+from checkout.agentic_live_vision_api import router as live_vision_router
 from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links
 from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
@@ -82,6 +83,7 @@ app = FastAPI(title="Agentic Pay", lifespan=lifespan, docs_url=None, redoc_url=N
 app.include_router(router)
 app.include_router(login_router)
 app.include_router(vision_router)
+app.include_router(live_vision_router)
 app.include_router(test_checkout_router)
 app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
@@ -105,6 +107,8 @@ async def security_headers(request, call_next):
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     })
+    if request.url.path.startswith("/checkout/"):
+        response.headers["Permissions-Policy"] = "display-capture=(self), camera=(), microphone=()"
     if request.url.path == "/research/vision-uat":
         response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; media-src 'self' blob:; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
         response.headers["Permissions-Policy"] = "display-capture=(self), camera=(), microphone=()"

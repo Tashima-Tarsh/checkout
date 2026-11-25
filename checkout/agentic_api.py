@@ -15,7 +15,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, receipt_observations
+from checkout.agentic_settle import get_settlement, public_settlement
+from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -231,9 +232,28 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
 def list_orders(request: Request, identity: Merchant):
     query = select(
         orders.c.id, orders.c.amount_minor, orders.c.created, orders.c.expires, orders.c.status,
+        amount_reservations.c.payable_minor,
+        settlement_states.c.state.label("settlement_state"),
+        settlement_states.c.observed_minor,
+        evidence_consumption.c.order_id.label("consumed_order_id"),
+    ).outerjoin(amount_reservations, amount_reservations.c.order_id == orders.c.id
+    ).outerjoin(settlement_states, settlement_states.c.order_id == orders.c.id
+    ).outerjoin(evidence_consumption, evidence_consumption.c.order_id == orders.c.id
     ).where(orders.c.merchant_id == identity).order_by(orders.c.created.desc()).limit(100)
     with request.app.state.engine.connect() as conn:
-        return [dict(row) for row in conn.execute(query).mappings()]
+        results = []
+        for row in conn.execute(query).mappings():
+            result = dict(row)
+            for key in ("payable_minor", "settlement_state", "observed_minor", "consumed_order_id"):
+                result.pop(key, None)
+            current = dict(row, payable_minor=row["payable_minor"] or row["amount_minor"])
+            observation = (dict(state=row["settlement_state"], observed_minor=row["observed_minor"])
+                           if row["settlement_state"] else None)
+            result["settlement"] = public_settlement(
+                current, observation, consumed=row["consumed_order_id"] is not None,
+            )
+            results.append(result)
+        return results
 
 
 def checkout_order(conn, order_id, lock=False):
@@ -258,7 +278,12 @@ def require_open_checkout(order):
 def checkout_info(request: Request, order_id: str):
     with request.app.state.engine.connect() as conn:
         order = checkout_order(conn, order_id)
-        require_open_checkout(order)
+        consumed = conn.scalar(select(evidence_consumption.c.order_id).where(
+            evidence_consumption.c.order_id == order_id)) is not None
+        # A live-verified order remains readable after expiry so reloads keep
+        # the green tick. A manually altered PAID row without evidence stays closed.
+        if order["status"] != "PAID" or not consumed:
+            require_open_checkout(order)
         vpa = conn.scalar(select(accounts.c.vpa).where(
             accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
         ))
@@ -269,6 +294,9 @@ def checkout_info(request: Request, order_id: str):
                 "original_minor": order["amount_minor"],
                 "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
                 "expires": order["expires"], "upi_id": vpa, "status": order["status"]}
+        current = dict(order, payable_minor=result["amount_minor"], upi_id=vpa)
+        result["settlement"] = get_settlement(conn, current)
+        result["live_verification"] = {"enabled": True, "time_bound": True, "media_retained": False}
         observation = conn.execute(select(receipt_observations.c.decision).where(
             receipt_observations.c.order_id == order_id,
             receipt_observations.c.expires > now())).scalar_one_or_none()
