@@ -189,7 +189,12 @@ def test_shared_uat_amount_has_no_pool_exhaustion_and_cannot_consume_evidence(mo
             result = client.post("/api/agenticcheckouttest",headers={"origin":origin})
             assert result.status_code == 200
             path = result.json()["checkout_path"]
-            assert client.get("/api"+path).json()["amount_minor"] == 100
+            info = client.get("/api"+path).json()
+            assert info["amount_minor"] == 100
+            with engine.connect() as conn:
+                order = conn.execute(select(orders).where(orders.c.id == path.split("/")[-1])).mappings().one()
+                assert order["expires"] - order["created"] == 120
+                assert info["expires"] == order["expires"]
             assert client.post("/api/agenticcheckouttest",headers={"origin":origin}).json()["checkout_path"] == path
             assert client.post("/api"+path+"/verify").status_code == 202
             ids.append(path.split("/")[-1])
