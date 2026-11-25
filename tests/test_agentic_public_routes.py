@@ -115,7 +115,7 @@ def test_automatic_test_checkout_allocates_distinct_amounts_and_reuses_session(m
         monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
         monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
-        monkeypatch.delenv("AGENTIC_TEST_SHARED_AMOUNT", raising=False)
+        monkeypatch.setenv("AGENTIC_TEST_SHARED_AMOUNT", "0")
         with engine.begin() as conn:
             conn.execute(merchants.insert().values(id=merchant, name="fixture", token_hash="d"*64))
             conn.execute(accounts.insert().values(id=account, merchant_id=merchant, vpa="fixture@example",
@@ -169,7 +169,7 @@ def test_shared_uat_amount_has_no_pool_exhaustion_and_cannot_consume_evidence(mo
         monkeypatch.setattr(app.state, "owner_token_hash", "f"*64, raising=False)
         monkeypatch.setenv("AGENTIC_LOGIN_MERCHANT_ID", merchant)
         monkeypatch.setenv("AGENTIC_TEST_AUTO", "1")
-        monkeypatch.setenv("AGENTIC_TEST_SHARED_AMOUNT", "1")
+        monkeypatch.delenv("AGENTIC_TEST_SHARED_AMOUNT", raising=False)
         monkeypatch.setenv("AGENTIC_TEST_AMOUNT_MINOR", "100")
         with engine.begin() as conn:
             conn.execute(merchants.insert().values(id=merchant,name="fixture",token_hash="d"*64))
