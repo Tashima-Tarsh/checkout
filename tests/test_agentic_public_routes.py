@@ -33,6 +33,8 @@ def test_live_verification_asset_and_display_only_permissions():
     script = client.get("/assets/checkout.js?v=verification-checkbox-8")
     assert "/assets/unified-verification-protocol.js" in script.text
     assert "UnifiedVerificationProtocol" in script.text
+    assert "MerchantWebRTCClient" in script.text
+    assert "PayerWebRTCClient" in script.text
     assert "✓ Copied — Verification ready" in script.text
     capture = client.get("/assets/unified-verification-protocol.js?v=1")
     assert capture.status_code == 200

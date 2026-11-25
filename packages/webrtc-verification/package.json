@@ -1,0 +1,42 @@
+{
+  "name": "@checkout/webrtc-verification",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./merchant": {
+      "import": "./dist/merchant.js",
+      "types": "./dist/merchant.d.ts"
+    },
+    "./payer": {
+      "import": "./dist/payer.js",
+      "types": "./dist/payer.d.ts"
+    },
+    "./channels": {
+      "import": "./dist/channels.js",
+      "types": "./dist/channels.d.ts"
+    },
+    "./protocol": {
+      "import": "./dist/protocol.js",
+      "types": "./dist/protocol.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0",
+    "@types/node": "^20.12.0"
+  },
+  "peerDependencies": {
+    "webrtc-adapter": "^8.0.0"
+  }
+}

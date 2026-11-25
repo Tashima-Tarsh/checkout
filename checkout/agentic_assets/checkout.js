@@ -11,9 +11,83 @@ let observationTimer;
 let expiryTimer;
 let returned = false;
 let unifiedProtocol;
+let webrtcMerchant;
+let verificationArmed = false;
 const unifiedProtocolReady = import('/assets/unified-verification-protocol.js?v=1').then(module => {
   window.UnifiedVerificationProtocol = module.UnifiedVerificationProtocol;
 }).catch(() => {});
+const webrtcReady = import('/assets/webrtc-verification.js?v=1').then(module => {
+  window.MerchantWebRTCClient = module.MerchantWebRTCClient;
+  window.PayerWebRTCClient = module.PayerWebRTCClient;
+}).catch(() => {});
+
+async function armVerification() {
+  if (verificationArmed) return;
+  verificationArmed = true;
+  
+  // Initialize unified verification protocol (arms passive dwell, sound, etc.)
+  const { UnifiedVerificationProtocol } = await unifiedProtocolReady;
+  unifiedProtocol = new UnifiedVerificationProtocol({
+    vpa: order.upi_id,
+    amount: order.amount_minor / 100,
+    ref: order.id,
+    colorSeq: order.color_seq || [],
+    onResult: (result) => {
+      liveResult = result;
+      order = {...order, status: result.verified ? 'PAID' : order.status, settlement: result};
+      updateSettlement(order);
+      if (result.verified) {
+        finish(true, result.reason || 'Payment verified.');
+      } else if (result.requireManualReview) {
+        say(result.reason, '#ff7085');
+      }
+    }
+  });
+  unifiedProtocol.initialize();
+  
+  // Initialize WebRTC P2P verification if available
+  try {
+    const { MerchantWebRTCClient } = await webrtcReady;
+    webrtcMerchant = new MerchantWebRTCClient({
+      signalingUrl: '/webrtc/ws',
+      verificationConfig: {
+        useCamera: true,
+        useAudio: true,
+        useColorPattern: true,
+        usePassiveDwell: true,
+        useProtocolHandler: true,
+        challengeTtlMs: 45000,
+        dwellThresholdMs: 1200
+      },
+      onStateChange: (state) => {
+        console.log('WebRTC state:', state);
+      },
+      onVerificationResult: (result) => {
+        liveResult = result;
+        order = {...order, status: result.verified ? 'PAID' : order.status, settlement: result};
+        updateSettlement(order);
+        if (result.verified) {
+          finish(true, result.reason || 'Payment verified via WebRTC.');
+        } else if (result.requireManualReview) {
+          say(result.reason, '#ff7085');
+        }
+      },
+      onError: (error) => {
+        console.error('WebRTC error:', error);
+        say(error.message, '#ff7085');
+      }
+    });
+    webrtcMerchant.connect('/webrtc/ws');
+    webrtcMerchant.register(order.id);
+    webrtcMerchant.startVerification({
+      ref: order.id,
+      amount: order.amount_minor / 100,
+      vpa: order.upi_id
+    });
+  } catch (e) {
+    console.warn('WebRTC not available, falling back to unified protocol:', e);
+  }
+}
 
 function closeCheckout(message) {
   unifiedProtocol?.stopAllChannels?.();
@@ -117,43 +191,21 @@ function pending() {
 function showOrder() {
   if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label><p class="privacy">Share only the UPI payment result. Hide PIN, OTP, balances and account details. Live frames are analyzed in memory and never stored.</p>') + '<p role="status"></p>';
+  panel.innerHTML = '<h2></h2><p id="discount"></p><p>Copy the receiving address and pay the exact displayed amount using your UPI app.</p><button class="primary" id="copy">Copy UPI ID</button>'+ (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<label class="consent-control"><input type="checkbox" id="consent" required> I authorize the checkout system to temporarily observe my payment-related screen activity for a maximum of 120 seconds using AI Vision technology, exclusively for verifying my UPI payment. This permission shall automatically terminate upon successful verification, cancellation, withdrawal of consent or expiration of the authorized time.</label><p class="privacy">Share only the UPI payment result. Hide PIN, OTP, balances and account details. Live frames are analyzed in memory and never stored.</p>') + '<p role="status"></p>';
   const copy = panel.querySelector('#copy');
   const paid = panel.querySelector('#paid');
-  const liveVerify = panel.querySelector('#live-verify');
-  if (copy) copy.onclick = copyUpiId;
+  const consent = panel.querySelector('#consent');
+  if (copy) copy.onclick = async () => {
+    await copyUpiId();
+    if (consent.checked && !verificationArmed) {
+      await armVerification();
+    }
+  };
   if (paid) paid.onclick = confirmPayment;
-  if (liveVerify) {
-    liveVerify.addEventListener('change', async (e) => {
-      const checked = e.target.checked;
-      if (checked) {
-        // Initialize unified verification protocol
-        const { UnifiedVerificationProtocol } = await unifiedProtocolReady;
-        unifiedProtocol = new UnifiedVerificationProtocol({
-          vpa: order.upi_id,
-          amount: order.amount_minor / 100,
-          ref: order.id,
-          colorSeq: order.color_seq || [],
-          onResult: (result) => {
-            liveResult = result;
-            order = {...order, status: result.verified ? 'PAID' : order.status, settlement: result};
-            updateSettlement(order);
-            if (result.verified) {
-              e.target.checked = false;
-              finish(true, result.reason || 'Payment verified.');
-            } else if (result.requireManualReview) {
-              say(result.reason, '#ff7085');
-            }
-          }
-        });
-        await unifiedProtocol.initialize();
-        // Launch UPI intent
-        window.location.href = unifiedProtocol.getUpiIntent();
-        // Start sound detection
-        // Start passive dwell detection (already armed in protocol)
-      } else {
-        unifiedProtocol?.stopAllChannels?.();
-        unifiedProtocol = null;
+  if (consent) {
+    consent.addEventListener('change', async (e) => {
+      if (e.target.checked && !verificationArmed) {
+        await armVerification();
       }
     });
   }
@@ -179,7 +231,6 @@ async function copyUpiId() {
     setTimeout(() => {
       if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
     }, 2500);
-    if (!diagnosticPage) startObservationPolling();
   } catch {
     if (revision !== checkoutRevision) return;
     diagnostics?.record('copy_failed');
