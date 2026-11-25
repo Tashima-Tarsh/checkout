@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
 from checkout.agentic_settle import get_settlement, public_settlement
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states
+from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states, shared_test_orders
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -84,6 +84,7 @@ class OrderInput(BaseModel):
     account_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     amount_minor: int = Field(strict=True, ge=100, le=10000000)
     max_discount_minor: int = Field(default=0, strict=True, ge=0, le=99)
+    shared_amount: bool = False
 
 
 
@@ -207,6 +208,8 @@ def unused_payable(conn, account, lower, upper, *, ascending=False):
 
 @router.post("/orders", status_code=201)
 def create_order(request: Request, identity: Merchant, item: OrderInput):
+    if item.shared_amount and (item.amount_minor % 100 or item.max_discount_minor):
+        raise HTTPException(422, 'Shared amount requires whole rupees and no discount')
     order_id = secrets.token_hex(24)
     created = now()
     with request.app.state.engine.begin() as conn:
@@ -216,14 +219,18 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         if account is None:
             raise HTTPException(404, "Account not found")
         lower = max(100, item.amount_minor - item.max_discount_minor)
-        payable = unused_payable(conn, account, lower, item.amount_minor)
+        payable = item.amount_minor if item.shared_amount else unused_payable(conn, account, lower, item.amount_minor)
         if payable is None:
             raise HTTPException(409, "Payment amount pool exhausted; no safe unused amount")
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
             created=created, expires=created + 1800, status="AWAITING_PAYMENT",
         ))
-        conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=payable))
+        if item.shared_amount:
+            # Repeated amounts lack independent order-to-payment binding. Keep observational only.
+            conn.execute(shared_test_orders.insert().values(order_id=order_id))
+        else:
+            conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=payable))
         event(conn, identity, "ORDER_CREATED")
     return {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
 
@@ -297,6 +304,10 @@ def checkout_info(request: Request, order_id: str):
         current = dict(order, payable_minor=result["amount_minor"], upi_id=vpa)
         result["settlement"] = get_settlement(conn, current)
         result["live_verification"] = {"enabled": True, "time_bound": True, "media_retained": False}
+        if conn.scalar(select(shared_test_orders.c.order_id).where(shared_test_orders.c.order_id == order_id)):
+            result["shared_amount"] = True
+            result["session_reference"] = order_id
+            result["settlement"] = {"satisfied": False, "state": "ORDER_NOT_ELIGIBLE", "reason": "Awaiting independently correlated payment evidence."}
         observation = conn.execute(select(receipt_observations.c.decision).where(
             receipt_observations.c.order_id == order_id,
             receipt_observations.c.expires > now())).scalar_one_or_none()
