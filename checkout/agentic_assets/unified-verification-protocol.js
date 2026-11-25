@@ -371,8 +371,8 @@ export function registerProtocolHandler() {
   }
 }
 
-export function buildUpiIntent(params) {
-  const { pa, pn, am, tr, tn, mc, mode, orgid, sign, returnUrl } = params;
+export function buildUpiIntent(input) {
+  const { pa, pn, am, tr, tn, mc, mode, orgid, sign, returnUrl } = input;
   const params = new URLSearchParams();
   params.set('pa', pa);
   if (pn) params.set('pn', pn);
