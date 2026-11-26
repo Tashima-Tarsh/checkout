@@ -228,7 +228,7 @@ function showOrder() {
       tracker?.arm();
       diagnostics?.record('copy_ok');
       diagnostic?.record('copy-ok');
-      status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Pay and return to checkout.' : '✓ UPI ID copied. Live verification ready.';
+      status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
       copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
       setTimeout(() => {
         if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';

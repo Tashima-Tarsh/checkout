@@ -3,6 +3,7 @@
 // Payment UI is an observation client, NOT an authentic debit witness.
 const $ = id => document.getElementById(id);
 let session;
+let attempt;
 let refreshPending = false;
 
 function log(message) {
@@ -106,6 +107,7 @@ $('form').addEventListener('submit', async event => {
     const created = await api('/api/sessions', {method: 'POST', body: request});
     $('claim').disabled = false;
     $('copyUpid').disabled = false;
+    $('refresh').disabled = false;
     $('copyUpid').textContent = 'Copy UPI ID';
     $('demo').disabled = false;
     session = created;
@@ -119,13 +121,34 @@ $('form').addEventListener('submit', async event => {
   } finally {
     submit.disabled = false;
   }
+});
+
+// Browser return after copying is a lifecycle observation, never debit proof.
+function markAway() {
+  if (attempt && attempt.target === session) attempt.away = true;
 }
+function resume() {
+  if (!attempt || !attempt.away || attempt.returned || attempt.target !== session) return;
+  if (document.visibilityState !== 'visible') return;
+  attempt.returned = true;
+  observe('BROWSER_RESUMED', attempt.target);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') markAway();
+  else resume();
+});
+window.addEventListener('pagehide', markAway);
+window.addEventListener('pageshow', resume);
+window.addEventListener('focus', resume);
+
+$('edit').addEventListener('click', () => document.querySelector('.shell').classList.remove('has-session'));
 $('copyUpid').addEventListener('click', async () => {
   const target = session;
   if (!target || target.expires <= Date.now() / 1000) return;
   try {
     await navigator.clipboard.writeText(target.vpa);
     if (session !== target) return;
+    attempt = {target, away: false, returned: false};
     await api(path(target) + '/copy', {method: 'POST', token: target.token});
     log('UPI ID copied. Debit remains unverified.');
     $('copyUpid').textContent = 'Copied UPI ID';

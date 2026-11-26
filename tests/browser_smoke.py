@@ -5,6 +5,7 @@ from playwright.sync_api import expect, sync_playwright
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
+    base = os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080").rstrip("/")
     configurations = [
         ("P2P", {}),
         ("P2P", playwright.devices["Pixel 7"]),
@@ -13,8 +14,8 @@ with sync_playwright() as playwright:
         ("P2P", playwright.devices["iPhone 13"]),
     ]
     for mode, options in configurations:
-        page = browser.new_page(**options)
-        page.goto(os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080"))
+        page = browser.new_page(permissions=['clipboard-read', 'clipboard-write'], **options)
+        page.goto(base)
         expect(page.get_by_role("heading", name="Make a payment")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.locator("#mode").select_option(mode)
@@ -23,12 +24,20 @@ with sync_playwright() as playwright:
         page.locator("#vpa").fill("test@upi")
         page.locator("#name").fill("Research recipient")
         page.locator("#amount").fill("1.00")
-        page.get_by_role("button", name="Create secure checkout").click()
-        expect(page.locator("#qr")).to_be_visible()
+        with page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/api/sessions")) as created:
+            page.get_by_role("button", name="Create checkout").click()
+        assert created.value.status == 201
+        session = created.value.json()
         expect(page.get_by_role("button", name="Copy UPI ID")).to_be_enabled()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-        page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
-        uri = page.locator("#launch").get_attribute("href")
+        # The copy-first UI deliberately no longer launches UPI or displays QR.
+        # Retain coverage of the backend's UPI URI and QR generation.
+        assert page.locator("#launch").count() == 0
+        assert page.locator("#qr").count() == 0
+        qr = page.request.get(base + "/api/sessions/" + session["session_id"] + "/qr.png",
+                              headers={"Authorization": "Bearer " + session["token"]})
+        assert qr.ok and qr.body().startswith(b"\x89PNG\r\n\x1a\n")
+        uri = session["payment_uri"]
         parsed = urlsplit(uri)
         assert (parsed.scheme, parsed.netloc) == ("upi", "pay")
         personal = {"pa": ["test@upi"], "pn": ["Research recipient"],
@@ -41,13 +50,18 @@ with sync_playwright() as playwright:
             assert params.pop("tn")[0].startswith("PDEP ")
             assert params == personal
         expect(page.locator("#info")).to_contain_text("test@upi")
-        # A fake launch and browser return must only produce an observation.
-        # Prevent external UPI navigation; this intentionally does NOT launch an app.
-        page.locator("#launch").evaluate(
-            "(el) => {el.addEventListener('click', e => e.preventDefault(), {once:true}); el.click();}"
-        )
-        page.evaluate("window.dispatchEvent(new Event('pagehide'))")
-        page.evaluate("window.dispatchEvent(new Event('pageshow'))")
+        # Real clipboard action, synthetic browser return: no real payment.
+        with page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/copy")) as copied:
+            page.get_by_role("button", name="Copy UPI ID").click()
+        assert copied.value.ok
+        expect(page.locator("#copyUpid")).to_have_text("Copied UPI ID")
+        assert page.evaluate("navigator.clipboard.readText()") == "test@upi"
+        with page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/observe")) as returned:
+            page.evaluate("window.dispatchEvent(new Event('pagehide'))")
+            page.evaluate("window.dispatchEvent(new Event('pageshow'))")
+        assert returned.value.ok
+        assert returned.value.json()["financially_verified"] is False
+        expect(page.locator("#state")).to_contain_text("BROWSER RETURNED")
         expect(page.locator("#state")).to_contain_text("Debit unverified")
         page.locator("#claim").click()
         expect(page.locator("#state")).to_contain_text("Debit unverified")
@@ -56,7 +70,6 @@ with sync_playwright() as playwright:
     # Public opt-in PDEP lab must load its real JS modules from the same origin.
     # This proves the test page is deployable; it does NOT emulate a UPI app.
     lab = browser.new_page()
-    base = os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080").rstrip("/")
     lab.goto(base + "/pdep-lab/")
     expect(lab.get_by_role("heading", name="PDEP Mobile Signal Lab")).to_be_visible()
     lab.locator("#vpa").fill("test@upi")
