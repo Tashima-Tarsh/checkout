@@ -259,12 +259,14 @@ copy.onclick = async () => {
     const am = (order.amount_minor / 100).toFixed(2);
     const tr = order.id;
     const pn = 'Payee';
+    const evidenceEndpoint = '/api/checkout/' + order.id + '/device-evidence';
     const upiUri = 'upi://pay?pa=' + encodeURIComponent(pa) +
       '&am=' + encodeURIComponent(am) +
       '&tr=' + encodeURIComponent(tr) +
       '&pn=' + encodeURIComponent(pn) +
       '&session_id=' + encodeURIComponent(order.id) +
-      '&server_url=' + encodeURIComponent(serverUrl);
+      '&server_url=' + encodeURIComponent(serverUrl) +
+      '&evidence_endpoint=' + encodeURIComponent(evidenceEndpoint);
     window.location.href = upiUri;
   }
   const launchBtn = document.getElementById('launchUpi');

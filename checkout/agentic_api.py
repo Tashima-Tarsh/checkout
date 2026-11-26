@@ -313,7 +313,7 @@ def checkout_info(request: Request, order_id: str):
         payable = conn.scalar(select(amount_reservations.c.payable_minor).where(
             amount_reservations.c.order_id == order_id,
             amount_reservations.c.account_id == order["account_id"]))
-        result = {"amount_minor": payable if payable is not None else order["amount_minor"],
+        result = {"id": order["id"], "amount_minor": payable if payable is not None else order["amount_minor"],
                 "original_minor": order["amount_minor"],
                 "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
                 "expires": order["expires"], "upi_id": vpa, "status": order["status"]}

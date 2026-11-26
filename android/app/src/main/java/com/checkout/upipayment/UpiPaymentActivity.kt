@@ -95,6 +95,7 @@ class UpiPaymentActivity : ComponentActivity() {
         val sessionId = uri.getQueryParameter("session_id")
         val token = uri.getQueryParameter("token")
         val serverUrl = uri.getQueryParameter("server_url") ?: "https://disha8-2.thenitishkr.in"
+        val evidenceEndpoint = uri.getQueryParameter("evidence_endpoint") ?: "/api/sessions/$sessionId/device-evidence"
         val pa = uri.getQueryParameter("pa") ?: ""
         val am = uri.getQueryParameter("am") ?: ""
 
@@ -124,7 +125,7 @@ class UpiPaymentActivity : ComponentActivity() {
 
         Thread {
             try {
-                val url = URL("$serverUrl/api/sessions/$sessionId/device-evidence")
+                val url = URL("$serverUrl$evidenceEndpoint")
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Content-Type", "application/json")
