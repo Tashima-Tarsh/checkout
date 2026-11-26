@@ -3,118 +3,88 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#FF5A2A">
-  <meta name="description" content="PDEP · Copy UPI ID, pay in your app, device verifies debit">
-  <title>PDEP · UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=pdep-copy-v03">
+  <meta name="theme-color" content="#0c1425">
+  <meta name="description" content="P2P and P2M browser-based UPI checkout initiation">
+  <title>PDEP · Premium UPI Checkout</title>
+  <link rel="stylesheet" href="/static/style.css?v=pdep-v06">
 </head>
 <body class="checkout-page">
 <main class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="PDEP home">
-      <span class="brandmark">P</span>
-      <span>PDEP<small>CHECKOUT</small></span>
-    </a>
+    <a class="brand" href="/" aria-label="PDEP home"><span id="brandIcon" class="brandmark">P</span><span><span id="brandName">PDEP</span> <small>CHECKOUT</small></span></a>
     <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
   </header>
-
-  <section class="panel" aria-label="Payment details">
-    <div class="sectionheading">
-      <span class="step">01</span>
-      <div>
-        <h1 id="checkoutHeadline">Copy UPI ID. Pay in your app.</h1>
-        <p>Copy the receiving UPI ID, pay from your own UPI app, then return here. Your device verifies the debit automatically.</p>
-      </div>
-    </div>
-
-    <div class="detail-field">
-      <label id="labelUpid">UPI ID (receive)</label>
-      <div class="copy-row" role="group" aria-label="UPI ID copy">
-        <span id="upid-display" class="copy-text">Loading…</span>
-        <button id="copyUpid" type="button" class="secondary-btn" aria-label="Copy UPI ID to clipboard">Copy</button>
-      </div>
-      <p class="hint">Tap <strong>Copy</strong>, open your UPI app, paste, pay. Return here when done.</p>
-    </div>
-
-    <!-- Android native UPI launch — only shown on Android WebView/native -->
-    <div class="detail-field android-launch" hidden>
-      <label id="labelLaunch">Pay via UPI app</label>
-      <button id="launchUpi" type="button" class="primary-btn" disabled>Launch UPI Payment</button>
-      <p class="hint">Opens your UPI app to pay. Returns here after payment with device evidence.</p>
-    </div>
-
-    <div class="detail-field">
-      <label id="labelAmount">Amount (₹)</label>
-      <span id="amount-display" class="amount-display">—</span>
-    </div>
-
-    <div class="detail-field">
-      <label id="labelMode">Type</label>
-      <span id="mode-display" class="mode-display">—</span>
-    </div>
-
-    <div class="detail-field">
-      <label id="labelMcc">Merchant category (MCC)</label>
-      <span id="mcc-display" class="mcc-display">—</span>
-      <p class="hint">Optional merchant metadata, not debit evidence.</p>
-    </div>
-
-    <p id="notice" class="notice"></p>
+  <section class="hero" aria-label="Checkout introduction">
+    <div><span class="eyebrow">DIRECT UPI / 01</span><h2>Payments, simplified.</h2><p>Set your payment details, generate a QR and continue in your preferred UPI app.</p></div>
+    <div class="flowline" aria-hidden="true"><span>01 · Configure</span><i></i><span>02 · Scan or open</span><i></i><span>03 · Review</span></div>
   </section>
-
-  <section class="panel" hidden aria-label="Verification status">
-    <div class="sectionheading">
-      <span class="step">02</span>
-      <div>
-        <h2>Verification</h2>
-        <p>Your device verifies the debit. Server matches it. No credit wait — confirmation is instant.</p>
+  <div class="workspace">
+    <section class="config panel" aria-label="Payment configuration">
+      <div class="sectionheading"><span class="step">01</span><div><h1 id="checkoutHeadline">Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
+      <form id="form">
+        <div class="field">
+          <label for="mode">Payment type</label>
+          <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
+        </div>
+        <div class="field" id="destinationRow" hidden>
+          <label for="destinationType">Payee selection</label>
+          <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
+        </div>
+        <div class="field" id="vpaRow">
+          <label for="vpa">Recipient UPI ID</label>
+          <input id="vpa" autocomplete="off" inputmode="email" placeholder="person@upi" required>
+        </div>
+        <div class="field" id="routeRow" hidden>
+          <label for="routeKey">Approved routing group</label>
+          <input id="routeKey" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="my-recipient-group">
+        </div>
+        <div class="field">
+          <label for="name">Recipient display name</label>
+          <input id="name" maxlength="80" placeholder="Payee name" required>
+        </div>
+        <div class="twofields">
+          <div class="field">
+            <label for="amount">Amount (₹)</label>
+            <input id="amount" type="number" min="1" max="1000000" step=".01" placeholder="499.00" required>
+          </div>
+          <div class="field" id="mccRow" hidden>
+            <label for="mcc">Merchant MCC <span class="optional">optional</span></label>
+            <input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="5411">
+          </div>
+        </div>
+        <button id="create" type="submit" class="primary">Create secure checkout <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+    <section id="paypanel" class="payment panel" aria-label="Payment status">
+      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any supported UPI app</h2><p>Scan or open from your phone</p></div></div>
+      <div id="empty" class="empty">
+        <div class="qrpreview" aria-hidden="true"><span class="qr-corner tl"></span><span class="qr-corner tr"></span><span class="qr-corner bl"></span><span class="scanline"></span><span class="qr-caption">QR READY AREA</span></div>
+        <strong>Your payment QR appears here</strong>
+        <p>Enter the payment details to begin. Nothing to download.</p>
       </div>
-    </div>
-
-    <div class="statebar" role="status" aria-live="polite">
-      <span class="state-dot"></span>
-      <span id="state">Copied · Awaiting device verification</span>
-    </div>
-
-    <div id="verificationStatus" class="status-detail muted"></div>
-    <p id="timer" class="timer"></p>
-
-    <!-- Receipt stage — shown only when server-confirmed financially_verified -->
-    <section id="receipt" class="receipt-panel" hidden aria-label="Payment confirmed">
-      <div class="receipt-inner">
-        <div class="receipt-badge" aria-hidden="true">✓</div>
-        <h2 class="receipt-title">Payment Verified</h2>
-        <p class="receipt-sub">Real UPI debit confirmed by server match. Credit settles via banking rails (up to 3 days).</p>
-        <div class="receipt-field">
-          <span class="receipt-label">Amount</span>
-          <span id="receiptAmount" class="receipt-value">—</span>
+      <div id="pay" hidden><button id="edit" type="button" class="secondary editbutton">← Edit payment</button>
+        <div class="total" id="info"></div>
+        <div class="qrbox"><img id="qr" alt="Scan this QR in your UPI app" width="180" height="180" hidden></div>
+        <p class="scanhelp">Scan on another device, or open your installed UPI app.</p>
+        <a id="launch" class="primary" role="button">Open UPI app <span aria-hidden="true">↗</span></a>
+        <div class="actions">
+          <button id="copyUpid" type="button" class="secondary">Copy UPI ID</button>
+          <button id="claim" type="button" class="secondary">I completed payment</button>
+          <button id="refresh" type="button" class="secondary">Refresh status</button>
+          <button id="demo" type="button" class="secondary" hidden>Synthetic proof test</button>
         </div>
-        <div class="receipt-field">
-          <span class="receipt-label">Payee UPI ID</span>
-          <span id="receiptPayee" class="receipt-value">—</span>
-        </div>
-        <div class="receipt-field">
-          <span class="receipt-label">UTR (transaction reference)</span>
-          <span id="receiptUtr" class="receipt-value">—</span>
-        </div>
-        <div class="receipt-field">
-          <span class="receipt-label">Verified at</span>
-          <span id="receiptTime" class="receipt-value">—</span>
-        </div>
-        <p class="receipt-note">This confirms a real UPI payment occurred. It is not instant credit settlement.</p>
+        <p class="scanhelp">Optional: <a href="https://upihelp.npci.org.in/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Check your transaction on NPCI MyUPI</a>. This opens the official portal separately; it does not verify payment in this checkout.</p>
+        <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div>
+        <p id="timer" class="timer"></p>
       </div>
     </section>
-
-    <p class="scanhelp" id="legalLine">Payment initiation only · Device evidence is matched server-side before confirmation.</p>
-  </section>
-
+  </div>
   <footer class="footer">
-    <span>Device evidence matched server-side · Credit settles via banking rails (up to 3 days)</span>
-    <span><a href="/admin">SaaS control center →</a></span>
+    <span>Payment initiation only · A return from an app is not proof of debit.</span>
+    <span><a href="/admin">Manage VPA inventory</a></span>
   </footer>
-
-  <div class="sr-only" id="log" aria-live="polite">Ready. Copy the UPI ID to begin.</div>
+  <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>
 </main>
-<script src="/static/app.js?v=pdep-copy-v03"></script>
+<script src="/static/app.js?v=pdep-v06"></script>
 </body>
 </html>

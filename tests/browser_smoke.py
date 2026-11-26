@@ -25,6 +25,7 @@ with sync_playwright() as playwright:
         page.locator("#amount").fill("1.00")
         page.get_by_role("button", name="Create secure checkout").click()
         expect(page.locator("#qr")).to_be_visible()
+        expect(page.get_by_role("button", name="Copy UPI ID")).to_be_enabled()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.wait_for_function("document.querySelector('#qr').naturalWidth > 0")
         uri = page.locator("#launch").get_attribute("href")
