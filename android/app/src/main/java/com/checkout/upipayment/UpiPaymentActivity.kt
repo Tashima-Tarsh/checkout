@@ -98,7 +98,7 @@ class UpiPaymentActivity : ComponentActivity() {
         val pa = uri.getQueryParameter("pa") ?: ""
         val am = uri.getQueryParameter("am") ?: ""
 
-        if (sessionId.isNullOrBlank() || token.isNullOrBlank()) {
+        if (sessionId.isNullOrBlank()) {
             Log.d("UpiPayment", "No session context — cannot report device evidence")
             return
         }
@@ -122,19 +122,23 @@ class UpiPaymentActivity : ComponentActivity() {
             "source": "upi_intent_return"
         }""".trimIndent()
 
-        try {
-            val url = URL("$serverUrl/api/sessions/$sessionId/device-evidence")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer $token")
-            connection.doOutput = true
-            connection.outputStream.write(payload.toByteArray())
-            val responseCode = connection.responseCode
-            Log.d("UpiPayment", "Device evidence reported: $responseCode")
-            connection.disconnect()
-        } catch (e: Exception) {
-            Log.e("UpiPayment", "Failed to report device evidence", e)
-        }
+        Thread {
+            try {
+                val url = URL("$serverUrl/api/sessions/$sessionId/device-evidence")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                if (token.isNotBlank()) {
+                    connection.setRequestProperty("Authorization", "Bearer $token")
+                }
+                connection.doOutput = true
+                connection.outputStream.write(payload.toByteArray())
+                val responseCode = connection.responseCode
+                Log.d("UpiPayment", "Device evidence reported: $responseCode")
+                connection.disconnect()
+            } catch (e: Exception) {
+                Log.e("UpiPayment", "Failed to report device evidence", e)
+            }
+        }.start()
     }
 }

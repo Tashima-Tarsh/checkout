@@ -10,6 +10,8 @@ let checkoutRevision = 0;
 let observationTimer;
 let expiryTimer;
 let returned = false;
+const isAndroid = /Android/i.test(navigator.userAgent || '');
+const serverUrl = window.location.origin;
 // The unified protocol remains experimental; only server-backed settlement drives production UI.
 let liveVerification;
 let liveResult;
@@ -200,7 +202,7 @@ function pending() {
 function showOrder() {
   if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>By enabling Verification, you consent to observe only your payment result for up to 120 seconds, ending on claim acceptance, cancellation, withdrawal or expiry. Hide PIN, OTP, balances and account details.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
+  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button><button id="launchUpi" class="secondary" style="display:none">Launch UPI Payment</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>By enabling Verification, you consent to observe only your payment result for up to 120 seconds, ending on claim acceptance, cancellation, withdrawal or expiry. Hide PIN, OTP, balances and account details.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
   if (order.discount_minor > 0) {
     const discount = panel.querySelector('#discount');
@@ -238,6 +240,8 @@ copy.onclick = async () => {
       // never before the payer has completed payment.
       status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
       copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
+      const launchBtn = document.getElementById('launchUpi');
+      if (isAndroid && launchBtn) launchBtn.style.display = 'inline-block';
       setTimeout(() => {
         if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
       }, 2500);
@@ -249,6 +253,24 @@ copy.onclick = async () => {
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
+  async function launchUpiPayment() {
+    if (!order || !order.upi_id || !order.id) return;
+    const pa = order.upi_id;
+    const am = (order.amount_minor / 100).toFixed(2);
+    const tr = order.id;
+    const pn = 'Payee';
+    const token = '';
+    const upiUri = 'upi://pay?pa=' + encodeURIComponent(pa) +
+      '&am=' + encodeURIComponent(am) +
+      '&tr=' + encodeURIComponent(tr) +
+      '&pn=' + encodeURIComponent(pn) +
+      '&session_id=' + encodeURIComponent(order.id) +
+      '&token=' + encodeURIComponent(token) +
+      '&server_url=' + encodeURIComponent(serverUrl);
+    window.location.href = upiUri;
+  }
+  const launchBtn = document.getElementById('launchUpi');
+  if (isAndroid && launchBtn) launchBtn.addEventListener('click', launchUpiPayment);
   const paid = panel.querySelector('#paid');
   if (paid) paid.onclick = confirmPayment;
   if (!diagnosticPage && order.shared_amount) {

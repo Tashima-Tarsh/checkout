@@ -269,7 +269,17 @@ def device_evidence(sid: str, b: DeviceEvidence, request: Request, authorization
     with request.app.state.engine.begin() as connection:
         row = auth(connection, sid, authorization)
         require_active(row)
-
+        now = int(time.time())
+        # Rate limit: max 5 device-evidence attempts per session per minute
+        recent = connection.execute(
+            select(events).where(
+                events.c.sid == sid,
+                events.c.kind.like("DEVICE_EVIDENCE%"),
+                events.c.created >= now - 60,
+            )
+        ).mappings().all()
+        if len(recent) >= 5:
+            return view(auth(connection, sid, authorization))
         # Server-side match: VPA + amount must match the session. Never trust
         # client-submitted UTR alone — UTR is evidence only when bound to a
         # session whose payee and amount the server already knows.
