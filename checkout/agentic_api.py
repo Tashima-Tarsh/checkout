@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_settle import get_settlement, public_settle, _save_state
+from checkout.agentic_settle import get_settlement, public_settlement, _save_state
 from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states, shared_test_orders
 
 router = APIRouter(prefix="/api")
