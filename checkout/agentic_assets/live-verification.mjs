@@ -1,4 +1,4 @@
-export function mountLiveVerification({button, endpoint, onResult, onRequested = () => {}}) {
+export function mountLiveVerification({button, endpoint, onResult, onRequested = () => {}, onGranted = () => {}, onDenied = () => {}}) {
   let stream;
   let timer;
   let running = false;
@@ -94,6 +94,7 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     // user consent (system picker). Do not pre-emptively block it — attempt
     // capture and degrade gracefully if the user denies or it is unsupported.
     if (!navigator.mediaDevices?.getDisplayMedia) {
+      onDenied();
       fail();
       return;
     }
@@ -123,9 +124,11 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       button.disabled = false;
       readyResolve?.(true);
       readyPromise = null;
+      onGranted();
       // Wait for checkout return before sending frames; never capture while entering a PIN.
     } catch {
       if (current === generation) {
+        onDenied();
         stop();
         button.checked = true;
         fail();

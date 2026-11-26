@@ -110,6 +110,7 @@ audit = Table(
     Column("merchant_id", ForeignKey("ap_merchants.id"), index=True),
     Column("order_id", String(48), index=True),
     Column("event", String(48), nullable=False),
+    Column("detail", Text, nullable=True),
     Column("created", BigInteger, nullable=False),
 )
 
@@ -162,7 +163,7 @@ def expire_previous_uat_links(engine, *, merchant_id, cutoff, timestamp):
 
 
 def ensure_schema(engine):
-    """Add order_id to ap_audit on existing databases (idempotent)."""
+    """Add order_id and detail columns to ap_audit on existing databases (idempotent)."""
     from sqlalchemy import inspect
     with engine.begin() as connection:
         inspector = inspect(connection)
@@ -170,4 +171,8 @@ def ensure_schema(engine):
         if "order_id" not in columns:
             connection.execute(text(
                 "ALTER TABLE ap_audit ADD COLUMN order_id VARCHAR(48)"
+            ))
+        if "detail" not in columns:
+            connection.execute(text(
+                "ALTER TABLE ap_audit ADD COLUMN detail TEXT"
             ))

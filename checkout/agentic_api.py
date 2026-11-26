@@ -431,6 +431,7 @@ def txn_event(order_id: str, b: TxnEvent, request: Request):
             merchant_id=order["merchant_id"],
             order_id=order_id,
             event=b.event,
+            detail=b.detail,
             created=now(),
         ))
         event(conn, order["merchant_id"], "TXN_" + b.event.upper())

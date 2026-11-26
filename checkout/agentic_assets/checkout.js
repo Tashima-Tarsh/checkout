@@ -273,7 +273,17 @@ function showOrder() {
         verificationRequested = requested;
         liveResult = undefined;
         copy.disabled = !requested;
-        await postTxnEvent('verification_requested', requested ? 'granted' : 'revoked');
+        if (!requested) {
+          await postTxnEvent('verification_requested', 'revoked');
+        }
+      },
+      onGranted: async () => {
+        verificationRequested = true;
+        await postTxnEvent('verification_requested', 'granted');
+      },
+      onDenied: async () => {
+        verificationRequested = false;
+        await postTxnEvent('verification_requested', 'denied');
       },
       onResult:async result => {
         liveResult = result;
