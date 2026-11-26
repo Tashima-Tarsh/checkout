@@ -22,13 +22,9 @@
             android:name=".UpiPaymentActivity"
             android:exported="true"
             android:launchMode="singleTop">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="upi" />
-            </intent-filter>
-            <!-- Protocol handler for return URL — host pinned to production domain -->
+            <!-- Protocol handler for return URL — host pinned to production domain.
+                 The upi://pay intent MUST go to the user's UPI app (Google Pay, PhonePe, etc.),
+                 NOT to this app. This activity only handles the https return from the UPI app. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
