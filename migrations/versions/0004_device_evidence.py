@@ -1,8 +1,12 @@
-"""Persist checkout debit observations without trusting payer claims."""
+"""Add financially_verified flag and debit-evidence table.
+
+Revision ID: 0004_device_evidence
+Revises: 0003_appearance
+"""
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0004_debit_evidence"
+revision = "0004_device_evidence"
 down_revision = "0003_appearance"
 branch_labels = None
 depends_on = None
