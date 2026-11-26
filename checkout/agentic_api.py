@@ -310,13 +310,20 @@ def checkout_info(request: Request, order_id: str):
         vpa = conn.scalar(select(accounts.c.vpa).where(
             accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
         ))
+        account_type = conn.scalar(select(accounts.c.account_type).where(
+            accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
+        ))
+        mcc = conn.scalar(select(accounts.c.mcc).where(
+            accounts.c.id == order["account_id"], accounts.c.merchant_id == order["merchant_id"],
+        ))
         payable = conn.scalar(select(amount_reservations.c.payable_minor).where(
             amount_reservations.c.order_id == order_id,
             amount_reservations.c.account_id == order["account_id"]))
         result = {"id": order["id"], "amount_minor": payable if payable is not None else order["amount_minor"],
                 "original_minor": order["amount_minor"],
                 "discount_minor": order["amount_minor"]-payable if payable is not None else 0,
-                "expires": order["expires"], "upi_id": vpa, "status": order["status"]}
+                "expires": order["expires"], "upi_id": vpa, "status": order["status"],
+                "account_type": account_type, "mcc": mcc}
         current = dict(order, payable_minor=result["amount_minor"], upi_id=vpa)
         result["settlement"] = get_settlement(conn, current)
         result["live_verification"] = {"enabled": True, "time_bound": True, "media_retained": False}
