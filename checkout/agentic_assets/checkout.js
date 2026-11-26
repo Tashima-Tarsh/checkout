@@ -255,31 +255,51 @@ copy.onclick = async () => {
   };
   async function launchUpiPayment() {
     if (!order || !order.upi_id || !order.id) return;
+    const accountType = order.account_type;
+
+    // P2P: Google Pay rejects upi://pay intents from external web pages for
+    // personal VPAs ("Available for merchants only"). Do not auto-launch the
+    // UPI app — show the UPI ID and let the user pay manually, then verify on
+    // return using stored session data.
+    if (accountType !== 'MERCHANT') {
+      return;
+    }
+
     const pa = order.upi_id;
     const am = (order.amount_minor / 100).toFixed(2);
     const tr = order.id;
     const pn = 'Payee';
-    const accountType = order.account_type;
     const mcc = order.mcc;
-    const evidenceEndpoint = '/api/checkout/' + order.id + '/device-evidence';
+
+    sessionStorage.setItem('pdep_session_id', order.id);
+    sessionStorage.setItem('pdep_server_url', serverUrl);
+    sessionStorage.setItem('pdep_evidence_endpoint', '/api/checkout/' + order.id + '/device-evidence');
+    sessionStorage.setItem('pdep_payee_vpa', pa);
+    sessionStorage.setItem('pdep_amount_paise', String(order.amount_minor));
+
     const params = [
       'pa=' + encodeURIComponent(pa),
       'am=' + encodeURIComponent(am),
       'tr=' + encodeURIComponent(tr),
       'pn=' + encodeURIComponent(pn),
-      'session_id=' + encodeURIComponent(order.id),
-      'server_url=' + encodeURIComponent(serverUrl),
-      'evidence_endpoint=' + encodeURIComponent(evidenceEndpoint),
+      'mc=' + encodeURIComponent(mcc),
+      'cu=' + encodeURIComponent('INR'),
     ];
-    if (accountType === 'MERCHANT' && mcc) {
-      params.push('mc=' + encodeURIComponent(mcc));
-      params.push('cu=' + encodeURIComponent('INR'));
-    }
     const upiUri = 'upi://pay?' + params.join('&');
     window.location.href = upiUri;
   }
   const launchBtn = document.getElementById('launchUpi');
-  if (isAndroid && launchBtn) launchBtn.addEventListener('click', launchUpiPayment);
+  if (isAndroid && launchBtn) {
+    launchBtn.addEventListener('click', launchUpiPayment);
+    // P2P: Google Pay rejects upi://pay from web pages for personal VPAs.
+    // Hide the launch button — user pays manually in their UPI app, then
+    // verifies on return via stored session data.
+    if (order.account_type === 'MERCHANT') {
+      launchBtn.style.display = 'inline-block';
+    } else {
+      launchBtn.style.display = 'none';
+    }
+  }
   const paid = panel.querySelector('#paid');
   if (paid) paid.onclick = confirmPayment;
   if (!diagnosticPage && order.shared_amount) {
@@ -342,6 +362,39 @@ async function confirmPayment() {
     order = await response.json();
     showOrder();
     updateReceipt(order);
+
+    // When the user returns from their UPI app, report device-evidence using
+    // session data stored before launch. Non-standard parameters were kept out
+    // of the UPI intent URI (Google Pay rejects unknown parameters for P2P),
+    // so they are read from sessionStorage here instead.
+    const sid = sessionStorage.getItem('pdep_session_id');
+    const srv = sessionStorage.getItem('pdep_server_url');
+    const ep = sessionStorage.getItem('pdep_evidence_endpoint');
+    const vpa = sessionStorage.getItem('pdep_payee_vpa');
+    const amt = sessionStorage.getItem('pdep_amount_paise');
+    if (sid && srv && ep && vpa && amt && order.id === sid) {
+      try {
+        await fetch(srv + ep, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            utr: 'return-' + Date.now(),
+            amount_paise: parseInt(amt, 10),
+            payee_vpa: vpa,
+            claimed_paid_at: Math.floor(Date.now() / 1000),
+            source: 'upi_intent_return',
+          }),
+        });
+      } catch {
+        // Device-evidence report failed; observation polling will continue.
+      }
+      sessionStorage.removeItem('pdep_session_id');
+      sessionStorage.removeItem('pdep_server_url');
+      sessionStorage.removeItem('pdep_evidence_endpoint');
+      sessionStorage.removeItem('pdep_payee_vpa');
+      sessionStorage.removeItem('pdep_amount_paise');
+    }
+
     if (!order.settlement?.satisfied) {
       if (!diagnosticPage) startObservationPolling();
       scheduleExpiry();
