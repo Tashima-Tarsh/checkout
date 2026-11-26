@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "project": "agentic-recovery",
+  "pilot_target": 1000,
+  "synthetic_identities": 1000,
+  "real_employee_first": true,
+  "rules": {
+    "no_customer_apk": true,
+    "no_manual_utr": true,
+    "no_screenshot": true,
+    "no_bank_psp_api": true,
+    "no_aggregator": true,
+    "no_sms_monitoring": true,
+    "no_email_monitoring": true,
+    "no_autonomous_payment_initiation": true,
+    "no_credential_access": true,
+    "no_coercive_collection": true,
+    "no_external_outreach": true,
+    "owner_handles_login": true,
+    "owner_handles_sim_registration": true,
+    "owner_handles_payment_authorization": true
+  },
+  "evidence_states": [
+    "CREATED",
+    "AWAITING_PAYMENT",
+    "PAYMENT_OBSERVED",
+    "DETAILS_INCOMPLETE",
+    "MATCH_PENDING",
+    "APP_REPORTED_SUCCESS",
+    "REVIEW_REQUIRED",
+    "EXPIRED",
+    "FAILED",
+    "REVERSED"
+  ],
+  "financially_verified_required": true,
+  "observation_alone_insufficient": true
+}

@@ -1,0 +1,15 @@
+// Top-level build file for Agentic Recovery Android Observer
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20'
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

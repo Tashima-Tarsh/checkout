@@ -1,0 +1,21 @@
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/gradle-8.2/
+android/.cxx/
+
+# Test artifacts
+test.db
+test_private_key.pem
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

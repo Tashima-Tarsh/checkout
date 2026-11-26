@@ -1,0 +1,334 @@
+{
+  "name": "AgenticMobileObservation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "observation-ingest",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Observation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "agentic-mobile-observation"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/devices/{{$json.device_id}}",
+        "jsonParameters": true
+      },
+      "id": "validate-device",
+      "name": "Validate Device",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300],
+      "authentication": "genericCredentialType",
+      "genericAuthType": "httpHeaderAuth",
+      "httpHeaderName": "X-API-Key",
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.connectivity_status }}",
+              "operation": "equals",
+              "value2": "online"
+            }
+          ]
+        }
+      },
+      "id": "device-active-check",
+      "name": "Device Active Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/checkouts/{{$json.checkout_id}}",
+        "jsonParameters": true
+      },
+      "id": "fetch-checkout",
+      "name": "Fetch Checkout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 200],
+      "authentication": "genericCredentialType",
+      "genericAuthType": "httpHeaderAuth",
+      "httpHeaderName": "X-API-Key",
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.state }}",
+              "operation": "equals",
+              "value2": "CREATED"
+            }
+          ]
+        }
+      },
+      "id": "checkout-state-check",
+      "name": "Checkout State Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1130, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "patch",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/checkouts/{{$json.checkout_id}}",
+        "jsonParameters": true,
+        "bodyContentJson": {
+          "state": "PAYMENT_OBSERVED"
+        }
+      },
+      "id": "update-checkout",
+      "name": "Update Checkout State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 100],
+      "authentication": "genericCredentialType",
+      "genericAuthType": "httpHeaderAuth",
+      "httpHeaderName": "X-API-Key",
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+    },
+    {
+      "parameters": {
+        "operation": "post",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/ledger/entries",
+        "jsonParameters": true,
+        "bodyContentJson": {
+          "employee_id": "={{$json.employee_id}}",
+          "checkout_id": "={{$json.checkout_id}}",
+          "observation_id": "={{$json.id}}",
+          "amount_paise": "={{$json.amount_paise}}",
+          "currency": "={{$json.currency}}",
+          "entry_type": "credit",
+          "state": "pending",
+          "reference": "={{$json.utr_rrn || $json.app_transaction_id}}"
+        }
+      },
+      "id": "create-ledger-entry",
+      "name": "Create Ledger Entry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 300],
+      "authentication": "genericCredentialType",
+      "genericAuthType": "httpHeaderAuth",
+      "httpHeaderName": "X-API-Key",
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+    },
+    {
+      "parameters": {
+        "operation": "post",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/audit",
+        "jsonParameters": true,
+        "bodyContentJson": {
+          "tenant_id": "={{$json.tenant_id}}",
+          "event": "OBSERVATION_PROCESSED",
+          "detail": "observation={{$json.id}} checkout={{$json.checkout_id}} correlation={{$json.checkout_correlation}} signature_verified={{$json.signature_verified}} reason={{$json.correlation_reason}}"
+        }
+      },
+      "id": "record-audit",
+      "name": "Record Audit Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1570, 200],
+      "authentication": "genericCredentialType",
+      "genericAuthType": "httpHeaderAuth",
+      "httpHeaderName": "X-API-Key",
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+    },
+    {
+      "parameters": {
+        "rule": "all",
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.checkout_correlation }}",
+              "operation": "equals",
+              "value2": "matched"
+            },
+            {
+              "value1": "={{ $json.signature_verified }}",
+              "operation": "equals",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "verification-gate",
+      "name": "Verification Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1350, 500],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rule": "all",
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.duplicate_of }}",
+              "operation": "isNotEmpty",
+              "value2": ""
+            }
+          ]
+        }
+      },
+      "id": "duplicate-check",
+      "name": "Duplicate Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [910, 400],
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Observation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Device",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Device": {
+      "main": [
+        [
+          {
+            "node": "Device Active Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Device Active Check": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Audit Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Check": {
+      "main": [
+        [
+          {
+            "node": "Fetch Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Audit Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Checkout": {
+      "main": [
+        [
+          {
+            "node": "Checkout State Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkout State Check": {
+      "main": [
+        [
+          {
+            "node": "Update Checkout State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Ledger Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Checkout State": {
+      "main": [
+        [
+          {
+            "node": "Verification Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ledger Entry": {
+      "main": [
+        [
+          {
+            "node": "Record Audit Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verification Gate": {
+      "main": [
+        [
+          {
+            "node": "Record Audit Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Audit Event": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "agentic-recovery-local",
+    "template": false
+  }
+}

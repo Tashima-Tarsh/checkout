@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Agentic Recovery Observer</string>
+    <string name="callback_url">https://agenticpay.thenitishkr.in/api/recovery/observations/ingest</string>
+    <string name="device_id_placeholder">REPLACE_WITH_DEVICE_ID</string>
+    <string name="tenant_id_placeholder">REPLACE_WITH_TENANT_ID</string>
+</resources>

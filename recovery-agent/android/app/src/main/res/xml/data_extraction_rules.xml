@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup meta-data="false">
+        <!-- Exclude sensitive cryptographic material from backup -->
+        <exclude domain="sharedpref" path="agentic_recovery_prefs" />
+    </cloud-backup>
+</data-extraction-rules>
