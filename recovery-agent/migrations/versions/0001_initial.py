@@ -146,6 +146,15 @@ def upgrade():
         sa.Column("checkout_correlation", sa.String(32), nullable=True),
         sa.Column("financial_verification", sa.Boolean(), nullable=True),
         sa.Column("duplicate_of", sa.String(128), nullable=True),
+        sa.Column("device_signature", sa.String(512), nullable=False),
+        sa.Column("signature_timestamp", sa.BigInteger(), nullable=False),
+        sa.Column("signature_verified", sa.Boolean(), nullable=True),
+        sa.Column("notification_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("capture_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("callback_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("ingestion_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("correlation_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("ledger_timestamp", sa.BigInteger(), nullable=True),
         sa.Column("created", sa.BigInteger(), nullable=True),
         sa.ForeignKeyConstraint(["tenant_id"], ["ap_tenants.id"], ),
         sa.ForeignKeyConstraint(["device_id"], ["ap_android_devices.id"], ),
@@ -206,8 +215,39 @@ def upgrade():
     )
     op.create_index("ix_ap_audit_events_tenant_id", "ap_audit_events", ["tenant_id"])
 
+    op.create_table(
+        "ap_device_sessions",
+        sa.Column("id", sa.String(128), nullable=False),
+        sa.Column("device_id", sa.String(64), nullable=True),
+        sa.Column("tenant_id", sa.String(64), nullable=True),
+        sa.Column("session_token", sa.String(256), nullable=False),
+        sa.Column("expires_at", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.BigInteger(), nullable=True),
+        sa.Column("is_revoked", sa.Boolean(), nullable=True),
+        sa.ForeignKeyConstraint(["device_id"], ["ap_android_devices.id"], ),
+        sa.ForeignKeyConstraint(["tenant_id"], ["ap_tenants.id"], ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_ap_device_sessions_device_id", "ap_device_sessions", ["device_id"])
+
+    op.create_table(
+        "ap_role_assignments",
+        sa.Column("id", sa.String(64), nullable=False),
+        sa.Column("tenant_id", sa.String(64), nullable=True),
+        sa.Column("employee_id", sa.String(64), nullable=True),
+        sa.Column("role", sa.String(32), nullable=False),
+        sa.Column("granted_at", sa.BigInteger(), nullable=True),
+        sa.Column("granted_by", sa.String(128), nullable=True),
+        sa.ForeignKeyConstraint(["tenant_id"], ["ap_tenants.id"], ),
+        sa.ForeignKeyConstraint(["employee_id"], ["ap_employees.id"], ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_ap_role_assignments_employee_id", "ap_role_assignments", ["employee_id"])
+
 
 def downgrade():
+    op.drop_table("ap_role_assignments")
+    op.drop_table("ap_device_sessions")
     op.drop_table("ap_audit_events")
     op.drop_table("ap_outbox")
     op.drop_table("ap_ledger_entries")

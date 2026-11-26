@@ -243,6 +243,11 @@ class ObservationIngest(BaseModel):
     signature: str = Field(..., description="Ed25519 signature hex of canonical message")
     signature_timestamp: int
 
+    # Latency measurement fields (milliseconds since epoch)
+    notification_timestamp: Optional[int] = None  # When UPI app generated notification
+    capture_timestamp: Optional[int] = None  # When observer captured notification
+    callback_timestamp: Optional[int] = None  # When observation submitted to backend
+
 
 class SessionCreate(BaseModel):
     device_id: str
@@ -657,6 +662,11 @@ def ingest_observation(
                 observation_authenticity="verified",
                 checkout_correlation="duplicate",
                 duplicate_of=dup.id,
+                # Latency tracking
+                notification_timestamp=body.notification_timestamp,
+                capture_timestamp=body.capture_timestamp,
+                callback_timestamp=body.callback_timestamp,
+                ingestion_timestamp=int(time.time() * 1000),
             )
             db.add(obs)
             db.commit()
@@ -687,6 +697,11 @@ def ingest_observation(
         signature_verified=True,
         observation_authenticity="verified",
         checkout_correlation="unmatched",
+        # Latency tracking
+        notification_timestamp=body.notification_timestamp,
+        capture_timestamp=body.capture_timestamp,
+        callback_timestamp=body.callback_timestamp,
+        ingestion_timestamp=int(time.time() * 1000),
     )
     obs._correlation_reason = "no_checkout_id"
     db.add(obs)
@@ -694,6 +709,7 @@ def ingest_observation(
     # Auto-correlation: match observation to checkout
     correlation = _correlate_observation(db, device, body, obs)
     obs.checkout_correlation = correlation
+    obs.correlation_timestamp = int(time.time() * 1000)
 
     if correlation == "matched" and obs.checkout_id:
         checkout = db.execute(
@@ -716,6 +732,8 @@ def ingest_observation(
                     reference=body.utr_rrn or body.app_transaction_id,
                 )
                 db.add(ledger)
+                ledger.created = int(time.time() * 1000)
+                obs.ledger_timestamp = ledger.created
 
     # Add to outbox for n8n processing
     outbox = Outbox(
@@ -744,6 +762,33 @@ def ingest_observation(
         "financially_verified": obs.financial_verification,
         "signature_verified": obs.signature_verified,
         "correlation_reason": getattr(obs, '_correlation_reason', None),
+        "latency_ms": {
+            "notification_to_capture": (
+                (obs.capture_timestamp - obs.notification_timestamp)
+                if obs.notification_timestamp and obs.capture_timestamp
+                else None
+            ),
+            "capture_to_callback": (
+                (obs.callback_timestamp - obs.capture_timestamp)
+                if obs.capture_timestamp and obs.callback_timestamp
+                else None
+            ),
+            "callback_to_ingestion": (
+                (obs.ingestion_timestamp - obs.callback_timestamp)
+                if obs.callback_timestamp and obs.ingestion_timestamp
+                else None
+            ),
+            "ingestion_to_correlation": (
+                (obs.correlation_timestamp - obs.ingestion_timestamp)
+                if obs.correlation_timestamp and obs.ingestion_timestamp
+                else None
+            ),
+            "notification_to_correlation": (
+                (obs.correlation_timestamp - obs.notification_timestamp)
+                if obs.notification_timestamp and obs.correlation_timestamp
+                else None
+            ),
+        },
     }
 
 
@@ -978,6 +1023,7 @@ class CustomerReceiptResponse(BaseModel):
     observation_timestamp: Optional[int]
     financially_verified: bool
     correlation_reason: Optional[str]
+    latency_ms: Optional[dict] = None
 
 
 @router.get("/api/recovery/receipt/{checkout_id}", tags=["customer"])
@@ -1014,6 +1060,33 @@ def get_customer_receipt(
         observation_timestamp=observation.observation_timestamp if observation else None,
         financially_verified=checkout.financially_verified,
         correlation_reason=getattr(observation, '_correlation_reason', None) if observation else None,
+        latency_ms={
+            "notification_to_capture": (
+                (observation.capture_timestamp - observation.notification_timestamp)
+                if observation and observation.notification_timestamp and observation.capture_timestamp
+                else None
+            ),
+            "capture_to_callback": (
+                (observation.callback_timestamp - observation.capture_timestamp)
+                if observation and observation.capture_timestamp and observation.callback_timestamp
+                else None
+            ),
+            "callback_to_ingestion": (
+                (observation.ingestion_timestamp - observation.callback_timestamp)
+                if observation and observation.callback_timestamp and observation.ingestion_timestamp
+                else None
+            ),
+            "ingestion_to_correlation": (
+                (observation.correlation_timestamp - observation.ingestion_timestamp)
+                if observation and observation.ingestion_timestamp and observation.correlation_timestamp
+                else None
+            ),
+            "notification_to_correlation": (
+                (observation.correlation_timestamp - observation.notification_timestamp)
+                if observation and observation.notification_timestamp and observation.correlation_timestamp
+                else None
+            ),
+        } if observation else None,
     )
 
 

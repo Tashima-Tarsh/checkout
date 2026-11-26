@@ -176,6 +176,14 @@ class Observation(Base):
     signature_timestamp = Column(BigInteger, nullable=False)
     signature_verified = Column(Boolean, nullable=False, default=False)
 
+    # Latency measurement fields (milliseconds since epoch)
+    notification_timestamp = Column(BigInteger, nullable=True)  # When UPI app generated notification
+    capture_timestamp = Column(BigInteger, nullable=True)  # When observer captured notification
+    callback_timestamp = Column(BigInteger, nullable=True)  # When observation submitted to backend
+    ingestion_timestamp = Column(BigInteger, nullable=True)  # When backend received observation
+    correlation_timestamp = Column(BigInteger, nullable=True)  # When checkout was correlated
+    ledger_timestamp = Column(BigInteger, nullable=True)  # When ledger entry was created
+
     # Matching and verification
     observation_authenticity = Column(String(32), nullable=False, default="pending")  # verified, rejected
     checkout_correlation = Column(String(32), nullable=False, default="unmatched")  # matched, review_required, unmatched
