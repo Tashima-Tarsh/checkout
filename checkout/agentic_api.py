@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_settle import get_settlement, public_settle, _save_statement
+from checkout.agentic_settle import get_settlement, public_settle, _save_state
 from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states, shared_test_orders
 
 router = APIRouter(prefix="/api")
@@ -345,7 +345,7 @@ def verify(request: Request, order_id: str):
     return {"status": "PENDING", "financially_verified": False}
 
 
-@app.post("/checkout/{order_id}/device-evidence")
+@router.post("/checkout/{order_id}/device-evidence")
 def device_evidence(order_id: str, b: DeviceEvidence, request: Request, identity: Merchant = None):
     """Device reports UPI payment evidence; server matches VPA+amount before settling."""
     with request.app.state.engine.begin() as connection:
