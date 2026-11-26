@@ -42,36 +42,19 @@ async def upi_return(request: Request, order_id: str):
     """Handle UPI app return via protocol handler.
     
     UPI app redirects to: /upi-return?tr=REF&upi_ref=UTR123&status=success&am=100.37
+    
+    Protocol-handler returns are untrusted client input. No settlement is
+    attempted here; the checkout page polls status and the user must arm
+    live verification separately. A return is not debit evidence.
     """
     _authorize(request, order_id)
     
-    # Extract return parameters
+    # Validate order matches, but do not trust any return parameter for settlement.
     tr = request.query_params.get('tr')
-    upi_ref = request.query_params.get('upi_ref') or request.query_params.get('UTR') or request.query_params.get('ref')
-    status = request.query_params.get('status')  # 'success' | 'failure' | 'pending'
-    amount = request.query_params.get('am')
-    vpa = request.query_params.get('pa')
-    
-    # Validate order matches
-    if tr != order_id:
+    if tr and tr != order_id:
         raise HTTPException(400, 'Transaction reference mismatch')
     
-    # If status is success and we have UPI ref, attempt settlement
-    if status == 'success' and upi_ref:
-        timestamp = now()
-        with request.app.state.engine.begin() as conn:
-            observation = {
-                "order_id": order_id,
-                "observed_at": timestamp,
-                "challenge_verified": True,  # Protocol handler return = verified challenge
-                "success": True,
-                "amount_minor": int(float(amount) * 100) if amount else None,
-                "payee": vpa,
-                "reference": upi_ref,
-            }
-            await run_in_threadpool(attempt_settle, conn, {"id": order_id}, observation, now=timestamp)
-    
-    # Redirect back to checkout page
+    # Redirect back to checkout page — no observation, no settlement.
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=f"/checkout/{order_id}", status_code=302)
 

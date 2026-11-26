@@ -35,6 +35,7 @@ sessions = Table(
     Column("mcc", String(4)),
     Column("expires", Integer, nullable=False, index=True),
     Column("state", String(40), nullable=False),
+    Column("financially_verified", Boolean, nullable=False, default=False),
 )
 events = Table(
     "checkout_events", metadata,
@@ -46,6 +47,24 @@ receipts = Table(
     "checkout_receipts", metadata,
     Column("issuer", String(32), primary_key=True),
     Column("reference", String(128), primary_key=True),
+)
+
+# Real UPI debit evidence captured per session. Recorded when the payer
+# returns from their UPI app and reports what they observed (UTR, amount
+# from SMS/success screen). server_confirmed=True only when the server's
+# own evidence source (bank webhook / PSP confirmation) independently
+# matches — never from client-submitted UTR alone.
+debit_evidence = Table(
+    "checkout_debit_evidence", metadata,
+    Column("sid", String(64), primary_key=True),
+    Column("utr", String(128)),
+    Column("payer_transaction_id", String(128)),
+    Column("amount_minor", Integer),
+    Column("payee_vpa", String(321)),
+    Column("claimed_paid_at", Integer),
+    Column("source", String(40), nullable=False),
+    Column("server_confirmed", Boolean, nullable=False, default=False),
+    Column("created", Integer, nullable=False),
 )
 
 creation_limits = Table(

@@ -1,71 +1,161 @@
 'use strict';
-document.getElementById('inventory').addEventListener('submit',async event=>{
- event.preventDefault();
- const status=document.getElementById('result');
- const file=document.getElementById('file').files[0];
- const token=document.getElementById('token').value;
- const button=event.submitter;
- if(!file||!token)return;
- button.disabled=true;
- status.textContent='Validating inventory...';
- try{
-   const form=new FormData();form.append('file',file);
-   const response=await fetch('/api/admin/vpas/import',{
-     method:'POST',headers:{Authorization:'Bearer '+token},body:form,cache:'no-store'
-   });
-   const result=await response.json();
-   if(!response.ok)throw Error(result.detail||'Import failed');
-   status.textContent='Imported '+result.imported+' configured recipients. Payment evidence remains unverified.';
- }catch(error){status.textContent=error.message;}
- finally{button.disabled=false;}
+
+const $ = id => document.getElementById(id);
+let token = null;
+
+function log(message) {
+  const el = $('log');
+  if (el) el.textContent = message;
+}
+
+async function adminJson(url, init = {}) {
+  const headers = token ? {Authorization: 'Bearer ' + token} : {};
+  if (init.body && !(init.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(init.body);
+  }
+  const response = await fetch(url, {
+    ...init,
+    cache: 'no-store',
+    headers: {...headers, ...(init.headers || {})}
+  });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.detail || 'Request rejected');
+  return data;
+}
+
+function money(n) {
+  return new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(n / 100);
+}
+
+function statTile(label, value, note) {
+  const tile = document.createElement('div');
+  tile.className = 'stat-tile';
+  tile.innerHTML = `
+    <div class="stat-label">${label}</div>
+    <div class="stat-value">${value}</div>
+    <div class="stat-note">${note}</div>
+  `;
+  return tile;
+}
+
+async function loadDashboard() {
+  if (!token) return;
+  const target = $('overview');
+  target.hidden = false;
+  target.replaceChildren();
+  try {
+    const [data, appearance] = await Promise.all([
+      adminJson('/api/admin/overview'),
+      adminJson('/api/admin/appearance')
+    ]);
+    target.appendChild(statTile('Total checkouts', data.total_checkouts, 'All sessions'));
+    target.appendChild(statTile('Active', data.active_checkouts, 'Not yet expired'));
+    target.appendChild(statTile('Enabled routes', data.configured_recipient_routes, 'P2P / P2M'));
+    target.appendChild(statTile('Callbacks', data.recorded_observations, 'Observations only'));
+    target.appendChild(statTile('Real debits verified', '0', 'Never set true'));
+    target.appendChild(statTile('States', JSON.stringify(data.states || {}), 'Session lifecycle'));
+
+    $('brandName').value = appearance.brand_name;
+    $('headline').value = appearance.headline;
+    $('accent').value = appearance.accent;
+    $('logoLetter').value = appearance.logo_letter;
+
+    // Apply accent to live tokens
+    document.documentElement.style.setProperty('--pdp-primary', appearance.accent);
+    document.documentElement.style.setProperty('--pdp-primary-hover', shadeColor(appearance.accent, -15));
+    document.documentElement.style.setProperty('--pdp-primary-soft', tintColor(appearance.accent, 90));
+    log('Dashboard loaded. Financially verified: 0.');
+  } catch (error) {
+    target.textContent = error.message;
+    log(error.message);
+  }
+}
+
+$('loadDashboard').addEventListener('click', () => {
+  token = $('adminToken').value.trim();
+  if (!token) return;
+  loadDashboard();
 });
 
-const authHeader=()=>({Authorization:'Bearer '+document.getElementById('token').value});
-async function adminJson(url,init={}){
- const response=await fetch(url,{
-   ...init,
-   cache:'no-store',
-   headers:{...authHeader(),...(init.headers||{})}
- });
- const data=await response.json();
- if(!response.ok)throw Error(data.detail||'Request rejected');
- return data;
+$('adminToken').addEventListener('input', () => {
+  $('loadDashboard').disabled = !$('adminToken').value.trim();
+});
+
+$('adminTokenImport').addEventListener('input', () => {
+  const btn = document.querySelector('#inventory button[type="submit"]');
+  if (btn) btn.disabled = !$('adminTokenImport').value.trim() || !$('file').files[0];
+});
+
+$('file').addEventListener('change', () => {
+  const btn = document.querySelector('#inventory button[type="submit"]');
+  if (btn) btn.disabled = !$('adminTokenImport').value.trim() || !$('file').files[0];
+});
+
+$('appearanceForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const status = $('appearanceResult');
+  const button = event.submitter;
+  button.disabled = true;
+  status.textContent = '';
+  try {
+    const payload = {
+      brand_name: $('brandName').value.trim(),
+      headline: $('headline').value.trim(),
+      accent: $('accent').value,
+      theme: 'light',
+      logo_letter: $('logoLetter').value
+    };
+    const data = await adminJson('/api/admin/appearance', {method: 'PUT', body: payload});
+    status.textContent = 'Appearance saved: ' + data.brand_name + '. Refresh the checkout page to see the theme.';
+    document.documentElement.style.setProperty('--pdp-primary', data.accent);
+    document.documentElement.style.setProperty('--pdp-primary-hover', shadeColor(data.accent, -15));
+    document.documentElement.style.setProperty('--pdp-primary-soft', tintColor(data.accent, 90));
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$('inventory').addEventListener('submit', async event => {
+  event.preventDefault();
+  const status = $('importResult');
+  const button = event.submitter;
+  const file = $('file').files[0];
+  const t = $('adminTokenImport').value.trim();
+  if (!file || !t) return;
+  token = t;
+  button.disabled = true;
+  status.textContent = 'Validating inventory...';
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch('/api/admin/vpas/import', {
+      method: 'POST',
+      headers: {Authorization: 'Bearer ' + t},
+      body: form,
+      cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok) throw Error(result.detail || 'Import failed');
+    status.textContent = 'Imported ' + result.imported + ' configured recipients. Inventory only — no debit verified.';
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+// Color helpers
+function shadeColor(color, percent) {
+  const f = parseInt(color.slice(1), 16), t = percent < 0 ? 0 : 255, p = percent < 0 ? -percent : percent;
+  const R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x00FF;
+  const toHex = n => n.toString(16).padStart(2, '0');
+  return '#' + toHex(Math.round((t - R) * p / 100 + R)) + toHex(Math.round((t - G) * p / 100 + G)) + toHex(Math.round((t - B) * p / 100 + B));
 }
-document.getElementById('loadDashboard').addEventListener('click',async()=>{
- const target=document.getElementById('overview');
- try{
-   const [data,appearance]=await Promise.all([
-     adminJson('/api/admin/overview'),
-     adminJson('/api/admin/appearance')
-   ]);
-   target.textContent='Checkouts: '+data.total_checkouts+
-     ' · Active: '+data.active_checkouts+
-     ' · Enabled routes: '+data.configured_recipient_routes+
-     ' · Recorded callbacks: '+data.recorded_observations+
-     ' · Real debits verified: 0';
-   document.getElementById('brandName').value=appearance.brand_name;
-   document.getElementById('headline').value=appearance.headline;
-   document.getElementById('accent').value=appearance.accent;
-   document.getElementById('theme').value=appearance.theme;
-   document.getElementById('logoLetter').value=appearance.logo_letter;
- }catch(error){target.textContent=error.message;}
-});
-document.getElementById('appearanceForm').addEventListener('submit',async event=>{
- event.preventDefault();
- const status=document.getElementById('appearanceResult');
- const button=event.submitter;button.disabled=true;
- try{
-   const payload={
-     brand_name:document.getElementById('brandName').value.trim(),
-     headline:document.getElementById('headline').value.trim(),
-     accent:document.getElementById('accent').value,
-     theme:document.getElementById('theme').value,
-     logo_letter:document.getElementById('logoLetter').value
-   };
-   const data=await adminJson('/api/admin/appearance',{
-     method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
-   });
-   status.textContent='Appearance saved: '+data.brand_name+'. Refresh the checkout page to see the theme.';
- }catch(error){status.textContent=error.message;}
- finally{button.disabled=false;}
-});
+function tintColor(color, percent) {
+  const f = parseInt(color.slice(1), 16), R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x00FF;
+  const toHex = n => n.toString(16).padStart(2, '0');
+  return '#' + toHex(Math.round((255 - R) * percent / 100 + R)) + toHex(Math.round((255 - G) * percent / 100 + G)) + toHex(Math.round((255 - B) * percent / 100 + B));
+}
