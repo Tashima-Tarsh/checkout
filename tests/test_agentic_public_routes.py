@@ -31,10 +31,21 @@ def test_live_verification_asset_and_display_only_permissions():
     page = client.get("/checkout/" + "a" * 48)
     assert page.headers["permissions-policy"] == "display-capture=(self), camera=(), microphone=()"
     script = client.get("/assets/checkout.js?v=verification-checkbox-9")
-    assert "/assets/unified-verification-protocol.js" in script.text
-    assert "UnifiedVerificationProtocol" in script.text
-    assert "MerchantWebRTCClient" in script.text
-    assert "PayerWebRTCClient" in script.text
+    assert script.status_code == 200
+    # Production must use the server-backed flow; experimental clients must
+    # not be loaded or allowed to turn local observations into payment success.
+    assert "/assets/live-verification.mjs?v=2" in script.text
+    assert "mountLiveVerification" in script.text
+    assert "/assets/unified-verification-protocol.js" not in script.text
+    assert "UnifiedVerificationProtocol" not in script.text
+    assert "/assets/webrtc-verification.js" not in script.text
+    assert "MerchantWebRTCClient" not in script.text
+    assert "PayerWebRTCClient" not in script.text
+    live = client.get("/assets/live-verification.mjs?v=2")
+    assert live.status_code == 200
+    assert "export function mountLiveVerification" in live.text
+    assert "audio:false" in live.text
+    assert "getUserMedia" not in live.text
     assert "✓ Copied — Verification ready" in script.text
     capture = client.get("/assets/unified-verification-protocol.js?v=1")
     assert capture.status_code == 200
