@@ -5,6 +5,7 @@ from playwright.sync_api import expect, sync_playwright
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
+    base = os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080").rstrip("/")
     configurations = [
         ("P2P", {}),
         ("P2P", playwright.devices["Pixel 7"]),
@@ -14,7 +15,7 @@ with sync_playwright() as playwright:
     ]
     for mode, options in configurations:
         page = browser.new_page(permissions=['clipboard-read', 'clipboard-write'], **options)
-        page.goto(os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080"))
+        page.goto(base)
         expect(page.get_by_role("heading", name="Make a payment")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.locator("#mode").select_option(mode)
@@ -33,7 +34,7 @@ with sync_playwright() as playwright:
         # Retain coverage of the backend's UPI URI and QR generation.
         assert page.locator("#launch").count() == 0
         assert page.locator("#qr").count() == 0
-        qr = page.request.get("/api/sessions/" + session["session_id"] + "/qr.png",
+        qr = page.request.get(base + "/api/sessions/" + session["session_id"] + "/qr.png",
                               headers={"Authorization": "Bearer " + session["token"]})
         assert qr.ok and qr.body().startswith(b"\x89PNG\r\n\x1a\n")
         uri = session["payment_uri"]
@@ -69,7 +70,6 @@ with sync_playwright() as playwright:
     # Public opt-in PDEP lab must load its real JS modules from the same origin.
     # This proves the test page is deployable; it does NOT emulate a UPI app.
     lab = browser.new_page()
-    base = os.getenv("CHECKOUT_URL", "http://127.0.0.1:8080").rstrip("/")
     lab.goto(base + "/pdep-lab/")
     expect(lab.get_by_role("heading", name="PDEP Mobile Signal Lab")).to_be_visible()
     lab.locator("#vpa").fill("test@upi")
