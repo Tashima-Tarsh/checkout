@@ -259,47 +259,26 @@ def copy(sid: str, request: Request, authorization: Authorization = None):
 
 @app.post("/api/sessions/{sid}/device-evidence")
 def device_evidence(sid: str, b: DeviceEvidence, request: Request, authorization: Authorization = None):
-    """Device (Android camera OCR / sound / color / barcode) reports UPI payment evidence.
-    
-    The payer device is hostile — this endpoint records the claim but sets
-    financially_verified=True ONLY when VPA and amount match the session server-side.
-    Credit settlement happens later via banking rails (3 days); this is verification
-    that a real UPI payment occurred, not settlement.
-    """
+    """Record an untrusted payer-device observation; matching is not debit proof."""
     with request.app.state.engine.begin() as connection:
         row = auth(connection, sid, authorization)
         require_active(row)
-
-        # Server-side match: VPA + amount must match the session. Never trust
-        # client-submitted UTR alone — UTR is evidence only when bound to a
-        # session whose payee and amount the server already knows.
-        vpa_match = b.payee_vpa.lower() == row["vpa"].lower()
-        amount_match = b.amount_paise == row["amount"]
-
-        if vpa_match and amount_match:
-            connection.execute(
-                sessions.update().where(sessions.c.id == sid)
-                .values(financially_verified=True)
-            )
-            insert_once(connection, debit_evidence,
-                sid=sid, utr=b.utr, amount_minor=b.amount_paise,
-                payee_vpa=b.payee_vpa, claimed_paid_at=b.claimed_paid_at,
-                source=b.source, server_confirmed=True, created=int(time.time()),
-            )
-            connection.execute(
-                events.insert().values(sid=sid, kind="DEVICE_EVIDENCE_VERIFIED", created=int(time.time()))
-            )
-        else:
-            # Record the attempt but do not verify. Mismatched payee/amount is fraud.
-            insert_once(connection, debit_evidence,
-                sid=sid, utr=b.utr, amount_minor=b.amount_paise,
-                payee_vpa=b.payee_vpa, claimed_paid_at=b.claimed_paid_at,
-                source=b.source, server_confirmed=False, created=int(time.time()),
-            )
-            connection.execute(
-                events.insert().values(sid=sid, kind="DEVICE_EVIDENCE_REJECTED", created=int(time.time()))
-            )
-
+        matches = (
+            b.payee_vpa.lower() == row["vpa"].lower()
+            and b.amount_paise == row["amount"]
+        )
+        now = int(time.time())
+        insert_once(
+            connection, debit_evidence,
+            sid=sid, utr=b.utr, amount_minor=b.amount_paise,
+            payee_vpa=b.payee_vpa, claimed_paid_at=b.claimed_paid_at,
+            source=b.source, server_confirmed=False, created=now,
+        )
+        insert_once(
+            connection, events, sid=sid,
+            kind="DEVICE_EVIDENCE_OBSERVED" if matches else "DEVICE_EVIDENCE_REJECTED",
+            created=now,
+        )
         return view(auth(connection, sid, authorization))
 
 
