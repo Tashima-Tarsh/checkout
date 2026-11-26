@@ -1,6 +1,6 @@
 """Browser-level checkout smoke tests (emulators, NO UPI app or real payment)."""
 import os
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from playwright.sync_api import expect, sync_playwright
 
 with sync_playwright() as playwright:
@@ -30,8 +30,8 @@ with sync_playwright() as playwright:
         session = created.value.json()
         expect(page.get_by_role("button", name="Copy UPI ID")).to_be_enabled()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-        # The copy-first UI deliberately no longer launches UPI or displays QR.
-        # Retain coverage of the backend's UPI URI and QR generation.
+        # Copy and explicit UPI intent launch coexist; QR remains a backend endpoint.
+        expect(page.get_by_role("button", name="Pay now (UPI app)")).to_be_enabled()
         assert page.locator("#launch").count() == 0
         assert page.locator("#qr").count() == 0
         qr = page.request.get(base + "/api/sessions/" + session["session_id"] + "/qr.png",
@@ -39,16 +39,23 @@ with sync_playwright() as playwright:
         assert qr.ok and qr.body().startswith(b"\x89PNG\r\n\x1a\n")
         uri = session["payment_uri"]
         parsed = urlsplit(uri)
-        assert (parsed.scheme, parsed.netloc) == ("upi", "pay")
-        personal = {"pa": ["test@upi"], "pn": ["Research recipient"],
-                    "am": ["1.00"], "cu": ["INR"]}
+        assert (parsed.scheme, parsed.netloc) == ("intent", "pay")
+        assert session["token"] not in uri
+        assert session["financially_verified"] is False
         params = parse_qs(parsed.query)
-        if mode == "P2P":
-            assert params == personal
-        else:
-            assert params.pop("mc") == ["5411"]
-            assert params.pop("tn")[0].startswith("PDEP ")
-            assert params == personal
+        expected_callback = base + "/api/cb?sid=" + session["session_id"]
+        assert params.pop("url") == [expected_callback]
+        tr, = params.pop("tr")
+        assert len(tr) == 35 and all(ch in "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" for ch in tr)
+        assert params.pop("tn") == ["ORD-" + session["session_id"][3:11] + "-100"]
+        # The current experimental URI emits a default MCC even in P2P;
+        # this checks serialization only, not merchant identity or payment validity.
+        assert params.pop("mc") == ["5411"]
+        assert params == {"pa": ["test@upi"], "pn": ["Research recipient"],
+                          "am": ["1.00"], "cu": ["INR"]}
+        prefix = "Intent;scheme=upi;S.browser_fallback_url="
+        assert parsed.fragment.startswith(prefix) and parsed.fragment.endswith(";end")
+        assert unquote(parsed.fragment[len(prefix):-4]) == expected_callback + "&fb=1"
         expect(page.locator("#info")).to_contain_text("test@upi")
         # Real clipboard action, synthetic browser return: no real payment.
         with page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/copy")) as copied:
