@@ -259,13 +259,11 @@ copy.onclick = async () => {
     const am = (order.amount_minor / 100).toFixed(2);
     const tr = order.id;
     const pn = 'Payee';
-    const token = '';
     const upiUri = 'upi://pay?pa=' + encodeURIComponent(pa) +
       '&am=' + encodeURIComponent(am) +
       '&tr=' + encodeURIComponent(tr) +
       '&pn=' + encodeURIComponent(pn) +
       '&session_id=' + encodeURIComponent(order.id) +
-      '&token=' + encodeURIComponent(token) +
       '&server_url=' + encodeURIComponent(serverUrl);
     window.location.href = upiUri;
   }

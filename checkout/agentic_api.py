@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
-from checkout.agentic_settle import get_settlement, public_settlement
+from checkout.agentic_settle import get_settlement, public_settle, _save_statement
 from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states, shared_test_orders
 
 router = APIRouter(prefix="/api")
@@ -86,6 +86,14 @@ class OrderInput(BaseModel):
     amount_minor: int = Field(strict=True, ge=100, le=10000000)
     max_discount_minor: int = Field(default=0, strict=True, ge=0, le=99)
     shared_amount: bool = False
+
+
+class DeviceEvidence(BaseModel):
+    utr: str = Field(pattern=r"^[0-9]{12}$")
+    amount_paise: int = Field(strict=True, ge=100, le=100000000)
+    payee_vpa: str = Field(pattern=r"^[A-Za-z0-9_.-]{2,256}@[A-Za-z0-9_.-]{2,64}$")
+    claimed_paid_at: int = Field(strict=True, ge=0)
+    source: Literal["camera_ocr", "barcode", "sound", "color_pattern", "upi_intent_return"]
 
 
 
@@ -335,3 +343,63 @@ def verify(request: Request, order_id: str):
             conn.execute(orders.update().where(orders.c.id == order_id).values(status="PENDING"))
             event(conn, order["merchant_id"], "VERIFICATION_REQUESTED")
     return {"status": "PENDING", "financially_verified": False}
+
+
+@app.post("/checkout/{order_id}/device-evidence")
+def device_evidence(order_id: str, b: DeviceEvidence, request: Request, identity: Merchant = None):
+    """Device reports UPI payment evidence; server matches VPA+amount before settling."""
+    with request.app.state.engine.begin() as connection:
+        order = checkout_order(connection, order_id, lock=True)
+        require_open_checkout(order)
+        now = int(time.time())
+
+        # Get payee VPA and payable amount from the order's account
+        row = connection.execute(
+            select(accounts.c.vpa, amount_reservations.c.payable_minor)
+            .join(amount_reservations, (amount_reservations.c.order_id == orders.c.id)
+                  & (amount_reservations.c.account_id == orders.c.account_id))
+            .join(accounts, (accounts.c.id == orders.c.account_id)
+                  & (accounts.c.merchant_id == orders.c.merchant_id))
+            .where(orders.c.id == order_id)
+        ).mappings().first()
+
+        if row is None:
+            raise HTTPException(404, "Order not found")
+
+        # Server-side match: VPA + amount must match the order row the server knows
+        vpa_match = b.payee_vpa.lower() == row["vpa"].lower()
+        amount_match = b.amount_paise == row["payable_minor"]
+
+        if vpa_match and amount_match:
+            # Settle: mark order PAID, evidence consumed, settlement SETTLED
+            connection.execute(
+                orders.update().where(
+                    orders.c.id == order_id,
+                    orders.c.status.in_(("AWAITING_PAYMENT", "PENDING")),
+                ).values(status="PAID")
+            )
+            connection.execute(
+                evidence_consumption.insert().values(
+                    reference_namespace="upi",
+                    reference_digest=hashlib.sha256(b.utr.encode()).hexdigest(),
+                    order_id=order_id,
+                    created=now,
+                )
+            )
+            _save_state(connection, order_id, "SETTLED", b.amount_paise, now)
+            connection.execute(audit.insert().values(
+                merchant_id=order["merchant_id"], event="PAYMENT_SETTLED", created=now,
+            ))
+            verified = True
+        else:
+            # Reject: wrong payee or wrong amount
+            state = "WRONG_PAYEE" if not vpa_match else "WRONG_AMOUNT"
+            _save_state(connection, order_id, state,
+                       b.amount_paise if amount_match else None, now)
+            connection.execute(audit.insert().values(
+                merchant_id=order["merchant_id"], event="DEVICE_EVIDENCE_REJECTED", created=now,
+            ))
+            verified = False
+
+        return {"status": "PAID" if verified else "REJECTED",
+                "financially_verified": verified}
