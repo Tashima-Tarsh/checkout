@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0c1425">
-  <meta name="description" content="P2P and P2M browser-based UPI checkout initiation">
+  <meta name="description" content="P2P/P2M browser-based UPI checkout initiation">
   <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=pdep-v06">
+  <link rel="stylesheet" href="/static/style.css?v=pdep-v07">
 </head>
 <body class="checkout-page">
 <main class="shell">
@@ -15,8 +15,8 @@
     <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
   </header>
   <section class="hero" aria-label="Checkout introduction">
-    <div><span class="eyebrow">DIRECT UPI / 01</span><h2>Payments, simplified.</h2><p>Set your payment details, generate a QR and continue in your preferred UPI app.</p></div>
-    <div class="flowline" aria-hidden="true"><span>01 · Configure</span><i></i><span>02 · Scan or open</span><i></i><span>03 · Review</span></div>
+    <div><span class="eyebrow">DIRECT UPI / 01</span><h2>Payments, simplified.</h2><p>Copy your receiving UPI ID, pay from your UPI app, then return here. Observation is recorded only — verification is confirmed when the server matches it.</p></div>
+    <div class="flowline" aria-hidden="true"><span>01 · Copy UPI ID</span><i></i><span>02 · Pay in your UPI app</span><i></i><span>03 · Return and verify</span></div>
   </section>
   <div class="workspace">
     <section class="config panel" aria-label="Payment configuration">
@@ -52,39 +52,34 @@
             <input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="5411">
           </div>
         </div>
-        <button id="create" type="submit" class="primary">Create secure checkout <span aria-hidden="true">→</span></button>
+        <button id="create" type="submit" class="primary">Create checkout <span aria-hidden="true">→</span></button>
       </form>
     </section>
     <section id="paypanel" class="payment panel" aria-label="Payment status">
-      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any supported UPI app</h2><p>Scan or open from your phone</p></div></div>
+      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any UPI app</h2><p>Copy the UPI ID, pay from your UPI app, then return here.</p></div></div>
       <div id="empty" class="empty">
-        <div class="qrpreview" aria-hidden="true"><span class="qr-corner tl"></span><span class="qr-corner tr"></span><span class="qr-corner bl"></span><span class="scanline"></span><span class="qr-caption">QR READY AREA</span></div>
-        <strong>Your payment QR appears here</strong>
-        <p>Enter the payment details to begin. Nothing to download.</p>
+        <strong>Your payment details appear here</strong>
+        <p>Enter the payment details to begin.</p>
       </div>
       <div id="pay" hidden><button id="edit" type="button" class="secondary editbutton">← Edit payment</button>
         <div class="total" id="info"></div>
-        <div class="qrbox"><img id="qr" alt="Scan this QR in your UPI app" width="180" height="180" hidden></div>
-        <p class="scanhelp">Scan on another device, or open your installed UPI app.</p>
-        <a id="launch" class="primary" role="button">Open UPI app <span aria-hidden="true">↗</span></a>
         <div class="actions">
           <button id="copyUpid" type="button" class="secondary">Copy UPI ID</button>
           <button id="claim" type="button" class="secondary">I completed payment</button>
           <button id="refresh" type="button" class="secondary">Refresh status</button>
-          <button id="demo" type="button" class="secondary" hidden>Synthetic proof test</button>
         </div>
-        <p class="scanhelp">Optional: <a href="https://upihelp.npci.org.in/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Check your transaction on NPCI MyUPI</a>. This opens the official portal separately; it does not verify payment in this checkout.</p>
+        <p class="scanhelp">Payment initiation only · Observation is recorded when you return. Verification is confirmed only when the server matches it.</p>
         <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div>
         <p id="timer" class="timer"></p>
       </div>
     </section>
   </div>
   <footer class="footer">
-    <span>Payment initiation only · A return from an app is not proof of debit.</span>
+    <span>Payment initiation only · Observation is not proof of debit.</span>
     <span><a href="/admin">Manage VPA inventory</a></span>
   </footer>
   <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>
 </main>
-<script src="/static/app.js?v=pdep-v06"></script>
+<script src="/static/app.js?v=pdep-v07"></script>
 </body>
 </html>

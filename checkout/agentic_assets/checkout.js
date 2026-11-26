@@ -1,4 +1,4 @@
-const colors=['#ff7085','#aa8afb','#54d6a6','#efb460','#6baaff'];function network(id,nodes,paths){document.getElementById(id).innerHTML=paths.map((d,i)=>`<path class="wire" d="${d}"/><path class="signal" stroke="${colors[i%5]}" style="animation-delay:-${i%5}s" d="${d}"/>`).join('')+nodes.map(([x,y,label,mark],i)=>`<g transform="translate(${x} ${y})"><rect class="node" width="84" height="70" rx="10"/><rect x="27" y="10" width="30" height="30" rx="7" fill="${colors[i%5]}22"/><text x="42" y="32" fill="${colors[i%5]}" font-size="19" text-anchor="middle">${mark}</text><text x="42" y="56" fill="#aaa9b5" font-size="10" text-anchor="middle">${label}</text><circle cx="0" cy="35" r="3" fill="#9995a4"/><circle cx="84" cy="35" r="3" fill="#9995a4"/></g>`).join('')}
+const colors=['#ff7085','#aa8afb','#54d6a6','#efb460','#6baaff'];function network(id,nodes,paths){document.getElementById(id).innerHTML=paths.map((d,i)=>`<path class="wire" d="${d}"/><path class="signal" stroke="${colors[i%5]}" style="animation-delay:-${i%5}s" d="${d}"/>`).join('')+nodes.map(([x,y,label,mark],i)=>`<g transform="translate(${x} ${y})"><rect class="node" width="84" height="70" rx="10"/><rect x="27" y="10" width="30" height="30" rx="7" fill="${colors[i%5]}22"/><text x="42" y="32" fill="${colors[i%5]}" font-size="19" text-anchor="middle">${mark}</text><text x="42" y="56" fill="${colors[i%5]}" font-size="10" text-anchor="middle">${label}</text><circle cx="0" cy="35" r="3" fill="${colors[i%5]}"/><circle cx="84" cy="35" r="3" fill="${colors[i%5]}"/></g>`).join('')}
 network('network',[[80,115,'Trigger','↯'],[270,40,'Session','▤'],[80,440,'Data store','▱'],[836,115,'Lookup','⌕'],[836,440,'Verify','✓'],[458,550,'Process','▤']],['M164 150H220Q240 150 240 170V280H400','M164 150H200V75H270','M354 75H740V150H836','M164 475H240V370H400','M600 280H760V150H836','M600 370H760V475H836','M164 475H220V585H458','M542 585H780V475H836','M878 185V440']);network('mobileNetwork',[[18,55,'Trigger','↯'],[285,100,'Session','▤'],[18,710,'Lookup','⌕'],[285,755,'Verify','✓']],['M102 90H220V135H285','M60 125V360H180','M327 170V420H220','M60 710V530H180','M102 745H220V790H285','M327 755V530H220']);
 
 const panel = document.querySelector('#stage');
@@ -12,7 +12,6 @@ let expiryTimer;
 let returned = false;
 const isAndroid = /Android/i.test(navigator.userAgent || '');
 const serverUrl = window.location.origin;
-// The unified protocol remains experimental; only server-backed settlement drives production UI.
 let liveVerification;
 let liveResult;
 let verificationRequested = false;
@@ -71,11 +70,9 @@ function startObservationPolling() {
           order = current;
           if (current.status === 'PENDING' && previousStatus !== 'PENDING') pending();
           updateReceipt(current);
-          // Don't overwrite live verification errors with polling results
           if (!liveResult?.state || liveResult.state === 'VERIFICATION_UNAVAILABLE') {
             updateSettlement(current);
           } else if (!current.settlement?.satisfied) {
-            // Preserve live verification errors, only update on settlement
             updateSettlement({...current, settlement: {satisfied: false, state: liveResult.state, reason: liveResult.reason}});
           }
           if (!current.settlement && document.querySelector('#checkout-vision[data-result=recognized]')) return;
@@ -100,7 +97,6 @@ const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachRetur
 let diagnostics;
 let diagnostic;
 const diagnosticParams = diagnosticPage ? new URLSearchParams(location.search) : new URLSearchParams();
-// Preserve the existing diagnostics flag; activate only one panel per page.
 const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
   ? import('/assets/local-diagnostics.mjs').then(({mountDiagnostics}) => {
       diagnostics = mountDiagnostics();
@@ -110,7 +106,6 @@ const diagnosticsReady = diagnosticParams.get('diagnostic_lab') === '1'
         diagnostic = mountDiagnostics({host:document.querySelector('main.panel')});
       }).catch(() => {})
     : Promise.resolve();
-// Opt-in research only; no payment state mutation on return.
 let tracker;
 if (diagnosticParams.get('return_lab') === '1') {
   import('/assets/return-tracker.mjs').then(({attachReturnTracker}) => {
@@ -120,7 +115,6 @@ if (diagnosticParams.get('return_lab') === '1') {
     });
   }).catch(() => {});
 }
-// A return is a browser lifecycle callback, NOT a payment provider callback.
 async function refreshAfterReturn(event) {
   const revision = checkoutRevision;
   const status = panel.querySelector('[role=status]');
@@ -167,8 +161,6 @@ function say(message, color) {
 }
 function finish(success, message) {
   if (!success) {
-    // Red is the current diagnosis, not a terminal UI state. Keep polling until
-    // the order expires; a later matching live result can still settle it.
     say(message, '#ff7085');
     return;
   }
@@ -202,7 +194,7 @@ function pending() {
 function showOrder() {
   if (order.settlement?.satisfied) return updateSettlement(order);
   if (order.status === 'PENDING') return pending();
-  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button><button id="launchUpi" class="secondary" style="display:none">Launch UPI Payment</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>By enabling Verification, you consent to observe only your payment result for up to 120 seconds, ending on claim acceptance, cancellation, withdrawal or expiry. Hide PIN, OTP, balances and account details.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
+  panel.innerHTML = '<h2></h2><p id="discount" hidden></p>' + (diagnosticPage ? '' : '<label class="verification-control"><input type="checkbox" id="live-verify"> Verification</label>') + '<p>Copy the receiving address, pay the exact displayed amount using your UPI app and return.</p><button class="primary" id="copy">Copy UPI ID</button>' + (diagnosticPage ? '<button class="secondary" id="paid">I Paid</button>' : '<p>Copy the UPI ID, pay from your UPI app, then return here. Your payment is observed only — verification is confirmed only when the server matches it.</p>') + '<p role="status" aria-live="polite"></p><p id="session-reference" hidden></p>';
   panel.querySelector('h2').textContent = formatAmount(order.amount_minor);
   if (order.discount_minor > 0) {
     const discount = panel.querySelector('#discount');
@@ -222,7 +214,7 @@ function showOrder() {
     verification.disabled = true;
     say('Verification unavailable. Reload to retry.', '#ff7085');
   }
-copy.onclick = async () => {
+  copy.onclick = async () => {
     const status = panel.querySelector('[role=status]');
     const revision = checkoutRevision;
     try {
@@ -236,12 +228,8 @@ copy.onclick = async () => {
       tracker?.arm();
       diagnostics?.record('copy_ok');
       diagnostic?.record('copy-ok');
-      // Copying arms return detection only. Capture starts after checkout return,
-      // never before the payer has completed payment.
-      status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Live verification ready.' : '✓ UPI ID copied. Pay and return to checkout.';
+      status.textContent = diagnosticPage || !order.settlement ? '✓ UPI ID copied. Pay and return to checkout.' : '✓ UPI ID copied. Live verification ready.';
       copy.textContent = diagnosticPage || !order.settlement ? '✓ Copied — Verification ready' : '✓ UPI ID copied';
-      const launchBtn = document.getElementById('launchUpi');
-      if (isAndroid && launchBtn) launchBtn.style.display = 'inline-block';
       setTimeout(() => {
         if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
       }, 2500);
@@ -253,53 +241,6 @@ copy.onclick = async () => {
       status.textContent = 'Unable to copy. Please retry.';
     }
   };
-  async function launchUpiPayment() {
-    if (!order || !order.upi_id || !order.id) return;
-    const accountType = order.account_type;
-
-    // P2P: Google Pay rejects upi://pay intents from external web pages for
-    // personal VPAs ("Available for merchants only"). Do not auto-launch the
-    // UPI app — show the UPI ID and let the user pay manually, then verify on
-    // return using stored session data.
-    if (accountType !== 'MERCHANT') {
-      return;
-    }
-
-    const pa = order.upi_id;
-    const am = (order.amount_minor / 100).toFixed(2);
-    const tr = order.id;
-    const pn = 'Payee';
-    const mcc = order.mcc;
-
-    sessionStorage.setItem('pdep_session_id', order.id);
-    sessionStorage.setItem('pdep_server_url', serverUrl);
-    sessionStorage.setItem('pdep_evidence_endpoint', '/api/checkout/' + order.id + '/device-evidence');
-    sessionStorage.setItem('pdep_payee_vpa', pa);
-    sessionStorage.setItem('pdep_amount_paise', String(order.amount_minor));
-
-    const params = [
-      'pa=' + encodeURIComponent(pa),
-      'am=' + encodeURIComponent(am),
-      'tr=' + encodeURIComponent(tr),
-      'pn=' + encodeURIComponent(pn),
-      'mc=' + encodeURIComponent(mcc),
-      'cu=' + encodeURIComponent('INR'),
-    ];
-    const upiUri = 'upi://pay?' + params.join('&');
-    window.location.href = upiUri;
-  }
-  const launchBtn = document.getElementById('launchUpi');
-  if (isAndroid && launchBtn) {
-    launchBtn.addEventListener('click', launchUpiPayment);
-    // P2P: Google Pay rejects upi://pay from web pages for personal VPAs.
-    // Hide the launch button — user pays manually in their UPI app, then
-    // verifies on return via stored session data.
-    if (order.account_type === 'MERCHANT') {
-      launchBtn.style.display = 'inline-block';
-    } else {
-      launchBtn.style.display = 'none';
-    }
-  }
   const paid = panel.querySelector('#paid');
   if (paid) paid.onclick = confirmPayment;
   if (!diagnosticPage && order.shared_amount) {
@@ -362,39 +303,6 @@ async function confirmPayment() {
     order = await response.json();
     showOrder();
     updateReceipt(order);
-
-    // When the user returns from their UPI app, report device-evidence using
-    // session data stored before launch. Non-standard parameters were kept out
-    // of the UPI intent URI (Google Pay rejects unknown parameters for P2P),
-    // so they are read from sessionStorage here instead.
-    const sid = sessionStorage.getItem('pdep_session_id');
-    const srv = sessionStorage.getItem('pdep_server_url');
-    const ep = sessionStorage.getItem('pdep_evidence_endpoint');
-    const vpa = sessionStorage.getItem('pdep_payee_vpa');
-    const amt = sessionStorage.getItem('pdep_amount_paise');
-    if (sid && srv && ep && vpa && amt && order.id === sid) {
-      try {
-        await fetch(srv + ep, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            utr: 'return-' + Date.now(),
-            amount_paise: parseInt(amt, 10),
-            payee_vpa: vpa,
-            claimed_paid_at: Math.floor(Date.now() / 1000),
-            source: 'upi_intent_return',
-          }),
-        });
-      } catch {
-        // Device-evidence report failed; observation polling will continue.
-      }
-      sessionStorage.removeItem('pdep_session_id');
-      sessionStorage.removeItem('pdep_server_url');
-      sessionStorage.removeItem('pdep_evidence_endpoint');
-      sessionStorage.removeItem('pdep_payee_vpa');
-      sessionStorage.removeItem('pdep_amount_paise');
-    }
-
     if (!order.settlement?.satisfied) {
       if (!diagnosticPage) startObservationPolling();
       scheduleExpiry();
@@ -403,4 +311,3 @@ async function confirmPayment() {
     panel.textContent = 'Checkout unavailable or expired.';
   }
 })();
-

@@ -3,8 +3,6 @@
 // Payment UI is an observation client, NOT an authentic debit witness.
 const $ = id => document.getElementById(id);
 let session;
-let attempt;
-let qrUrl;
 let refreshPending = false;
 
 function log(message) {
@@ -30,10 +28,9 @@ function updateTimer() {
   const remaining = Math.max(0, Math.ceil(session.expires - Date.now() / 1000));
   $('timer').textContent = remaining ? 'Session expires in ' + remaining + 's' : 'Session expired';
   if (!remaining || session.state === 'EXPIRED') {
-    $('launch').removeAttribute('href');
-    $('qr').hidden = true;
-    $('claim').disabled = true;
     $('copyUpid').disabled = true;
+    $('claim').disabled = true;
+    $('refresh').disabled = true;
     $('demo').disabled = true;
   }
 }
@@ -48,7 +45,6 @@ function render(update, target) {
     (session.mcc ? ' · MCC ' + session.mcc : '');
   $('state').textContent = session.state.replaceAll('_', ' ') + ' · Debit unverified';
   $('demo').hidden = !session.synthetic_enabled;
-  if (session.payment_uri) $('launch').href = session.payment_uri;
   updateTimer();
 }
 async function observe(event, target = session) {
@@ -58,7 +54,7 @@ async function observe(event, target = session) {
       method: 'POST', token: target.token, body: {event}
     });
     render(value, target);
-    log(event + ' recorded; no debit verified');
+    log(event + ' recorded; observation only — no debit verified');
   } catch (error) {
     log('Observation error: ' + error.message);
   }
@@ -77,7 +73,6 @@ async function refresh() {
 }
 function syncPaymentFields() {
   const personal = $('mode').value === 'P2P';
-  // P2P is direct by default. Do not require a merchant routing group or MCC.
   if (personal) $('destinationType').value = 'direct';
   $('destinationRow').hidden = personal;
   const routed = !personal && $('destinationType').value === 'route';
@@ -109,9 +104,6 @@ $('form').addEventListener('submit', async event => {
       mcc: !routed && $('mode').value === 'P2M' ? ($('mcc').value.trim() || null) : null
     };
     const created = await api('/api/sessions', {method: 'POST', body: request});
-    if (qrUrl) URL.revokeObjectURL(qrUrl);
-    $('qr').removeAttribute('src');
-    $('qr').hidden = true;
     $('claim').disabled = false;
     $('copyUpid').disabled = false;
     $('copyUpid').textContent = 'Copy UPI ID';
@@ -119,47 +111,15 @@ $('form').addEventListener('submit', async event => {
     session = created;
     attempt = undefined;
     render(created, created);
-    const image = await api(path(created) + '/qr.png', {token: created.token, image: true});
-    if (session !== created) return;
-    qrUrl = URL.createObjectURL(image);
-    $('qr').src = qrUrl;
-    $('qr').hidden = false;
     updateTimer();
-    log('Payment ready. Selected VPA shown above. No debit verified.');
+    log('Checkout ready. Copy UPI ID, pay from your UPI app, then return.');
   } catch (error) {
     log(error.message);
     alert(error.message);
   } finally {
     submit.disabled = false;
   }
-});
-
-// Browser lifecycle detection: only report a return if we observed
-// a page-hidden/pagehide event after attempting the UPI handoff.
-$('launch').addEventListener('click', () => {
-  if (!$('launch').hasAttribute('href') || !session) return;
-  attempt = {target: session, away: false, returned: false};
-  // Keepalive helps survive native-app navigation; it cannot authenticate payment.
-  observe('UPI_LAUNCH_ATTEMPTED', session);
-});
-function markAway() {
-  if (attempt && attempt.target === session) attempt.away = true;
 }
-function resume() {
-  if (!attempt || !attempt.away || attempt.returned || attempt.target !== session) return;
-  if (document.visibilityState !== 'visible') return;
-  attempt.returned = true;
-  observe('BROWSER_RESUMED', attempt.target);
-}
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') markAway();
-  else resume();
-});
-window.addEventListener('pagehide', markAway);
-window.addEventListener('pageshow', resume);
-window.addEventListener('focus', resume);
-
-$('edit').addEventListener('click', () => document.querySelector('.shell').classList.remove('has-session'));
 $('copyUpid').addEventListener('click', async () => {
   const target = session;
   if (!target || target.expires <= Date.now() / 1000) return;
@@ -184,7 +144,7 @@ $('demo').addEventListener('click', async () => {
     const result = await api('/api/demo/sessions/' + encodeURIComponent(target.session_id) + '/issue-test-proof', options);
     const observation = await api(path(target) + '/proof', {...options, body: {receipt: result.receipt}});
     render(observation, target);
-    log('Synthetic receipt: ' + observation.result + ' · REAL DEBIT UNVERIFIED');
+    log('Synthetic test receipt: REAL DEBIT UNVERIFIED');
   } catch (error) {
     log(error.message);
   }
@@ -194,9 +154,6 @@ setInterval(() => {
   if (session?.state !== 'EXPIRED' && document.visibilityState === 'visible') refresh();
 }, 5000);
 
-
-// Operator-controlled visual preferences are fetched read-only.
-// Never use theme configuration as payment verification or authenticated merchant identity.
 async function loadAppearance() {
   try {
     const data = await api('/api/appearance');
