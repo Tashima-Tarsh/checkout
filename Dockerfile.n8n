@@ -1,7 +1,27 @@
+# Match the Alpine/musl toolchain of the pinned n8n runtime.
+FROM n8nio/node-patched:26.13.0-6484e2d8092f46c7ce7a4fbd97847ba3cb539e72-dev@sha256:2bb25015cc92814809410aaab21ad5696a901a2f58c9bce6ed5faeafe4fd5f15 AS python-base
+USER root
+# Install Python and its transitive dependencies into an isolated package root.
+RUN mkdir -p /python-root/etc/apk /python-wrappers \
+    && cp -a /etc/apk/. /python-root/etc/apk/ \
+    && apk --root /python-root --initdb --no-cache --no-scripts add python3 py3-pip \
+    && printf '%s\n' '#!/bin/sh' 'export PYTHONHOME=/opt/python/usr' 'export LD_LIBRARY_PATH=/opt/python/usr/lib:/opt/python/lib' 'exec /opt/python/usr/bin/python3 "$@"' > /python-wrappers/python3 \
+    && printf '%s\n' '#!/bin/sh' 'exec /usr/local/bin/python3 -m pip "$@"' > /python-wrappers/pip3 \
+    && chmod 755 /python-wrappers/python3 /python-wrappers/pip3
+
 FROM docker.io/cloudflare/cloudflared:2026.11.2 AS tunnel
 FROM docker.io/library/caddy:2.10.2-alpine AS editor_proxy
 FROM docker.io/n8nio/n8n:2.48.7
+
 COPY --from=tunnel /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 COPY --from=editor_proxy /usr/bin/caddy /usr/local/bin/caddy
+COPY --from=python-base /python-root/usr /opt/python/usr
+COPY --from=python-base /python-root/lib /opt/python/lib
+COPY --from=python-base /python-wrappers/ /usr/local/bin/
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Fail the build if the runtime is not usable by the existing non-root user.
+RUN python3 -c "import ssl, sqlite3, sys; print(sys.version)" && pip3 --version
+
 COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs n8n/preflight.mjs n8n/editor-ingress.sh /opt/agentic-pay/
 ENTRYPOINT ["tini", "--", "/bin/sh", "/opt/agentic-pay/editor-ingress.sh"]
