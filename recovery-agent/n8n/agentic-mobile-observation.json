@@ -18,7 +18,7 @@
     {
       "parameters": {
         "operation": "get",
-        "url": "={{$node[\"Validate Device\"].json.device_id}}",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/devices/{{$json.device_id}}",
         "jsonParameters": true
       },
       "id": "validate-device",
@@ -29,17 +29,16 @@
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
-      "httpHeaderValue": "={{$env.N8N_API_KEY}}",
-      "url": "={{$env.RECOVERY_API_URL}}/api/recovery/devices/{{$json.device_id}}"
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.status }}",
+              "value1": "={{ $json.connectivity_status }}",
               "operation": "equals",
-              "value2": "active"
+              "value2": "online"
             }
           ]
         }
@@ -139,7 +138,7 @@
         "bodyContentJson": {
           "tenant_id": "={{$json.tenant_id}}",
           "event": "OBSERVATION_PROCESSED",
-          "detail": "observation={{$json.id}} checkout={{$json.checkout_id}} correlation={{$json.checkout_correlation}} signature_verified={{$json.signature_verified}}"
+          "detail": "observation={{$json.id}} checkout={{$json.checkout_id}} correlation={{$json.checkout_correlation}} signature_verified={{$json.signature_verified}} reason={{$json.correlation_reason}}"
         }
       },
       "id": "record-audit",

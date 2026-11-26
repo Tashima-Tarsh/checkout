@@ -364,10 +364,12 @@ def test_observation_duplicate_utr(client, db_session):
     """Duplicate UTR detected."""
     make_tenant(db_session)
     device, priv_key = make_device(db_session)
-    payload1 = make_full_observation_payload("obs_utr_1", "mobile-0001", utr_rrn="SAME-UTR")
-    payload2 = make_full_observation_payload("obs_utr_2", "mobile-0001", utr_rrn="SAME-UTR")
-    sig1, ts1 = sign_observation(priv_key, payload1)
-    sig2, ts2 = sign_observation(priv_key, payload2)
+    ts1 = int(time.time() * 1000)
+    ts2 = ts1 + 1000
+    payload1 = make_full_observation_payload("obs_utr_1", "mobile-0001", utr_rrn="SAME-UTR", observation_timestamp=ts1)
+    payload2 = make_full_observation_payload("obs_utr_2", "mobile-0001", utr_rrn="SAME-UTR", observation_timestamp=ts2)
+    sig1, _ = sign_observation(priv_key, payload1, timestamp=ts1)
+    sig2, _ = sign_observation(priv_key, payload2, timestamp=ts2)
 
     client.post(
         "/api/recovery/observations/ingest",

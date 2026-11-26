@@ -534,6 +534,11 @@ def ingest_observation(
 
     The device signature authenticates the reporter, NOT the settlement.
     Financial verification requires separate evidence matching.
+
+    Auto-correlation: when checkout_id is not provided, the backend attempts
+    to match the observation to a pending checkout using receiver UPI ID,
+    amount, and device assignment. Ambiguous matches (multiple candidate
+    checkouts) are rejected with review_required.
     """
     device = db.execute(
         select(AndroidDevice).where(AndroidDevice.id == body.device_id)
@@ -621,36 +626,34 @@ def ingest_observation(
         observation_authenticity="verified",
         checkout_correlation="unmatched",
     )
+    obs._correlation_reason = "no_checkout_id"
     db.add(obs)
 
-    # Try to correlate with checkout
-    if body.checkout_id:
+    # Auto-correlation: match observation to checkout
+    correlation = _correlate_observation(db, device, body, obs)
+    obs.checkout_correlation = correlation
+
+    if correlation == "matched" and obs.checkout_id:
         checkout = db.execute(
-            select(Checkout).where(Checkout.id == body.checkout_id)
+            select(Checkout).where(Checkout.id == obs.checkout_id)
         ).scalar_one_or_none()
         if checkout:
-            # Tenant isolation: observation must be from same tenant as checkout
-            if checkout.tenant_id != device.tenant_id:
-                obs.checkout_correlation = "review_required"
-            else:
-                obs.checkout_correlation = "matched"
-                checkout.state = "PAYMENT_OBSERVED"
-
-                # Create ledger entry
-                if body.amount_paise is not None:
-                    ledger = LedgerEntry(
-                        id=f"led_{secrets.token_urlsafe(12)}",
-                        tenant_id=device.tenant_id,
-                        employee_id=checkout.employee_id,
-                        checkout_id=checkout.id,
-                        observation_id=obs.id,
-                        amount_paise=body.amount_paise,
-                        currency=body.currency or "INR",
-                        entry_type="credit",
-                        state="pending",
-                        reference=body.utr_rrn or body.app_transaction_id,
-                    )
-                    db.add(ledger)
+            checkout.state = "PAYMENT_OBSERVED"
+            # Create ledger entry
+            if body.amount_paise is not None:
+                ledger = LedgerEntry(
+                    id=f"led_{secrets.token_urlsafe(12)}",
+                    tenant_id=device.tenant_id,
+                    employee_id=checkout.employee_id,
+                    checkout_id=checkout.id,
+                    observation_id=obs.id,
+                    amount_paise=body.amount_paise,
+                    currency=body.currency or "INR",
+                    entry_type="credit",
+                    state="pending",
+                    reference=body.utr_rrn or body.app_transaction_id,
+                )
+                db.add(ledger)
 
     # Add to outbox for n8n processing
     outbox = Outbox(
@@ -665,7 +668,7 @@ def ingest_observation(
     audit = AuditEvent(
         tenant_id=device.tenant_id,
         event="OBSERVATION_INGESTED",
-        detail=f"device={body.device_id} observation={body.id} signature_verified=True",
+        detail=f"device={body.device_id} observation={body.id} signature_verified=True correlation={correlation}",
     )
     db.add(audit)
 
@@ -678,7 +681,68 @@ def ingest_observation(
         "checkout_correlation": obs.checkout_correlation,
         "financially_verified": obs.financial_verification,
         "signature_verified": obs.signature_verified,
+        "correlation_reason": getattr(obs, '_correlation_reason', None),
     }
+
+
+def _correlate_observation(
+    db: Session,
+    device: AndroidDevice,
+    body: ObservationIngest,
+    obs: Observation,
+) -> str:
+    """Correlate an observation to a checkout session.
+
+    Correlation rules (in priority order):
+    1. If checkout_id is explicitly provided and belongs to same tenant -> matched
+    2. If checkout_id not provided, auto-match by receiver UPI + amount + tenant
+       - Exactly one match -> matched
+       - Zero matches -> unmatched (observation stored but not correlated)
+       - Multiple matches -> review_required (ambiguous, reject auto-accept)
+    3. If checkout_id provided but belongs to different tenant -> review_required
+    4. If checkout_id provided but not found -> unmatched
+    """
+    obs._correlation_reason = "no_checkout_id"
+
+    if body.checkout_id:
+        checkout = db.execute(
+            select(Checkout).where(Checkout.id == body.checkout_id)
+        ).scalar_one_or_none()
+        if not checkout:
+            obs._correlation_reason = "checkout_not_found"
+            return "unmatched"
+        if checkout.tenant_id != device.tenant_id:
+            obs._correlation_reason = "tenant_mismatch"
+            return "review_required"
+        obs._correlation_reason = "explicit_checkout_id"
+        return "matched"
+
+    # Auto-correlate by receiver UPI + amount + tenant
+    if not body.observed_receiver_upi or body.amount_paise is None:
+        obs._correlation_reason = "missing_upi_or_amount"
+        return "unmatched"
+
+    candidates = db.execute(
+        select(Checkout).where(
+            Checkout.tenant_id == device.tenant_id,
+            Checkout.receiver_upi_id == body.observed_receiver_upi,
+            Checkout.amount_paise == body.amount_paise,
+            Checkout.state == "CREATED",
+            Checkout.expires > int(time.time() * 1000),
+        )
+    ).scalars().all()
+
+    if len(candidates) == 0:
+        obs._correlation_reason = "no_matching_checkout"
+        return "unmatched"
+    elif len(candidates) == 1:
+        obs.checkout_id = candidates[0].id
+        obs._correlation_reason = "auto_matched_by_upi_amount"
+        return "matched"
+    else:
+        # Ambiguous - multiple checkouts match, reject auto-accept
+        obs._correlation_reason = f"ambiguous_{len(candidates)}_matches"
+        return "review_required"
 
 
 @router.get("/api/recovery/checkouts/{checkout_id}", tags=["recovery"])
@@ -830,3 +894,100 @@ def record_audit(
     db.add(audit)
     db.commit()
     return {"recorded": True}
+
+
+# ---- Customer observation receipt (public, no auth) ----
+
+class CustomerReceiptRequest(BaseModel):
+    checkout_id: str
+    upi_link: Optional[str] = None
+
+
+class CustomerReceiptResponse(BaseModel):
+    checkout_id: str
+    state: str
+    amount_paise: int
+    currency: str
+    receiver_upi_id: str
+    observed_amount_paise: Optional[int]
+    observed_utr_rrn: Optional[str]
+    observed_payer_name: Optional[str]
+    observed_payer_upi_id: Optional[str]
+    observation_timestamp: Optional[int]
+    financially_verified: bool
+    correlation_reason: Optional[str]
+
+
+@router.get("/api/recovery/receipt/{checkout_id}", tags=["customer"])
+def get_customer_receipt(
+    checkout_id: str,
+    db: Session = Depends(get_db),
+):
+    """Customer observation receipt - public endpoint to check payment status.
+
+    Returns observation details without revealing sensitive financial data.
+    Does NOT constitute financial settlement confirmation.
+    """
+    checkout = db.execute(select(Checkout).where(Checkout.id == checkout_id)).scalar_one_or_none()
+    if not checkout:
+        raise HTTPException(status_code=404, detail="Checkout not found")
+
+    # Get the latest observation for this checkout
+    observation = db.execute(
+        select(Observation)
+        .where(Observation.checkout_id == checkout_id)
+        .order_by(Observation.server_ingestion_timestamp.desc())
+    ).scalars().first()
+
+    return CustomerReceiptResponse(
+        checkout_id=checkout.id,
+        state=checkout.state,
+        amount_paise=checkout.amount_paise,
+        currency=checkout.currency,
+        receiver_upi_id=checkout.receiver_upi_id,
+        observed_amount_paise=observation.amount_paise if observation else None,
+        observed_utr_rrn=observation.utr_rrn if observation else None,
+        observed_payer_name=observation.payer_name if observation else None,
+        observed_payer_upi_id=observation.payer_upi_id if observation else None,
+        observation_timestamp=observation.observation_timestamp if observation else None,
+        financially_verified=checkout.financially_verified,
+        correlation_reason=getattr(observation, '_correlation_reason', None) if observation else None,
+    )
+
+
+# ---- Configuration endpoint ----
+
+class CallbackConfig(BaseModel):
+    callback_url: str
+
+
+@router.get("/api/recovery/config", tags=["config"])
+def get_config():
+    """Get public configuration for Android observer and customer dashboards.
+
+    Returns the callback URL and other public configuration.
+    """
+    import os
+    callback_url = os.getenv(
+        "RECOVERY_CALLBACK_URL",
+        "https://agenticpay.thenitishkr.in/api/recovery/observations/ingest",
+    )
+    return {
+        "callback_url": callback_url,
+        "api_base": "/api/recovery",
+        "version": "1.0.0",
+    }
+
+
+@router.post("/api/recovery/config", tags=["config"], status_code=200)
+def set_config(
+    body: CallbackConfig,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner"])),
+):
+    """Set callback URL for Android observer (owner only)."""
+    import os
+    os.environ["RECOVERY_CALLBACK_URL"] = body.callback_url
+    return {"callback_url": body.callback_url, "updated": True}
+
