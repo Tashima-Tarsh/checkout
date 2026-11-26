@@ -11,11 +11,13 @@
 package com.agentic.recovery.observer
 
 import android.app.Notification
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -27,8 +29,6 @@ import java.security.spec.AlgorithmParameterSpec
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 private const val TAG = "UpiPaymentObserver"
 
@@ -94,7 +94,7 @@ class UpiPaymentObserver : NotificationListenerService() {
 
         Log.d(TAG, "Payment notification from $packageName: $text")
 
-        val observation = extractObservation(text, packageName, sbn.postTimeMillis)
+        val observation = extractObservation(text, packageName, sbn.postTime)
 
         // Submit on background thread
         java.lang.Thread {
@@ -167,8 +167,8 @@ class UpiPaymentObserver : NotificationListenerService() {
 
     private fun extractPayerName(text: String): String? {
         val patterns = listOf(
-            Regex("from\\s+([^\\s]+)", RegexOption.IGNORECASE),
-            Regex("paid\\s+by\\s+([^\\s]+)", RegexOption.IGNORECASE),
+            Regex("from\\s+([^\\s]+)", RegexOption.IGNORE_CASE),
+            Regex("paid\\s+by\\s+([^\\s]+)", RegexOption.IGNORE_CASE),
         )
         return patterns.mapNotNull { it.find(text)?.groupValues?.getOrNull(1) }.firstOrNull()
     }
@@ -194,7 +194,7 @@ class UpiPaymentObserver : NotificationListenerService() {
     }
 
     private fun extractAppTransactionId(text: String): String? {
-        val txnRegex = Regex("(?:txn|transaction|ref)[\\s:]+([A-Za-z0-9]+)", RegexOption.IGNORECASE)
+        val txnRegex = Regex("(?:txn|transaction|ref)[\\s:]+([A-Za-z0-9]+)", RegexOption.IGNORE_CASE)
         return txnRegex.find(text)?.groupValues?.getOrNull(1)
     }
 
@@ -209,7 +209,7 @@ class UpiPaymentObserver : NotificationListenerService() {
     }
 
     private fun generateDeviceId(): String {
-        return "dev_${System.currentTimeMillis()}_${android.os.Build.SERIAL.hashCode().toInt().toHexString()}"
+        return "dev_${System.currentTimeMillis()}_${java.lang.Integer.toHexString(android.os.Build.SERIAL.hashCode())}"
     }
 
     private fun submitObservation(observation: ObservationEvent) {
@@ -287,13 +287,11 @@ class UpiPaymentObserver : NotificationListenerService() {
     }
 
     private fun signMessage(message: String, keyPair: java.security.KeyPair): String {
-        return withContext(Dispatchers.IO) {
-            val privateKey = keyPair.private as java.security.PrivateKey
-            val signature = Signature.getInstance("Ed25519")
-            signature.initSign(privateKey)
-            signature.update(message.toByteArray(Charsets.UTF_8))
-            signature.sign().joinToString("") { "%02x".format(it) }
-        }
+        val privateKey = keyPair.private as java.security.PrivateKey
+        val signature = Signature.getInstance("Ed25519")
+        signature.initSign(privateKey)
+        signature.update(message.toByteArray(Charsets.UTF_8))
+        return signature.sign().joinToString("") { "%02x".format(it) }
     }
 
     /** Observation event submitted to the backend. */
@@ -343,8 +341,6 @@ object DeviceKeyStore {
                 android.security.keystore.KeyProperties.PURPOSE_SIGN or android.security.keystore.KeyProperties.PURPOSE_VERIFY
             )
                 .setDigests(android.security.keystore.KeyProperties.DIGEST_SHA256, android.security.keystore.KeyProperties.DIGEST_SHA512)
-                .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_NONE)
-                .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setUserAuthenticationRequired(false)
                 .setIsStrongBoxBacked(false)
                 .build()
@@ -354,8 +350,8 @@ object DeviceKeyStore {
 }
 
 /** Boot receiver to restart observation after device restart. */
-class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
+class BootReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: android.content.Intent) {
         if (intent.action == "android.intent.action.BOOT_COMPLETED") {
             Log.d(TAG, "Boot completed, observer will restart")
         }

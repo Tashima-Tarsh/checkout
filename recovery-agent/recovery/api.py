@@ -289,6 +289,42 @@ def build_observation_message(payload: dict) -> str:
 
 # ---- Endpoints ----
 
+@router.post("/api/recovery/tenants/bootstrap", status_code=201, tags=["admin"])
+def bootstrap_tenant(
+    body: TenantRegister,
+    db: Session = Depends(get_db),
+):
+    """Bootstrap the first tenant without authentication (initial setup only)."""
+    existing = db.execute(select(Tenant).where(Tenant.id == body.id)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="tenant already exists")
+    tenant = Tenant(id=body.id, name=body.name, owner_id=body.owner_id)
+    db.add(tenant)
+    db.commit()
+    db.refresh(tenant)
+    # Auto-assign owner role to bootstrap user
+    if body.owner_id:
+        role = RoleAssignment(
+            id=f"role_{body.owner_id}_owner",
+            tenant_id=body.id,
+            employee_id=body.owner_id,
+            role="owner",
+            granted_by=body.owner_id,
+        )
+        db.add(role)
+        # Create employee record
+        emp = Employee(
+            id=body.owner_id,
+            tenant_id=body.id,
+            name=body.owner_id,
+            role="owner",
+            assigned_receiver_upi=None,
+        )
+        db.add(emp)
+        db.commit()
+    return {"id": tenant.id, "name": tenant.name, "owner_id": tenant.owner_id}
+
+
 @router.post("/api/recovery/tenants", status_code=201, tags=["admin"])
 def register_tenant(
     body: TenantRegister,
@@ -378,6 +414,32 @@ def register_device(
     db.commit()
     db.refresh(dev)
     return {"id": dev.id, "registered_upi_id": dev.registered_upi_id, "upi_application": dev.upi_application}
+
+
+@router.patch("/api/recovery/devices/{device_id}", tags=["admin"])
+def update_device(
+    device_id: str,
+    body: DeviceRegister,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner", "collection_manager"])),
+):
+    device = db.execute(
+        select(AndroidDevice).where(AndroidDevice.id == device_id)
+    ).scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="device not found")
+    if auth["tenant_id"] != device.tenant_id:
+        raise HTTPException(status_code=403, detail="Device belongs to different tenant")
+    device.registered_upi_id = body.registered_upi_id
+    device.upi_application = body.upi_application
+    device.public_key_pem = body.public_key_pem
+    device.device_serial = body.device_serial
+    device.avd_name = body.avd_name
+    device.device_fingerprint = body.device_fingerprint
+    db.commit()
+    db.refresh(device)
+    return {"id": device.id, "registered_upi_id": device.registered_upi_id, "public_key_updated": True}
 
 
 @router.post("/api/recovery/agents", status_code=201, tags=["admin"])

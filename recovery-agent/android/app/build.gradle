@@ -1,3 +1,8 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
 android {
     namespace 'com.agentic.recovery.observer'
     compileSdk 34
@@ -8,9 +13,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName '1.0'
-
-        // Device enrollment: secure storage for device key pair
-        // Enabled for Android Keystore hardware-backed key generation where supported
     }
 
     buildTypes {
