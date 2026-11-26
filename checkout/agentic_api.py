@@ -346,7 +346,7 @@ def verify(request: Request, order_id: str):
 
 
 @router.post("/checkout/{order_id}/device-evidence")
-def device_evidence(order_id: str, b: DeviceEvidence, request: Request, identity: Merchant = None):
+def device_evidence(order_id: str, b: DeviceEvidence, request: Request):
     """Device reports UPI payment evidence; server matches VPA+amount before settling."""
     with request.app.state.engine.begin() as connection:
         order = checkout_order(connection, order_id, lock=True)
