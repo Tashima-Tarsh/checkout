@@ -1,9 +1,9 @@
-"""SQLAlchemy ORM models for Agentic-Recovery.
+"""SQLAlchemy ORM models for Agentic-Recovery (enhanced with security).
 
 Tables:
 - tenants: isolated business tenants
-- employees: recovery employees (1,000 target)
-- android_devices: managed receiving Android devices
+- employees: recovery employees (1,000 target) with role
+- android_devices: managed receiving Android devices with crypto keys
 - mobile_agents: per-device logical agents
 - collection_cases: collection assignments
 - checkouts: payment checkout sessions
@@ -11,6 +11,8 @@ Tables:
 - ledger_entries: central ledger records
 - outbox: durable event outbox for n8n
 - audit_events: redacted audit trail
+- device_sessions: device authentication sessions
+- role_assignments: tenant-scoped role bindings
 """
 
 import time
@@ -19,7 +21,6 @@ from sqlalchemy import (
     BigInteger, Boolean, Column, ForeignKey, Integer,
     String, Text, UniqueConstraint, Index,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -34,12 +35,14 @@ class Tenant(Base):
 
     id = Column(String(64), primary_key=True)
     name = Column(String(128), nullable=False)
+    owner_id = Column(String(128), nullable=True)
     created = Column(BigInteger, nullable=False, default=_now_ms)
 
     employees = relationship("Employee", back_populates="tenant")
     devices = relationship("AndroidDevice", back_populates="tenant")
     checkouts = relationship("Checkout", back_populates="tenant")
     observations = relationship("Observation", back_populates="tenant")
+    roles = relationship("RoleAssignment", back_populates="tenant")
 
 
 class Employee(Base):
@@ -49,6 +52,7 @@ class Employee(Base):
     tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True)
     name = Column(String(128), nullable=False)
     email = Column(String(256))
+    role = Column(String(32), nullable=False, default="recovery_employee")  # owner, collection_manager, recovery_employee, auditor
     assigned_device_id = Column(String(64), ForeignKey("ap_android_devices.id"), nullable=True)
     assigned_receiver_upi = Column(String(128), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -68,15 +72,17 @@ class AndroidDevice(Base):
     avd_name = Column(String(128), nullable=True)
     registered_upi_id = Column(String(128), nullable=False)
     upi_application = Column(String(64), nullable=False)  # Google Pay, PhonePe, etc.
-    public_key = Column(Text, nullable=False)  # Android Keystore public key (PEM)
+    public_key_pem = Column(Text, nullable=False)  # Android Keystore public key (PEM)
+    device_fingerprint = Column(String(128), nullable=True)  # Hardware-bound device fingerprint
     is_active = Column(Boolean, nullable=False, default=True)
     last_heartbeat = Column(BigInteger, nullable=True)
-    connectivity_status = Column(String(32), nullable=False, default="offline")
+    connectivity_status = Column(String(32), nullable=False, default="registered")
     created = Column(BigInteger, nullable=False, default=_now_ms)
 
     tenant = relationship("Tenant", back_populates="devices")
     agent = relationship("MobileAgent", back_populates="device", uselist=False)
     observations = relationship("Observation", back_populates="device")
+    sessions = relationship("DeviceSession", back_populates="device")
 
 
 class MobileAgent(Base):
@@ -165,6 +171,11 @@ class Observation(Base):
     evidence_type = Column(String(32), nullable=False)  # notification, history, etc.
     evidence_fingerprint = Column(String(128), nullable=True)
 
+    # Security fields
+    device_signature = Column(String(512), nullable=False)  # Device-signed event
+    signature_timestamp = Column(BigInteger, nullable=False)
+    signature_verified = Column(Boolean, nullable=False, default=False)
+
     # Matching and verification
     observation_authenticity = Column(String(32), nullable=False, default="pending")  # verified, rejected
     checkout_correlation = Column(String(32), nullable=False, default="unmatched")  # matched, review_required, unmatched
@@ -224,7 +235,40 @@ class AuditEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True)
     event = Column(String(64), nullable=False)
-    detail = Column(Text, nullable=True)
+    detail = Column(Text, nullable=True)  # redacted - no secrets
     created = Column(BigInteger, nullable=False, default=_now_ms)
 
     tenant = relationship("Tenant")
+
+
+class DeviceSession(Base):
+    __tablename__ = "ap_device_sessions"
+
+    id = Column(String(128), primary_key=True)
+    device_id = Column(String(64), ForeignKey("ap_android_devices.id"), nullable=False, index=True)
+    tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True)
+    session_token = Column(String(256), nullable=False, unique=True)
+    expires_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=False, default=_now_ms)
+    is_revoked = Column(Boolean, nullable=False, default=False)
+
+    device = relationship("AndroidDevice", back_populates="sessions")
+    tenant = relationship("Tenant")
+
+
+class RoleAssignment(Base):
+    __tablename__ = "ap_role_assignments"
+
+    id = Column(String(64), primary_key=True)
+    tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True)
+    employee_id = Column(String(64), ForeignKey("ap_employees.id"), nullable=False, index=True)
+    role = Column(String(32), nullable=False)  # owner, collection_manager, recovery_employee, auditor
+    granted_at = Column(BigInteger, nullable=False, default=_now_ms)
+    granted_by = Column(String(128), nullable=True)
+
+    tenant = relationship("Tenant")
+    employee = relationship("Employee")
+
+    __table_args__ = (
+        UniqueConstraint("employee_id", "role", name="uq_ap_role_assignments_employee_role"),
+    )

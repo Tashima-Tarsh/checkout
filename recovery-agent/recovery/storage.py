@@ -2,6 +2,7 @@
 
 import os
 import time
+import secrets
 from typing import Generator, Optional
 
 from sqlalchemy import create_engine, event
@@ -51,6 +52,11 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def generate_session_token() -> str:
+    """Generate a secure device session token."""
+    return secrets.token_urlsafe(32)
+
+
 def ensure_schema(engine: Engine) -> None:
     """Idempotent schema check — verifies all expected tables exist."""
     from sqlalchemy import inspect
@@ -66,6 +72,8 @@ def ensure_schema(engine: Engine) -> None:
         "ap_ledger_entries",
         "ap_outbox",
         "ap_audit_events",
+        "ap_device_sessions",
+        "ap_role_assignments",
     }
     actual = set(inspector.get_table_names())
     missing = expected - actual

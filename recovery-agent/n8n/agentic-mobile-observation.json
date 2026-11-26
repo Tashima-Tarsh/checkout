@@ -12,24 +12,25 @@
       "name": "Observation Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [240, 300],
+      "position": [250, 300],
       "webhookId": "agentic-mobile-observation"
     },
     {
       "parameters": {
         "operation": "get",
-        "url": "={{$json.device_id}}",
+        "url": "={{$node[\"Validate Device\"].json.device_id}}",
         "jsonParameters": true
       },
       "id": "validate-device",
       "name": "Validate Device",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [460, 300],
+      "position": [470, 300],
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
-      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
+      "httpHeaderValue": "={{$env.N8N_API_KEY}}",
+      "url": "={{$env.RECOVERY_API_URL}}/api/recovery/devices/{{$json.device_id}}"
     },
     {
       "parameters": {
@@ -47,20 +48,20 @@
       "name": "Device Active Check",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [680, 300],
+      "position": [690, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "get",
-        "url": "=/api/checkouts/{{$json.checkout_id}}",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/checkouts/{{$json.checkout_id}}",
         "jsonParameters": true
       },
       "id": "fetch-checkout",
       "name": "Fetch Checkout",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [900, 200],
+      "position": [910, 200],
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
@@ -82,13 +83,13 @@
       "name": "Checkout State Check",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1120, 200],
+      "position": [1130, 200],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "patch",
-        "url": "=/api/checkouts/{{$json.checkout_id}}",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/checkouts/{{$json.checkout_id}}",
         "jsonParameters": true,
         "bodyContentJson": {
           "state": "PAYMENT_OBSERVED"
@@ -98,7 +99,7 @@
       "name": "Update Checkout State",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 100],
+      "position": [1350, 100],
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
@@ -107,7 +108,7 @@
     {
       "parameters": {
         "operation": "post",
-        "url": "/api/ledger/entries",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/ledger/entries",
         "jsonParameters": true,
         "bodyContentJson": {
           "employee_id": "={{$json.employee_id}}",
@@ -124,7 +125,7 @@
       "name": "Create Ledger Entry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 300],
+      "position": [1350, 300],
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
@@ -133,38 +134,19 @@
     {
       "parameters": {
         "operation": "post",
-        "url": "/api/audit",
+        "url": "={{$env.RECOVERY_API_URL}}/api/recovery/audit",
         "jsonParameters": true,
         "bodyContentJson": {
           "tenant_id": "={{$json.tenant_id}}",
           "event": "OBSERVATION_PROCESSED",
-          "detail": "observation={{$json.id}} checkout={{$json.checkout_id}} correlation={{$json.checkout_correlation}}"
+          "detail": "observation={{$json.id}} checkout={{$json.checkout_id}} correlation={{$json.checkout_correlation}} signature_verified={{$json.signature_verified}}"
         }
       },
       "id": "record-audit",
       "name": "Record Audit Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 200],
-      "authentication": "genericCredentialType",
-      "genericAuthType": "httpHeaderAuth",
-      "httpHeaderName": "X-API-Key",
-      "httpHeaderValue": "={{$env.N8N_API_KEY}}"
-    },
-    {
-      "parameters": {
-        "operation": "post",
-        "url": "/api/observations/{{$json.id}}/verify",
-        "jsonParameters": true,
-        "bodyContentJson": {
-          "financially_verified": true
-        }
-      },
-      "id": "verify-financial",
-      "name": "Verify Financial",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1560, 400],
+      "position": [1570, 200],
       "authentication": "genericCredentialType",
       "genericAuthType": "httpHeaderAuth",
       "httpHeaderName": "X-API-Key",
@@ -181,7 +163,7 @@
               "value2": "matched"
             },
             {
-              "value1": "={{ $json.financially_verified }}",
+              "value1": "={{ $json.signature_verified }}",
               "operation": "equals",
               "value2": true
             }
@@ -192,7 +174,7 @@
       "name": "Verification Gate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 500],
+      "position": [1350, 500],
       "alwaysOutputData": true
     },
     {
@@ -212,7 +194,7 @@
       "name": "Duplicate Check",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400],
+      "position": [910, 400],
       "alwaysOutputData": true
     }
   ],
@@ -327,24 +309,6 @@
       ]
     },
     "Verification Gate": {
-      "main": [
-        [
-          {
-            "node": "Verify Financial",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Record Audit Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Verify Financial": {
       "main": [
         [
           {

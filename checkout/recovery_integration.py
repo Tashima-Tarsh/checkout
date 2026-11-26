@@ -8,7 +8,7 @@ The recovery-agent runs with its own database engine (DATABASE_URL from
 .env or recovery-agent/.env.example) and maintains its own tables:
 ap_tenants, ap_employees, ap_android_devices, ap_mobile_agents,
 ap_collection_cases, ap_checkouts, ap_observations, ap_ledger_entries,
-ap_outbox, ap_audit_events.
+ap_outbox, ap_audit_events, ap_device_sessions, ap_role_assignments.
 
 No existing checkout routes are modified. The recovery-agent is
 observational only — financially_verified requires the existing

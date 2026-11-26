@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic-Recovery — Employee Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+  .header { background: #1d1d1f; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header .user { font-size: 14px; opacity: 0.8; }
+  .container { max-width: 1000px; margin: 24px auto; padding: 0 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+  .stat-row { display: flex; gap: 32px; margin-bottom: 24px; }
+  .stat { flex: 1; }
+  .stat-value { font-size: 32px; font-weight: 700; }
+  .stat-label { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .badge-pending { background: #fff3e0; color: #e65100; }
+  .badge-observed { background: #e3f2fd; color: #1565c0; }
+  .badge-verified { background: #e8f5e9; color: #2e7d32; }
+  .badge-unmatched { background: #ffebee; color: #c62828; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: #666; padding: 12px 8px; border-bottom: 1px solid #eee; }
+  td { font-size: 14px; padding: 12px 8px; border-bottom: 1px solid #eee; }
+  .btn { background: #1d1d1f; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%; }
+  .btn:hover { background: #333; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 14px; margin-bottom: 6px; font-weight: 600; }
+  .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+  .alert { background: #fff3e0; border: 1px solid #ffb74d; border-radius: 6px; padding: 16px; margin: 16px 0; }
+  .alert-success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+  .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+  .hidden { display: none; }
+  .upi-link { font-family: monospace; font-size: 13px; word-break: break-all; color: #0066cc; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Agentic-Recovery — Employee Dashboard</h1>
+      <div class="user" id="currentUser">Loading...</div>
+    </div>
+    <button class="btn" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div class="container">
+    <div id="alertArea"></div>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value" id="myCheckouts">-</div>
+        <div class="stat-label">My Checkouts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="observedCount">-</div>
+        <div class="stat-label">Observations</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="verifiedCount">-</div>
+        <div class="stat-label">Verified</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Create Checkout</h2>
+      <form id="checkoutForm">
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" id="amount" placeholder="1.00" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label>Collection Case ID (optional)</label>
+          <input type="text" id="caseId" placeholder="e.g. case-001">
+        </div>
+        <button type="submit" class="btn" id="createBtn">Create Checkout</button>
+      </form>
+      <div id="checkoutResult" class="hidden" style="margin-top: 16px;">
+        <h3 style="margin-bottom: 8px;">Checkout Created</h3>
+        <p><strong>ID:</strong> <span id="resultCheckoutId"></span></p>
+        <p><strong>Receiver UPI:</strong> <span id="resultReceiver"></span></p>
+        <p><strong>Amount:</strong> ₹<span id="resultAmount"></span></p>
+        <p><strong>UPI Link:</strong></p>
+        <div class="upi-link" id="resultUpiLink"></div>
+        <p><strong>Expires:</strong> <span id="resultExpires"></span></p>
+        <p style="font-size: 12px; color: #666;">Share the UPI link or QR with the customer. They pay using their UPI app.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>My Checkouts</h2>
+      <table id="checkoutTable">
+        <thead>
+          <tr><th>ID</th><th>Receiver UPI</th><th>Amount</th><th>State</th><th>Verified</th><th>Created</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>My Ledger</h2>
+      <table id="ledgerTable">
+        <thead>
+          <tr><th>Checkout</th><th>Amount</th><th>Type</th><th>State</th><th>Reference</th><th>Created</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const BASE = '/api/recovery';
+    let currentEmployee = null;
+    let currentTenant = null;
+    let currentDevice = null;
+
+    async function api(path, {method='GET', body, headers={}} = {}) {
+      const h = {
+        'Content-Type': 'application/json',
+        'X-Tenant-Id': currentTenant || '',
+        'X-Employee-Id': currentEmployee || '',
+        ...headers
+      };
+      if (body) h['Content-Type'] = 'application/json';
+      const res = await fetch(BASE + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function showAlert(msg, type='info') {
+      const area = document.getElementById('alertArea');
+      const div = document.createElement('div');
+      div.className = `alert ${type === 'error' ? 'alert-error' : 'alert-success'}`;
+      div.textContent = msg;
+      area.appendChild(div);
+      setTimeout(() => div.remove(), 5000);
+    }
+
+    function badgeFor(state) {
+      const map = {
+        CREATED: 'badge-pending',
+        PAYMENT_OBSERVED: 'badge-observed',
+        FINANCIALLY_VERIFIED: 'badge-verified',
+      };
+      return `<span class="badge ${map[state] || 'badge-unmatched'}">${state}</span>`;
+    }
+
+    async function init() {
+      // Try to get tenant from localStorage or prompt
+      const stored = localStorage.getItem('recovery_tenant');
+      const storedEmp = localStorage.getItem('recovery_employee');
+      if (stored) currentTenant = stored;
+      if (storedEmp) currentEmployee = storedEmp;
+
+      if (!currentTenant || !currentEmployee) {
+        // For demo, create default tenant/employee
+        currentTenant = 'tenant-demo';
+        currentEmployee = 'EMP-0001';
+        localStorage.setItem('recovery_tenant', currentTenant);
+        localStorage.setItem('recovery_employee', currentEmployee);
+      }
+      document.getElementById('currentUser').textContent = `Employee: ${currentEmployee} (Tenant: ${currentTenant})`;
+
+      // Register tenant if not exists (ignore 409)
+      try {
+        await api('/tenants', {
+          method: 'POST',
+          body: { id: currentTenant, name: 'Demo Tenant' },
+          headers: { 'X-Employee-Id': 'owner-001' }
+        });
+      } catch (e) {}
+
+      // Register employee
+      try {
+        await api('/employees', {
+          method: 'POST',
+          body: { id: currentEmployee, tenant_id: currentTenant, name: 'Demo Employee', role: 'recovery_employee' },
+          headers: { 'X-Employee-Id': 'owner-001' }
+        });
+      } catch (e) {}
+
+      // Register device if not exists
+      try {
+        await api('/devices', {
+          method: 'POST',
+          body: {
+            id: 'mobile-demo-001',
+            tenant_id: currentTenant,
+            registered_upi_id: 'demo@upi',
+            upi_application: 'Google Pay',
+            public_key_pem: '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbp3e...snip\n-----END PUBLIC KEY-----',
+          },
+          headers: { 'X-Employee-Id': 'owner-001' }
+        });
+        currentDevice = 'mobile-demo-001';
+      } catch (e) {}
+
+      await loadData();
+    }
+
+    async function loadData() {
+      await loadCheckouts();
+      await loadLedger();
+    }
+
+    async function loadCheckouts() {
+      try {
+        const checkouts = await api('/checkouts');
+        const tbody = document.querySelector('#checkoutTable tbody');
+        tbody.innerHTML = '';
+        checkouts.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.id}</td>
+            <td>${c.receiver_upi_id}</td>
+            <td>₹${(c.amount_paise/100).toFixed(2)}</td>
+            <td>${badgeFor(c.state)}</td>
+            <td>${c.financially_verified ? 'Yes' : 'No'}</td>
+            <td>${new Date(c.created).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('myCheckouts').textContent = checkouts.length;
+      } catch (e) {
+        // Silently fail if no checkouts yet
+      }
+    }
+
+    async function loadLedger() {
+      try {
+        const entries = await api(`/ledger/${currentEmployee}`);
+        const tbody = document.querySelector('#ledgerTable tbody');
+        tbody.innerHTML = '';
+        entries.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${e.checkout_id || '-'}</td>
+            <td>₹${(e.amount_paise/100).toFixed(2)}</td>
+            <td>${e.entry_type}</td>
+            <td><span class="badge ${e.state === 'confirmed' ? 'badge-verified' : 'badge-pending'}">${e.state}</span></td>
+            <td>${e.reference || '-'}</td>
+            <td>${new Date(e.created).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {}
+    }
+
+    document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('createBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      try {
+        const res = await api('/checkouts', {
+          method: 'POST',
+          body: {
+            id: 'checkout-' + Date.now(),
+            tenant_id: currentTenant,
+            employee_id: currentEmployee,
+            receiver_upi_id: 'demo@upi',
+            amount_paise: Math.round(parseFloat(document.getElementById('amount').value) * 100),
+          }
+        });
+        document.getElementById('resultCheckoutId').textContent = res.id;
+        document.getElementById('resultReceiver').textContent = res.receiver_upi_id;
+        document.getElementById('resultAmount').textContent = (res.amount_paise/100).toFixed(2);
+        document.getElementById('resultUpiLink').textContent = res.upi_link;
+        document.getElementById('resultExpires').textContent = new Date(res.expires).toLocaleString();
+        document.getElementById('checkoutResult').classList.remove('hidden');
+        showAlert('Checkout created successfully', 'success');
+        await loadCheckouts();
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Checkout';
+      }
+    });
+
+    init();
+    setInterval(loadData, 5000);
+  </script>
+</body>
+</html>

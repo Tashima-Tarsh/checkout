@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "owner": "Tashima-Tarsh",
+  "generated_at": "2026-11-26T21:30:00Z",
+  "upstreams": [
+    {
+      "name": "paperclip",
+      "url": "https://github.com/paperclipai/paperclip.git",
+      purpose: "company and employee management",
+      adapter_boundary: "pinned",
+      pinned_sha: "dadbc495b3cbdc171fddc40d09aafcc3e9206305",
+      branch: "master",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/paperclip/"
+    },
+    {
+      "name": "openclaw",
+      url: "https://github.com/openclaw/openclaw.git",
+      purpose: "primary runtime and skills",
+      adapter_boundary: "pinned",
+      pinned_sha: "65a8bc8eac70ec33e82710b1e91afb97861447bc",
+      branch: "main",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/openclaw/",
+      preferred_runtime: true
+    },
+    {
+      "name": "mobilerun",
+      url: "https://github.com/droidrun/mobilerun.git",
+      purpose: "authorized mobile interface research",
+      adapter_boundary: "pinned",
+      pinned_sha: "e34004270a9d7b68824b94a3a5ba6698cefea69d",
+      branch: "main",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/mobilerun/",
+      observation_testing_only: true
+    },
+    {
+      "name": "agency-agents",
+      url: "https://github.com/msitarzewski/agency-agents.git",
+      purpose: "role templates",
+      adapter_boundary: "pinned",
+      pinned_sha: "8ae6164602c95ca78828b148b9052460ee426885",
+      branch: "main",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/agency-agents/"
+    },
+    {
+      "name": "hermes-agent",
+      url: "https://github.com/NousResearch/hermes-agent.git",
+      purpose: "alternative runtime (fallback)",
+      adapter_boundary: "pinned",
+      pinned_sha: "4b38ec1b664feb0f08da7e7d0971e962ced0d33b",
+      branch: "main",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/hermes-agent/",
+      disabled: true
+    },
+    {
+      "name": "Open-AutoGLM",
+      url: "https://github.com/zai-org/Open-AutoGLM.git",
+      purpose: "alternative mobile interface",
+      adapter_boundary: "pinned",
+      pinned_sha: "86f55382982fb054e8fc98ca80609dff8a2cdc3c",
+      branch: "main",
+      status: "inspected",
+      license_review_required: true,
+      integration_adapter: "recovery-agent/adapters/Open-AutoGLM/",
+      disabled: true
+    }
+  ],
+  "integrations": {
+    checkout_repo: "https://github.com/Tashima-Tarsh/checkout",
+    checkout_production: "https://agenticpay.thenitishkr.in",
+    n8n_production: "https://n8n.thenitishkr.in",
+    railway_project: "62335465-abaa-4269-ba72-e87ddbba908c"
+  },
+  "integration_rules": [
+    "No upstream source trees committed to checkout repo",
+    "Pinned adapter boundaries only — no blind source merge",
+    "License review required before any adapter activation",
+    "Alternative runtimes disabled unless measured advantages justify",
+    "Mock adapter used for all automated tests"
+  ]
+}
