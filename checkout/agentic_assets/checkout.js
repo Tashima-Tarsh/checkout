@@ -28,7 +28,11 @@ async function postTxnEvent(event, detail) {
 }
 const liveVerificationReady = import('/assets/live-verification.mjs?v=2').then(module => {
   mountLiveVerification = module.mountLiveVerification;
-}).catch(() => {});
+}).catch(err => {
+  console.error('[checkout] live-verification import failed:', err);
+  const status = panel.querySelector('[role=status]');
+  if (status) status.textContent = 'Verification module failed to load. Reload the page.';
+});
 function closeCheckout(message) {
   liveVerification?.stop();
   checkoutRevision++;
@@ -292,6 +296,19 @@ function showOrder() {
         updateSettlement(order);
       },
     });
+    // Show browser capability diagnostics so the user can see why capture
+    // may or may not start (getDisplayMedia availability, secure context).
+    const diag = liveVerification?.diagnostics;
+    if (diag && !diagnosticPage) {
+      const d = document.createElement('p');
+      d.style.fontSize = '10px';
+      d.style.color = '#98abc8';
+      d.style.margin = '6px 0 0';
+      d.textContent = 'Diagnostics: getDisplayMedia=' + diag.hasGetDisplayMedia +
+        ' · secure=' + diag.isSecureContext +
+        ' · ' + (diag.userAgent || '').slice(0, 60);
+      panel.appendChild(d);
+    }
   }
   updateSettlement(order);
 }

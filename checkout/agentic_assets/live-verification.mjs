@@ -8,6 +8,19 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
   let readyPromise = null;
   let readyResolve = null;
 
+  // Browser capability diagnostics
+  const hasGetDisplayMedia = typeof navigator !== 'undefined'
+    && !!navigator.mediaDevices
+    && typeof navigator.mediaDevices.getDisplayMedia === 'function';
+  const isSecureContext = typeof window !== 'undefined' && !!window.isSecureContext;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+
+  console.log('[live-verification] capability check:', {
+    hasGetDisplayMedia,
+    isSecureContext,
+    userAgent: ua,
+  });
+
   function ready() {
     return new Promise((resolve) => { readyResolve = resolve; });
   }
@@ -44,7 +57,6 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
     clearTimeout(timer);
     const current = generation;
     try {
-      // A chime is only an accelerator. No microphone or audio recording is used.
       await post('/live/chime');
       const session = await post('/live/session');
       if (!running || current !== generation) return;
@@ -90,23 +102,31 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       stop();
       return;
     }
-    // Android Chrome can capture the entire screen via MediaProjection with
-    // user consent (system picker). Do not pre-emptively block it — attempt
-    // capture and degrade gracefully if the user denies or it is unsupported.
-    if (!navigator.mediaDevices?.getDisplayMedia) {
+
+    // Pre-flight checks — report exactly why capture cannot start
+    if (!hasGetDisplayMedia) {
       onDenied();
-      fail();
+      fail('getDisplayMedia is not available in this browser. Use Chrome 125+ on Android or desktop Chrome/Edge/Firefox.');
+      button.checked = false;
       return;
     }
+    if (!isSecureContext) {
+      onDenied();
+      fail('getDisplayMedia requires a secure context (HTTPS). Payment not verified.');
+      button.checked = false;
+      return;
+    }
+
     running = true;
     const current = ++generation;
     button.disabled = true;
 
     try {
-      // Display capture is user-initiated and time-bound. No camera, microphone,
-      // file upload, recording, or persistent media object is created.
+      // Request entire screen capture, same prompt as Google Meet / Teams.
+      // Chrome Android shows the system MediaProjection picker: "Entire screen" or "Chrome tab".
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video:{frameRate:{ideal:2, max:2}}, audio:false,
+        video: true,
+        audio:false,
       });
       if (!running || current !== generation) {
         stream.getTracks().forEach(track => track.stop());
@@ -126,12 +146,13 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       readyPromise = null;
       onGranted();
       // Wait for checkout return before sending frames; never capture while entering a PIN.
-    } catch {
+    } catch (err) {
       if (current === generation) {
         onDenied();
         stop();
         button.checked = true;
-        fail();
+        const msg = err && err.message ? err.message : 'Screen sharing was denied or unavailable.';
+        fail(msg);
       }
     }
   });
@@ -144,6 +165,9 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       if (running && video && canvas) capture(video, canvas); 
       else fail(); 
     }, 
-    get active() { return running; }
+    get active() { return running; },
+    get diagnostics() {
+      return { hasGetDisplayMedia, isSecureContext, userAgent: ua };
+    }
   };
 }
