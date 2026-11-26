@@ -36,6 +36,9 @@ sessions = Table(
     Column("expires", Integer, nullable=False, index=True),
     Column("state", String(40), nullable=False),
     Column("financially_verified", Boolean, nullable=False, default=False),
+    Column("tr", String(35)),
+    Column("t_depart", Integer),
+    Column("callback", String(512)),
 )
 events = Table(
     "checkout_events", metadata,

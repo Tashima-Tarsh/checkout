@@ -1,5 +1,7 @@
 """Browser-only UPI payment initiation and synthetic evidence observations."""
 import hashlib
+import hmac
+import base64
 import io
 import logging
 import os
@@ -33,6 +35,14 @@ DEMO = os.getenv("PDEP_DEMO_MODE") == "1" and not (
 ISSUER = SimulatedIssuer() if DEMO else None
 VALID_PROOF = "SIMULATED_ISSUER_ATTESTATION_VALID"
 log = logging.getLogger("checkout")
+TR_KEY = os.getenv("PDEP_TR_KEY", "dev-only-change-in-production").encode()
+
+
+def make_tr(sid: str, amount: int, vpa: str) -> str:
+    digest = hmac.new(TR_KEY, f"{sid}|{amount}|{vpa}".encode(), "sha256").digest()
+    return base64.b32encode(digest).decode().rstrip("=")[:35]
+
+
 Authorization = Annotated[str | None, Header(max_length=256)]
 EVENT_STATES = {
     "UPI_LAUNCH_ATTEMPTED": "PAYMENT_LAUNCHED",
@@ -131,12 +141,27 @@ def digest(token):
 
 def uri(row):
     rupees, paise = divmod(row["amount"], 100)
-    params = dict(pa=row["vpa"], pn=row["name"], am=f"{rupees}.{paise:02}", cu="INR")
-    if row["mode"] == "P2M":
-        params["tn"] = "PDEP " + row["id"]
-        if row["mcc"]:
-            params["mc"] = row["mcc"]
-    return "upi://pay?" + urlencode(params, quote_via=quote, safe="")
+    tr = row.get("tr") or ""
+    callback = row.get("callback") or ""
+    tn = f"ORD-{row['id'][3:11]}-{row['amount']}"
+    mc = row.get("mcc") or "5411"
+    params = dict(
+        pa=row["vpa"],
+        pn=row["name"],
+        am=f"{rupees}.{paise:02}",
+        cu="INR",
+        tn=tn,
+        mc=mc,
+    )
+    if tr:
+        params["tr"] = tr
+    if callback:
+        params["url"] = callback
+    query = urlencode(params, quote_via=quote, safe="")
+    if callback:
+        fallback = quote(callback + "&fb=1", safe="")
+        return f"intent://pay?{query}#Intent;scheme=upi;S.browser_fallback_url={fallback};end"
+    return f"intent://pay?{query}#Intent;scheme=upi;end"
 
 
 def require_active(row):
@@ -201,6 +226,9 @@ def create(b: Create, request: Request):
                    nonce=secrets.token_urlsafe(32), mode=b.mode, vpa=target_vpa, name=b.name,
                    amount=b.amount_paise, mcc=target_mcc, expires=int(time.time()) + (90 if b.mode == "P2P" else 900),
                    state="AWAITING_PAYMENT", financially_verified=False)
+        origin = str(request.base_url).rstrip("/")
+        row["tr"] = make_tr(row["id"], row["amount"], row["vpa"])
+        row["callback"] = f"{origin}/api/cb?sid={row['id']}"
         bucket = int(time.time()) // 60
         insert = postgres_insert if connection.dialect.name == "postgresql" else sqlite_insert
         limit = insert(creation_limits).values(bucket=bucket, count=1).on_conflict_do_update(
@@ -297,6 +325,19 @@ def device_evidence(sid: str, b: DeviceEvidence, request: Request, authorization
         return view(auth(connection, sid, authorization))
 
 
+@app.post("/api/sessions/{sid}/depart")
+def depart(sid: str, request: Request, authorization: Authorization = None):
+    """Record the server-clocked moment the payer leaves to pay (sendBeacon)."""
+    with request.app.state.engine.begin() as connection:
+        row = auth(connection, sid, authorization)
+        require_active(row)
+        connection.execute(
+            sessions.update().where(sessions.c.id == sid)
+            .values(t_depart=int(time.time()))
+        )
+        return {"ok": True}
+
+
 @app.get("/api/sessions/{sid}/debit-evidence")
 def debit_evidence_status(sid: str, request: Request, authorization: Authorization = None):
     """Frontend polls this to learn whether device evidence was verified."""
@@ -312,6 +353,65 @@ def debit_evidence_status(sid: str, request: Request, authorization: Authorizati
             "evidence": dict(evidence) if evidence else None,
             "state": row["state"],
         }
+
+
+@app.get("/api/cb")
+def upi_callback(request: Request):
+    """UPI app callback endpoint. Validates tr, txnId, time window, status.
+
+    Never sets financially_verified on its own; promotes to PENDING_OCR so
+    the capture/OCR pipeline can corroborate before acceptance.
+    """
+    q = request.query_params
+    sid = q.get("sid")
+    tr = q.get("tr")
+    txn_id = q.get("txnId")
+    status = q.get("Status")
+    amount = q.get("amount")
+
+    if not sid:
+        return JSONResponse({"error": "missing_sid"}, status_code=400)
+
+    with request.app.state.engine.begin() as connection:
+        row = connection.execute(
+            select(sessions).where(sessions.c.id == sid)
+        ).mappings().one_or_none()
+        if row is None:
+            return JSONResponse({"error": "unknown_session"}, status_code=404)
+        if row["state"] != "AWAITING_PAYMENT":
+            return JSONResponse({"error": "session_not_pending", "state": row["state"]}, status_code=409)
+        if not row["tr"] or tr != row["tr"]:
+            return JSONResponse({"error": "tr_mismatch"}, status_code=409)
+
+        now = int(time.time())
+        t_depart = row["t_depart"]
+        if t_depart is not None:
+            dt = now - t_depart
+            if dt < 3:
+                return JSONResponse({"error": "too_fast"}, status_code=409)
+            if dt > 120:
+                return JSONResponse({"error": "expired"}, status_code=409)
+
+        if status != "SUCCESS":
+            connection.execute(
+                sessions.update().where(sessions.c.id == sid)
+                .values(state="PAYMENT_FAILED")
+            )
+            return JSONResponse({"error": "status_" + str(status)}, status_code=409)
+
+        if amount is not None:
+            try:
+                amount_paise = int(float(amount) * 100)
+                if amount_paise != row["amount"]:
+                    return JSONResponse({"error": "amount_mismatch"}, status_code=409)
+            except (ValueError, TypeError):
+                pass
+
+        connection.execute(
+            sessions.update().where(sessions.c.id == sid)
+            .values(state="PENDING_OCR")
+        )
+        return {"state": "PENDING_OCR", "session_id": sid}
 
 
 @app.post("/api/sessions/{sid}/proof")

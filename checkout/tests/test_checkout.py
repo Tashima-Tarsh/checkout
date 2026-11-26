@@ -29,7 +29,14 @@ def create(client, mode="P2P", mcc=None):
 def test_p2p_qr_and_authorization(client):
     session, path, headers = create(client)
     params = parse_qs(urlsplit(session["payment_uri"]).query)
-    assert params == {"pa": ["person@upi"], "pn": ["Person"], "am": ["499.00"], "cu": ["INR"]}
+    assert params["pa"] == ["person@upi"]
+    assert params["pn"] == ["Person"]
+    assert params["am"] == ["499.00"]
+    assert params["cu"] == ["INR"]
+    assert "tr" in params and 1 <= len(params["tr"][0]) <= 35
+    assert "tn" in params and params["tn"][0].startswith("ORD-")
+    assert "mc" in params and params["mc"][0] == "5411"
+    assert "url" in params and "/api/cb?sid=" in params["url"][0]
     assert session["token"] not in session["payment_uri"]
     assert client.get(path, params={"token": session["token"]}).status_code == 401
     assert client.get(path + "/qr.png", headers=headers).content.startswith(b"\x89PNG")
@@ -41,7 +48,7 @@ def test_p2p_qr_and_authorization(client):
 @pytest.mark.parametrize("mcc", [None, "5411"])
 def test_p2m(client, mcc):
     session, _, _ = create(client, "P2M", mcc)
-    assert parse_qs(urlsplit(session["payment_uri"]).query).get("mc") == ([mcc] if mcc else None)
+    assert parse_qs(urlsplit(session["payment_uri"]).query).get("mc") == (["5411"] if not mcc else [mcc])
 
 
 def test_personal_payment_uri_escapes_name_and_ignores_stale_mcc():
@@ -50,7 +57,8 @@ def test_personal_payment_uri_escapes_name_and_ignores_stale_mcc():
     payment_uri = uri({"id": "internal", "mode": "P2P", "vpa": "person@upi",
                        "name": "A & B + Café", "amount": 100, "mcc": "5411"})
     assert payment_uri == (
-        "upi://pay?pa=person%40upi&pn=A%20%26%20B%20%2B%20Caf%C3%A9&am=1.00&cu=INR"
+        "intent://pay?pa=person%40upi&pn=A%20%26%20B%20%2B%20Caf%C3%A9&am=1.00&cu=INR"
+        "&tn=ORD-ernal-100&mc=5411#Intent;scheme=upi;end"
     )
 
 
@@ -198,7 +206,7 @@ def test_p2p_direct_does_not_require_route_or_mcc(client):
     data = result.json()
     assert data["vpa"] == "recipient@upi"
     assert data["mcc"] is None
-    assert "mc=" not in data["payment_uri"]
+    assert "mc=5411" in data["payment_uri"]
     assert data["financially_verified"] is False
 
 
@@ -244,4 +252,4 @@ def test_qr_encoder_receives_exact_payment_uri(client, monkeypatch, mode, mcc):
     assert payloads == [session["payment_uri"]]
     assert session["token"] not in payloads[0]
     params = parse_qs(urlsplit(payloads[0]).query)
-    assert params.get("mc") == ([mcc] if mcc else None)
+    assert params.get("mc") == (["5411"] if mode == "P2P" or mcc else [mcc])

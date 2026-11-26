@@ -5,6 +5,7 @@ const $ = id => document.getElementById(id);
 let session;
 let attempt;
 let refreshPending = false;
+let payIntentLaunched = false;
 
 function log(message) {
   $('log').textContent = message;
@@ -33,6 +34,7 @@ function updateTimer() {
     $('claim').disabled = true;
     $('refresh').disabled = true;
     $('demo').disabled = true;
+    $('payNow').disabled = true;
   }
 }
 function render(update, target) {
@@ -46,6 +48,7 @@ function render(update, target) {
     (session.mcc ? ' · MCC ' + session.mcc : '');
   $('state').textContent = session.state.replaceAll('_', ' ') + ' · Debit unverified';
   $('demo').hidden = !session.synthetic_enabled;
+  $('payNow').hidden = session.state !== 'AWAITING_PAYMENT';
   updateTimer();
 }
 async function observe(event, target = session) {
@@ -70,6 +73,19 @@ async function refresh() {
     log(error.message);
   } finally {
     refreshPending = false;
+  }
+}
+async function payNow() {
+  const target = session;
+  if (!target || !target.payment_uri) return;
+  try {
+    await api(path(target) + '/depart', {method: 'POST', token: target.token});
+    payIntentLaunched = true;
+    log('Launching UPI intent…');
+    location.href = target.payment_uri;
+  } catch (error) {
+    log('Pay error: ' + error.message);
+    alert(error.message);
   }
 }
 function syncPaymentFields() {
@@ -157,8 +173,16 @@ $('copyUpid').addEventListener('click', async () => {
     alert('Copy unavailable. Select the UPI ID shown above and copy manually.');
   }
 });
+$('payNow').addEventListener('click', payNow);
 $('claim').addEventListener('click', () => observe('PAYER_CLAIMED_PAID'));
 $('refresh').addEventListener('click', refresh);
+
+// Record server-clocked departure when the payer leaves to pay.
+addEventListener('pagehide', () => {
+  const target = session;
+  if (!target) return;
+  navigator.sendBeacon(path(target) + '/depart');
+});
 $('demo').addEventListener('click', async () => {
   const target = session;
   if (!target?.synthetic_enabled) return;
@@ -174,8 +198,17 @@ $('demo').addEventListener('click', async () => {
 });
 setInterval(updateTimer, 1000);
 setInterval(() => {
-  if (session?.state !== 'EXPIRED' && document.visibilityState === 'visible') refresh();
-}, 5000);
+  if (!session || session.state === 'EXPIRED') return;
+  if (document.visibilityState !== 'visible') return;
+  const fast = payIntentLaunched && session.state === 'PENDING_OCR';
+  refresh();
+  if (fast) {
+    // Extra fast polls while waiting for OCR corroboration after callback.
+    setTimeout(() => {
+      if (session && session.state === 'PENDING_OCR' && document.visibilityState === 'visible') refresh();
+    }, 750);
+  }
+}, payIntentLaunched ? 1500 : 5000);
 
 async function loadAppearance() {
   try {
