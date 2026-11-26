@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agentic-Recovery — Owner Dashboard</title>
+<title>Agentic Pay — Owner Dashboard</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
@@ -16,33 +16,39 @@
   .card h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; color: #666; }
   .stat { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
   .stat-label { font-size: 14px; color: #666; }
+  .section { margin-top: 32px; }
+  .section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
   table { width: 100%; border-collapse: collapse; margin-top: 16px; }
   th { text-align: left; font-size: 12px; font-weight: 600; color: #666; padding: 12px 8px; border-bottom: 1px solid #eee; }
   td { font-size: 14px; padding: 12px 8px; border-bottom: 1px solid #eee; }
   .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .badge-active { background: #e8f5e9; color: #2e7d32; }
   .badge-pending { background: #fff3e0; color: #e65100; }
-  .badge-verified { background: #e8f5e9; color: #2e7d32; }
-  .badge-unmatched { background: #ffebee; color: #c62828; }
-  .badge-matched { background: #e3f2fd; color: #1565c0; }
-  .section { margin-top: 32px; }
-  .section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .badge-inactive { background: #ffebee; color: #c62828; }
   .btn { background: #1d1d1f; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
   .btn:hover { background: #333; }
   .btn-secondary { background: #f5f5f7; color: #1d1d1f; }
   .btn-secondary:hover { background: #e5e5e5; }
   .alert { background: #fff3e0; border: 1px solid #ffb74d; border-radius: 6px; padding: 16px; margin: 16px 0; }
-  .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
   .alert-success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+  .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
   .hidden { display: none; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 14px; margin-bottom: 6px; font-weight: 600; }
+  .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+  .api-status { font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-top: 8px; }
+  .api-status.online { background: #e8f5e9; color: #2e7d32; }
+  .api-status.offline { background: #ffebee; color: #c62828; }
 </style>
 </head>
 <body>
   <div class="header">
     <div>
-      <h1>Agentic-Recovery — Owner Dashboard</h1>
-      <div class="user" id="currentUser">Loading...</div>
+      <h1>Agentic Pay — Owner Dashboard</h1>
+      <div class="user" id="currentUser">Loading…</div>
     </div>
     <div>
+      <div id="apiStatus" class="api-status offline">Checking API…</div>
       <button class="btn" onclick="location.reload()">Refresh</button>
     </div>
   </div>
@@ -52,19 +58,10 @@
 
     <div class="grid">
       <div class="card">
-        <h2>Tenants</h2>
-        <div class="stat" id="tenantCount">-</div>
-        <div class="stat-label">Registered companies</div>
-      </div>
-      <div class="card">
-        <h2>Employees</h2>
-        <div class="stat" id="employeeCount">-</div>
-        <div class="stat-label">Recovery employees</div>
-      </div>
-      <div class="card">
-        <h2>Devices</h2>
-        <div class="stat" id="deviceCount">-</div>
-        <div class="stat-label">Android receiving devices</div>
+        <h2>Shop Status</h2>
+        <div class="stat" id="shopStatus">-</div>
+        <div class="stat-label">Receiving UPI ID</div>
+        <div id="shopUpiId" style="font-family:monospace; font-size:14px; color:#666;">-</div>
       </div>
       <div class="card">
         <h2>Checkouts</h2>
@@ -84,64 +81,61 @@
     </div>
 
     <div class="section">
-      <h3>Create Tenant</h3>
+      <h3>Shop Configuration</h3>
       <div class="card">
-        <form id="tenantForm">
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 14px; margin-bottom: 4px;">Tenant ID</label>
-            <input type="text" id="tenantId" placeholder="e.g. company-001" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <form id="shopConfigForm">
+          <div class="form-group">
+            <label>Shop Identity</label>
+            <input type="text" id="shopIdentity" placeholder="e.g. Mini Shop 001" required>
           </div>
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 14px; margin-bottom: 4px;">Company Name</label>
-            <input type="text" id="tenantName" placeholder="e.g. Recovery Co." required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <div class="form-group">
+            <label>Owner Email</label>
+            <input type="email" id="ownerEmail" placeholder="owner@example.com" required>
           </div>
-          <button type="submit" class="btn">Register Tenant</button>
+          <div class="form-group">
+            <label>Authorized Bank Alert Email</label>
+            <input type="email" id="alertEmail" placeholder="alerts@example.com">
+          </div>
+          <div class="form-group">
+            <label>Receiving UPI ID</label>
+            <input type="text" id="receiverUpiId" placeholder="yourname@okhdfc" required>
+          </div>
+          <div class="form-group">
+            <label>Collection Threshold (₹)</label>
+            <input type="number" id="collectionThreshold" placeholder="1.00" step="0.01" value="1.00">
+          </div>
+          <div class="form-group">
+            <label>Shop Operating Policy</label>
+            <select id="shopPolicy" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+              <option value="accept_all">Accept All Payments</option>
+              <option value="review_required">Manual Review Required</option>
+              <option value="verified_only">Verified Only</option>
+            </select>
+          </div>
+          <button type="submit" class="btn">Save Configuration</button>
         </form>
       </div>
     </div>
 
     <div class="section">
-      <h3>Tenants</h3>
+      <h3>Android Observer</h3>
       <div class="card">
-        <table id="tenantTable">
-          <thead>
-            <tr><th>ID</th><th>Name</th><th>Owner</th><th>Created</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <p>APK Download:</p>
+        <a href="/recovery-agent/android/app/build/outputs/apk/debug/app-debug.apk" class="btn" target="_blank">Download Observer APK</a>
+        <p style="font-size:12px; color:#666; margin-top:8px;">SHA-256: 5FC39888780B06E8832AF763FC5C235C48C7C0F015A0C313A63A7DA1F48C5C58</p>
+        <div id="deviceStatus" style="margin-top:16px;">
+          <p><strong>Device ID:</strong> <span id="deviceId">-</span></p>
+          <p><strong>Device Status:</strong> <span id="deviceStatusBadge" class="badge badge-inactive">Not Enrolled</span></p>
+        </div>
       </div>
     </div>
 
     <div class="section">
-      <h3>Employees</h3>
-      <div class="card">
-        <table id="employeeTable">
-          <thead>
-            <tr><th>ID</th><th>Name</th><th>Role</th><th>Tenant</th><th>Device</th><th>Status</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Devices</h3>
-      <div class="card">
-        <table id="deviceTable">
-          <thead>
-            <tr><th>ID</th><th>UPI ID</th><th>App</th><th>Tenant</th><th>Status</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Checkouts</h3>
+      <h3>Recent Checkouts</h3>
       <div class="card">
         <table id="checkoutTable">
           <thead>
-            <tr><th>ID</th><th>Receiver UPI</th><th>Amount</th><th>State</th><th>Verified</th><th>Expires</th></tr>
+            <tr><th>ID</th><th>Receiver UPI</th><th>Amount</th><th>State</th><th>Verified</th><th>Created</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -164,6 +158,7 @@
   <script>
     const BASE = '/api/recovery';
     let currentTenant = null;
+    let currentEmployee = null;
 
     async function api(path, {method='GET', body, headers={}} = {}) {
       const h = { 'Content-Type': 'application/json', 'X-Tenant-Id': currentTenant || '', ...headers };
@@ -175,81 +170,106 @@
 
     function showAlert(msg, type='info') {
       const area = document.getElementById('alertArea');
-      area.innerHTML = `<div class="alert ${type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : ''}">${msg}</div>`;
-      setTimeout(() => area.innerHTML = '', 5000);
+      const div = document.createElement('div');
+      div.className = `alert ${type === 'error' ? 'alert-error' : 'alert-success'}`;
+      div.textContent = msg;
+      area.appendChild(div);
+      setTimeout(() => div.remove(), 5000);
+    }
+
+    async function checkApi() {
+      try {
+        const res = await fetch('/api/recovery/config', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('apiStatus').textContent = 'API: Online';
+          document.getElementById('apiStatus').className = 'api-status online';
+        } else {
+          throw new Error('API check failed');
+        }
+      } catch (e) {
+        document.getElementById('apiStatus').textContent = 'API: Offline';
+        document.getElementById('apiStatus').className = 'api-status offline';
+        showAlert('Backend API not reachable. Ensure the server is running.', 'error');
+      }
     }
 
     async function loadStats() {
       try {
-        // Load tenants first to get current tenant
         const tenants = await api('/tenants');
-        const tbody = document.querySelector('#tenantTable tbody');
-        tbody.innerHTML = '';
-        tenants.forEach(t => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${t.id}</td><td>${t.name}</td><td>${t.owner_id || '-'}</td><td>${new Date(t.created).toLocaleString()}</td>`;
-          tbody.appendChild(tr);
-        });
-        document.getElementById('tenantCount').textContent = tenants.length;
-        if (tenants.length > 0 && !currentTenant) {
+        if (tenants.length > 0) {
           currentTenant = tenants[0].id;
           document.getElementById('currentUser').textContent = `Tenant: ${currentTenant}`;
+          document.getElementById('shopStatus').textContent = 'Active';
+          document.getElementById('shopStatus').className = 'badge badge-active';
+          document.getElementById('tenantCount').textContent = tenants.length;
         }
-      } catch (e) {
-        showAlert('Failed to load tenants: ' + e.message, 'error');
-      }
-    }
-
-    async function loadEmployees() {
-      try {
-        // We need tenant context; use the first tenant
-        if (!currentTenant) return;
-        // Note: employees endpoint needs tenant header - we'll load via a custom approach
-        // For now, show placeholder
-      } catch (e) {}
-    }
-
-    async function loadDevices() {
-      try {
-        // Devices are registered per tenant; we'd need to query by tenant
-        // This is a simplified demo
       } catch (e) {}
     }
 
     async function loadCheckouts() {
       try {
-        // Similar - needs tenant context
+        const checkouts = await api('/checkouts');
+        const tbody = document.querySelector('#checkoutTable tbody');
+        tbody.innerHTML = '';
+        checkouts.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.id}</td>
+            <td>${c.receiver_upi_id}</td>
+            <td>₹${(c.amount_paise/100).toFixed(2)}</td>
+            <td><span class="badge ${c.state === 'PAYMENT_OBSERVED' ? 'badge-pending' : c.state === 'FINANCIALLY_VERIFIED' ? 'badge-active' : 'badge-inactive'}">${c.state}</span></td>
+            <td>${c.financially_verified ? 'Yes' : 'No'}</td>
+            <td>${new Date(c.created).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('checkoutCount').textContent = checkouts.length;
       } catch (e) {}
     }
 
     async function loadLedger() {
       try {
-        // Central ledger needs tenant_id param
+        const entries = await api(`/ledger/central?tenant_id=${currentTenant}`);
+        const tbody = document.querySelector('#ledgerTable tbody');
+        tbody.innerHTML = '';
+        entries.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${e.id}</td>
+            <td>${e.employee_id || '-'}</td>
+            <td>${e.checkout_id || '-'}</td>
+            <td>₹${(e.amount_paise/100).toFixed(2)}</td>
+            <td>${e.state}</td>
+          `;
+          tbody.appendChild(tr);
+        });
       } catch (e) {}
     }
 
-    document.getElementById('tenantForm').addEventListener('submit', async (e) => {
+    async function loadObservations() {
+      try {
+        // Observations are accessed via checkout or ledger endpoints
+      } catch (e) {}
+    }
+
+    document.getElementById('shopConfigForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        await api('/tenants', {
-          method: 'POST',
-          body: {
-            id: document.getElementById('tenantId').value,
-            name: document.getElementById('tenantName').value,
-          },
-          headers: { 'X-Employee-Id': 'owner-001' }
-        });
-        showAlert('Tenant registered successfully', 'success');
-        document.getElementById('tenantForm').reset();
-        loadStats();
+        // In production, this would call a shop configuration endpoint
+        showAlert('Shop configuration saved (demo mode - backend shop config endpoint not yet implemented)', 'success');
       } catch (e) {
         showAlert('Failed: ' + e.message, 'error');
       }
     });
 
     // Initialize
+    checkApi();
     loadStats();
-    setInterval(loadStats, 10000);
+    loadCheckouts();
+    loadLedger();
+    loadObservations();
+    setInterval(() => { loadCheckouts(); loadLedger(); }, 5000);
   </script>
 </body>
 </html>

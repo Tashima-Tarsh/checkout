@@ -1,0 +1,21 @@
+# Android build artifacts
+recovery-agent/android/.gradle/
+recovery-agent/android/app/build/
+recovery-agent/android/gradle-8.2/
+recovery-agent/android/.cxx/
+
+# Test artifacts
+recovery-agent/test.db
+recovery-agent/test_private_key.pem
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
