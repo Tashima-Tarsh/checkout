@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "owner": "Tashima-Tarsh",
+  "upstreams": [
+    {
+      "name": "paperclip",
+      "url": "https://github.com/paperclipai/paperclip",
+      "purpose": "company and employee management",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned"
+    },
+    {
+      "name": "openclaw",
+      "url": "https://github.com/openclaw/openclaw",
+      "purpose": "primary runtime and skills",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned",
+      "preferred_runtime": true
+    },
+    {
+      "name": "mobilerun",
+      "url": "https://github.com/droidrun/mobilerun",
+      "purpose": "authorized mobile interface research",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned",
+      "observation_testing_only": true
+    },
+    {
+      "name": "agency-agents",
+      "url": "https://github.com/msitarzewski/agency-agents",
+      "purpose": "role templates",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned"
+    },
+    {
+      "name": "hermes-agent",
+      "url": "https://github.com/NousResearch/hermes-agent",
+      "purpose": "alternative runtime (fallback)",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned",
+      "disabled": true
+    },
+    {
+      "name": "Open-AutoGLM",
+      "url": "https://github.com/zai-org/Open-AutoGLM",
+      "purpose": "alternative mobile interface",
+      "status": "not_cloned",
+      "adapter_boundary": "pinned",
+      "disabled": true
+    }
+  ],
+  "integrations": {
+    "checkout_repo": "https://github.com/Tashima-Tarsh/checkout",
+    "checkout_production": "https://agenticpay.thenitishkr.in",
+    "n8n_production": "https://n8n.thenitishkr.in",
+    "railway_project": "62335465-abaa-4269-ba72-e87ddbba908c"
+  }
+}
