@@ -7,13 +7,6 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
   let video, canvas;
   let readyPromise = null;
   let readyResolve = null;
-  let isAndroidChrome = false;
-
-  // Detect Android Chrome where getDisplayMedia can't capture other apps
-  if (typeof navigator !== 'undefined') {
-    const ua = navigator.userAgent;
-    isAndroidChrome = /Android/.test(ua) && /Chrome/.test(ua) && !/Firefox|Edg|OPR/.test(ua);
-  }
 
   function ready() {
     return new Promise((resolve) => { readyResolve = resolve; });
@@ -97,12 +90,9 @@ export function mountLiveVerification({button, endpoint, onResult, onRequested =
       stop();
       return;
     }
-    // Android Chrome cannot capture other apps' screens via getDisplayMedia
-    if (isAndroidChrome) {
-      fail('Android Chrome cannot capture the UPI app screen. Use the Verification checkbox below to upload a screenshot instead.');
-      button.checked = false;
-      return;
-    }
+    // Android Chrome can capture the entire screen via MediaProjection with
+    // user consent (system picker). Do not pre-emptively block it — attempt
+    // capture and degrade gracefully if the user denies or it is unsupported.
     if (!navigator.mediaDevices?.getDisplayMedia) {
       fail();
       return;

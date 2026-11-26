@@ -16,6 +16,16 @@ let liveVerification;
 let liveResult;
 let verificationRequested = false;
 let mountLiveVerification;
+
+async function postTxnEvent(event, detail) {
+  try {
+    await fetch(endpoint + '/txn-event', {
+      method: 'POST', cache: 'no-store',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({event, detail}),
+    });
+  } catch { /* diagnostic best-effort; never blocks checkout flow */ }
+}
 const liveVerificationReady = import('/assets/live-verification.mjs?v=2').then(module => {
   mountLiveVerification = module.mountLiveVerification;
 }).catch(() => {});
@@ -94,6 +104,11 @@ function updateReceipt(current) {
 const returnReady = import('/assets/return-callback.mjs?v=1').then(({attachReturnCallback}) => {
   returnCallback = attachReturnCallback(refreshAfterReturn);
 }).catch(() => {});
+
+// Record server-side departure when the payer leaves to pay.
+addEventListener('pagehide', () => {
+  postTxnEvent('browser_departed');
+});
 let diagnostics;
 let diagnostic;
 const diagnosticParams = diagnosticPage ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -140,6 +155,7 @@ async function refreshAfterReturn(event) {
     if (!diagnosticPage) returned = true;
     updateReceipt(current);
     updateSettlement(current);
+    await postTxnEvent('browser_returned');
     if (verificationRequested && !current.settlement?.satisfied) liveVerification?.checkNow();
     startObservationPolling();
   } catch {
@@ -234,6 +250,7 @@ function showOrder() {
         if (revision + 1 === checkoutRevision && copy.isConnected) copy.textContent = 'Copy UPI ID';
       }, 2500);
       if (!diagnosticPage) startObservationPolling();
+      await postTxnEvent('copy_ok');
     } catch {
       if (revision !== checkoutRevision) return;
       diagnostics?.record('copy_failed');
@@ -252,9 +269,15 @@ function showOrder() {
   } else if (!diagnosticPage && mountLiveVerification) {
     liveVerification = mountLiveVerification({
       button:verification, endpoint,
-      onRequested: requested => { verificationRequested = requested; liveResult = undefined; copy.disabled = !requested; },
-      onResult:result => {
+      onRequested: async requested => {
+        verificationRequested = requested;
+        liveResult = undefined;
+        copy.disabled = !requested;
+        await postTxnEvent('verification_requested', requested ? 'granted' : 'revoked');
+      },
+      onResult:async result => {
         liveResult = result;
+        await postTxnEvent(result.satisfied ? 'verdict' : 'evidence_rejected', result.state);
         order = {...order, status:result.satisfied ? 'PAID' : order.status, settlement:result};
         updateSettlement(order);
       },

@@ -17,7 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from checkout.agentic_api import ORDER_ID, digest, now, router
 from checkout.agentic_login import configure, router as login_router
 from checkout.agentic_live_vision_api import router as live_vision_router
-from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links
+from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links, ensure_schema
 from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
 from checkout.agentic_test_checkout import router as test_checkout_router, auto_enabled, open_test_checkout
@@ -49,6 +49,7 @@ async def lifespan(app):
     engine = make_engine()
     try:
         initialize(engine)
+        ensure_schema(engine)
         app.state.engine = engine
         app.state.password_login = configure(engine, token)
         cutoff = os.environ.get("AGENTIC_TEST_EXPIRE_BEFORE", "")

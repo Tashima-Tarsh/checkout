@@ -108,6 +108,7 @@ audit = Table(
     "ap_audit", metadata,
     Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True),
     Column("merchant_id", ForeignKey("ap_merchants.id"), index=True),
+    Column("order_id", String(48), index=True),
     Column("event", String(48), nullable=False),
     Column("created", BigInteger, nullable=False),
 )
@@ -158,3 +159,15 @@ def expire_previous_uat_links(engine, *, merchant_id, cutoff, timestamp):
             orders.c.status.in_(("AWAITING_PAYMENT", "PENDING")),
         ).values(expires=cutoff))
         return result.rowcount
+
+
+def ensure_schema(engine):
+    """Add order_id to ap_audit on existing databases (idempotent)."""
+    from sqlalchemy import inspect
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {c["name"] for c in inspector.get_columns("ap_audit")}
+        if "order_id" not in columns:
+            connection.execute(text(
+                "ALTER TABLE ap_audit ADD COLUMN order_id VARCHAR(48)"
+            ))

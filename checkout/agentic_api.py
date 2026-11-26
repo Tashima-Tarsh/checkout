@@ -410,3 +410,28 @@ def device_evidence(order_id: str, b: DeviceEvidence, request: Request):
 
         return {"status": "PAID" if verified else "REJECTED",
                 "financially_verified": verified}
+
+
+class TxnEvent(BaseModel):
+    event: Literal["copy_ok", "copy_failed", "browser_departed", "browser_returned",
+                   "verification_requested", "evidence_submitted", "evidence_rejected", "verdict"]
+    detail: str | None = None
+
+
+@router.post("/checkout/{order_id}/txn-event", status_code=202)
+def txn_event(order_id: str, b: TxnEvent, request: Request):
+    """Record a persistent transaction diagnostic event server-side.
+
+    Never classifies clipboard activity, browser return, or screenshots alone
+    as verified debit — this is an observational event log only.
+    """
+    with request.app.state.engine.begin() as conn:
+        order = checkout_order(conn, order_id)
+        conn.execute(audit.insert().values(
+            merchant_id=order["merchant_id"],
+            order_id=order_id,
+            event=b.event,
+            created=now(),
+        ))
+        event(conn, order["merchant_id"], "TXN_" + b.event.upper())
+    return {"recorded": True, "order_id": order_id, "event": b.event}
