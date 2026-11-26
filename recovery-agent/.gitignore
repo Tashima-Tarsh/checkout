@@ -1,12 +1,12 @@
 # Android build artifacts
-recovery-agent/android/.gradle/
-recovery-agent/android/app/build/
-recovery-agent/android/gradle-8.2/
-recovery-agent/android/.cxx/
+android/.gradle/
+android/app/build/
+android/gradle-8.2/
+android/.cxx/
 
 # Test artifacts
-recovery-agent/test.db
-recovery-agent/test_private_key.pem
+test.db
+test_private_key.pem
 *.pem
 
 # Python

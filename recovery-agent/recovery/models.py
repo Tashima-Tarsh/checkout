@@ -36,6 +36,12 @@ class Tenant(Base):
     id = Column(String(64), primary_key=True)
     name = Column(String(128), nullable=False)
     owner_id = Column(String(128), nullable=True)
+    owner_email = Column(String(256), nullable=True)
+    receiving_upi_id = Column(String(128), nullable=True)
+    bank_alert_email = Column(String(256), nullable=True)
+    collection_threshold_paise = Column(Integer, nullable=True, default=100)
+    shop_state = Column(String(16), nullable=False, default="CLOSED")  # OPEN, CLOSED
+    observation_mode = Column(String(16), nullable=False, default="EMAIL")  # EMAIL, ANDROID, BOTH
     created = Column(BigInteger, nullable=False, default=_now_ms)
 
     employees = relationship("Employee", back_populates="tenant")
@@ -279,4 +285,81 @@ class RoleAssignment(Base):
 
     __table_args__ = (
         UniqueConstraint("employee_id", "role", name="uq_ap_role_assignments_employee_role"),
+    )
+
+
+class EmailConfig(Base):
+    """Email configuration for email-first observation mode.
+
+    Stores OAuth token and IMAP connection settings for authorized
+    read-only access to the receiving account's email inbox.
+    Never stores passwords - only OAuth refresh tokens.
+    """
+
+    __tablename__ = "ap_email_configs"
+
+    id = Column(String(64), primary_key=True)
+    tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True, unique=True)
+    email_address = Column(String(256), nullable=False)
+    imap_host = Column(String(256), nullable=False, default="imap.gmail.com")
+    imap_port = Column(Integer, nullable=False, default=993)
+    oauth_refresh_token = Column(Text, nullable=True)  # Encrypted OAuth refresh token
+    oauth_access_token = Column(Text, nullable=True)  # Short-lived access token
+    oauth_token_expiry = Column(BigInteger, nullable=True)
+    is_connected = Column(Boolean, nullable=False, default=False)
+    last_polled = Column(BigInteger, nullable=True)
+    allowed_senders = Column(Text, nullable=True)  # JSON array of allowed sender domains
+    created = Column(BigInteger, nullable=False, default=_now_ms)
+    updated = Column(BigInteger, nullable=False, default=_now_ms)
+
+    tenant = relationship("Tenant")
+
+
+class EmailObservationEvent(Base):
+    """Email-based observation event submitted to the backend.
+
+    Corroborating evidence source - does NOT independently set
+    financially_verified. Used alongside device observations for
+    cross-validation.
+    """
+
+    __tablename__ = "ap_email_observation_events"
+
+    id = Column(String(128), primary_key=True)
+    tenant_id = Column(String(64), ForeignKey("ap_tenants.id"), nullable=False, index=True)
+    email_message_id = Column(String(256), nullable=False, index=True)  # Email Message-ID for dedup
+    checkout_id = Column(String(64), ForeignKey("ap_checkouts.id"), nullable=True, index=True)
+    agent_id = Column(String(64), ForeignKey("ap_mobile_agents.id"), nullable=True, index=True)
+
+    # Observed fields from email
+    observed_receiver_upi = Column(String(128), nullable=True)
+    payer_name = Column(String(128), nullable=True)
+    payer_upi_id = Column(String(128), nullable=True)
+    amount_paise = Column(Integer, nullable=True)
+    currency = Column(String(8), nullable=True)
+    utr_rrn = Column(String(64), nullable=True)
+    app_transaction_id = Column(String(128), nullable=True)
+    transaction_direction = Column(String(16), nullable=True)
+    app_reported_status = Column(String(32), nullable=True)
+    transaction_timestamp = Column(BigInteger, nullable=True)
+    observation_timestamp = Column(BigInteger, nullable=False)
+    server_ingestion_timestamp = Column(BigInteger, nullable=False, default=_now_ms)
+    source_email = Column(String(256), nullable=True)
+    evidence_type = Column(String(32), nullable=False, default="email")
+    evidence_fingerprint = Column(String(128), nullable=True)
+
+    # Security
+    observation_authenticity = Column(String(32), nullable=False, default="pending")
+    checkout_correlation = Column(String(32), nullable=False, default="unmatched")
+    financial_verification = Column(Boolean, nullable=False, default=False)
+
+    created = Column(BigInteger, nullable=False, default=_now_ms)
+
+    tenant = relationship("Tenant")
+    checkout = relationship("Checkout")
+
+    __table_args__ = (
+        Index("ix_ap_email_observations_tenant_ingested", "tenant_id", "server_ingestion_timestamp"),
+        Index("ix_ap_email_observations_utr", "utr_rrn"),
+        UniqueConstraint("email_message_id", name="uq_ap_email_observations_message_id"),
     )

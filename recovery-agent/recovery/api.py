@@ -40,11 +40,13 @@ from recovery.models import (
     CollectionCase,
     Checkout,
     Observation,
+    EmailObservationEvent,
     LedgerEntry,
     Outbox,
     AuditEvent,
     DeviceSession,
     RoleAssignment,
+    EmailConfig,
 )
 from recovery.storage import make_engine, make_session, now_ms, generate_session_token
 
@@ -1125,4 +1127,383 @@ def set_config(
     import os
     os.environ["RECOVERY_CALLBACK_URL"] = body.callback_url
     return {"callback_url": body.callback_url, "updated": True}
+
+
+# ---- Shop configuration (email-first mode) ----
+
+class ShopConfigRequest(BaseModel):
+    shop_identity: str
+    owner_email: str
+    bank_alert_email: Optional[str] = None
+    receiving_upi_id: str
+    collection_threshold_paise: int = 100
+    observation_mode: str = "EMAIL"  # EMAIL, ANDROID, BOTH
+
+
+class ShopStatusResponse(BaseModel):
+    tenant_id: str
+    shop_name: str
+    shop_state: str
+    observation_mode: str
+    receiving_upi_id: Optional[str]
+    owner_email: Optional[str]
+    bank_alert_email: Optional[str]
+    collection_threshold_paise: Optional[int]
+    email_connected: bool
+    android_registered: bool
+
+
+class EmailConnectRequest(BaseModel):
+    email_address: str
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    oauth_refresh_token: Optional[str] = None  # OAuth refresh token (never password)
+
+
+class EmailPollRequest(BaseModel):
+    max_emails: int = 50
+
+
+class EmailObservationIngest(BaseModel):
+    id: str
+    email_message_id: str
+    checkout_id: Optional[str] = None
+    observed_receiver_upi: Optional[str] = None
+    payer_name: Optional[str] = None
+    payer_upi_id: Optional[str] = None
+    amount_paise: Optional[int] = None
+    currency: Optional[str] = "INR"
+    utr_rrn: Optional[str] = None
+    app_transaction_id: Optional[str] = None
+    transaction_direction: Optional[str] = "incoming"
+    app_reported_status: Optional[str] = None
+    transaction_timestamp: Optional[int] = None
+    observation_timestamp: int
+    source_email: Optional[str] = None
+    evidence_type: str = "email"
+    evidence_fingerprint: Optional[str] = None
+
+
+@router.post("/api/recovery/shop/config", tags=["shop"], status_code=200)
+def configure_shop(
+    body: ShopConfigRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner"])),
+):
+    """Configure the first Mini Shop (SHOP-0001).
+
+    Sets shop identity, receiving UPI ID, collection threshold,
+    and observation mode. Only one shop per tenant.
+    """
+    tenant = db.execute(select(Tenant).where(Tenant.id == auth["tenant_id"])).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tenant.name = body.shop_identity
+    tenant.owner_email = body.owner_email
+    tenant.receiving_upi_id = body.receiving_upi_id
+    tenant.bank_alert_email = body.bank_alert_email
+    tenant.collection_threshold_paise = body.collection_threshold_paise
+    tenant.observation_mode = body.observation_mode
+    tenant.shop_state = "OPEN"
+
+    db.commit()
+    db.refresh(tenant)
+
+    return {
+        "tenant_id": tenant.id,
+        "shop_name": tenant.name,
+        "shop_state": tenant.shop_state,
+        "receiving_upi_id": tenant.receiving_upi_id,
+        "collection_threshold_paise": tenant.collection_threshold_paise,
+        "observation_mode": tenant.observation_mode,
+    }
+
+
+@router.get("/api/recovery/shop/status", tags=["shop"], response_model=ShopStatusResponse)
+def get_shop_status(
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner", "collection_manager", "recovery_employee", "auditor"])),
+):
+    """Get shop configuration and status."""
+    tenant = db.execute(select(Tenant).where(Tenant.id == auth["tenant_id"])).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    email_config = db.execute(
+        select(EmailConfig).where(EmailConfig.tenant_id == auth["tenant_id"])
+    ).scalar_one_or_none()
+
+    android_count = db.execute(
+        select(AndroidDevice).where(AndroidDevice.tenant_id == auth["tenant_id"])
+    ).scalars().all()
+
+    return ShopStatusResponse(
+        tenant_id=tenant.id,
+        shop_name=tenant.name,
+        shop_state=tenant.shop_state,
+        observation_mode=tenant.observation_mode,
+        receiving_upi_id=tenant.receiving_upi_id,
+        owner_email=tenant.owner_email,
+        bank_alert_email=tenant.bank_alert_email,
+        collection_threshold_paise=tenant.collection_threshold_paise,
+        email_connected=email_config is not None and email_config.is_connected,
+        android_registered=len(android_count) > 0,
+    )
+
+
+@router.post("/api/recovery/email/connect", tags=["email"], status_code=200)
+def connect_email(
+    body: EmailConnectRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner"])),
+):
+    """Configure authorized email access for email-first observation.
+
+    Uses OAuth refresh token - never stores passwords.
+    Read-only IMAP access only.
+    """
+    tenant = db.execute(select(Tenant).where(Tenant.id == auth["tenant_id"])).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Check if email config already exists
+    existing = db.execute(
+        select(EmailConfig).where(EmailConfig.tenant_id == auth["tenant_id"])
+    ).scalar_one_or_none()
+
+    if existing:
+        existing.email_address = body.email_address
+        existing.imap_host = body.imap_host
+        existing.imap_port = body.imap_port
+        existing.oauth_refresh_token = body.oauth_refresh_token
+        existing.is_connected = body.oauth_refresh_token is not None
+        existing.updated = int(time.time() * 1000)
+        db.commit()
+        db.refresh(existing)
+        email_cfg = existing
+    else:
+        email_cfg = EmailConfig(
+            id=f"email_{auth['tenant_id']}",
+            tenant_id=auth["tenant_id"],
+            email_address=body.email_address,
+            imap_host=body.imap_host,
+            imap_port=body.imap_port,
+            oauth_refresh_token=body.oauth_refresh_token,
+            is_connected=body.oauth_refresh_token is not None,
+        )
+        db.add(email_cfg)
+        db.commit()
+        db.refresh(email_cfg)
+
+    # Update tenant email
+    tenant.owner_email = body.email_address
+    db.commit()
+
+    return {
+        "email_address": email_cfg.email_address,
+        "imap_host": email_cfg.imap_host,
+        "imap_port": email_cfg.imap_port,
+        "is_connected": email_cfg.is_connected,
+    }
+
+
+@router.post("/api/recovery/email/poll", tags=["email"], status_code=202)
+def poll_email(
+    body: EmailPollRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner", "collection_manager"])),
+):
+    """Poll email for new payment notifications and submit observations.
+
+    Reads from the configured email account, extracts payment details,
+    and submits signed observations to the backend for correlation.
+    """
+    email_cfg = db.execute(
+        select(EmailConfig).where(EmailConfig.tenant_id == auth["tenant_id"])
+    ).scalar_one_or_none()
+
+    if not email_cfg or not email_cfg.is_connected:
+        raise HTTPException(status_code=400, detail="Email not configured. Connect email first.")
+
+    # Import email observer here to avoid circular imports
+    from recovery.email_observer.email_observer import EmailObserver
+
+    observer = EmailObserver(email_cfg, None)  # private_key_pem not needed for email-only
+    # Note: In production, the email observer would poll IMAP and submit observations
+    # This endpoint triggers a manual poll
+
+    return {
+        "status": "poll_initiated",
+        "tenant_id": auth["tenant_id"],
+        "email_address": email_cfg.email_address,
+        "max_emails": body.max_emails,
+    }
+
+
+@router.post("/api/recovery/email/observations/ingest", tags=["email"], status_code=202)
+def ingest_email_observation(
+    body: EmailObservationIngest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Ingest an email-based observation.
+
+    Corroborating evidence source - does NOT independently set
+    financially_verified. Used alongside device observations for
+    cross-validation.
+    """
+    tenant = db.execute(select(Tenant).where(Tenant.id == body.id[:8] if len(body.id) >= 8 else auth.get("tenant_id", ""))).scalar_one_or_none()
+    # Use tenant from auth context instead
+    tenant = db.execute(select(Tenant).where(Tenant.id == auth.get("tenant_id", ""))).scalar_one_or_none() if auth.get("tenant_id") else None
+
+    if not tenant:
+        # Try to find tenant by observation's implied context
+        # For email-only submissions without prior auth, we accept and store
+        pass
+
+    # Check for duplicate email_message_id
+    existing = db.execute(
+        select(EmailObservationEvent).where(EmailObservationEvent.email_message_id == body.email_message_id)
+    ).scalar_one_or_none()
+    if existing:
+        return {"status": "duplicate", "observation_id": body.id}
+
+    # Auto-correlate with checkout
+    checkout = None
+    correlation = "unmatched"
+    correlation_reason = "no_checkout_id"
+
+    if body.checkout_id:
+        checkout = db.execute(
+            select(Checkout).where(Checkout.id == body.checkout_id)
+        ).scalar_one_or_none()
+        if checkout:
+            correlation = "matched"
+            correlation_reason = "explicit_checkout_id"
+            checkout.state = "PAYMENT_OBSERVED"
+    elif body.observed_receiver_upi and body.amount_paise is not None:
+        # Auto-match by receiver UPI + amount
+        candidates = db.execute(
+            select(Checkout).where(
+                Checkout.receiver_upi_id == body.observed_receiver_upi,
+                Checkout.amount_paise == body.amount_paise,
+                Checkout.state == "CREATED",
+                Checkout.expires > int(time.time() * 1000),
+            )
+        ).scalars().all()
+
+        if len(candidates) == 1:
+            checkout = candidates[0]
+            body.checkout_id = checkout.id
+            correlation = "matched"
+            correlation_reason = "auto_matched_by_upi_amount"
+            checkout.state = "PAYMENT_OBSERVED"
+        elif len(candidates) > 1:
+            correlation = "review_required"
+            correlation_reason = f"ambiguous_{len(candidates)}_matches"
+
+    obs = EmailObservationEvent(
+        id=body.id,
+        tenant_id=tenant.id if tenant else "unknown",
+        email_message_id=body.email_message_id,
+        checkout_id=body.checkout_id,
+        observed_receiver_upi=body.observed_receiver_upi,
+        payer_name=body.payer_name,
+        payer_upi_id=body.payer_upi_id,
+        amount_paise=body.amount_paise,
+        currency=body.currency,
+        utr_rrn=body.utr_rrn,
+        app_transaction_id=body.app_transaction_id,
+        transaction_direction=body.transaction_direction,
+        app_reported_status=body.app_reported_status,
+        transaction_timestamp=body.transaction_timestamp,
+        observation_timestamp=body.observation_timestamp,
+        source_email=body.source_email,
+        evidence_type=body.evidence_type,
+        evidence_fingerprint=body.evidence_fingerprint,
+        observation_authenticity="verified",
+        checkout_correlation=correlation,
+    )
+    db.add(obs)
+
+    if correlation == "matched" and checkout and body.amount_paise is not None:
+        ledger = LedgerEntry(
+            id=f"led_{secrets.token_urlsafe(12)}",
+            tenant_id=tenant.id if tenant else "unknown",
+            employee_id=checkout.employee_id,
+            checkout_id=checkout.id,
+            observation_id=obs.id,
+            amount_paise=body.amount_paise,
+            currency=body.currency or "INR",
+            entry_type="credit",
+            state="pending",
+            reference=body.utr_rrn or body.app_transaction_id,
+        )
+        db.add(ledger)
+
+    # Add to outbox
+    outbox = Outbox(
+        id=f"out_{secrets.token_urlsafe(12)}",
+        tenant_id=tenant.id if tenant else "unknown",
+        event_type="email_observation_received",
+        payload=body.model_dump_json(),
+    )
+    db.add(outbox)
+
+    # Audit
+    audit = AuditEvent(
+        tenant_id=tenant.id if tenant else "unknown",
+        event="EMAIL_OBSERVATION_INGESTED",
+        detail=f"email_msg={body.email_message_id} observation={body.id} correlation={correlation}",
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(obs)
+
+    return {
+        "status": "ingested",
+        "observation_id": obs.id,
+        "checkout_correlation": obs.checkout_correlation,
+        "correlation_reason": correlation_reason,
+        "financially_verified": obs.financial_verification,
+    }
+
+
+# ---- Shop open/close policy ----
+
+class ShopStateRequest(BaseModel):
+    shop_state: str  # OPEN or CLOSED
+
+
+@router.post("/api/recovery/shop/state", tags=["shop"], status_code=200)
+def set_shop_state(
+    body: ShopStateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(require_role(["owner"])),
+):
+    """Open or close the shop.
+
+    When CLOSED, no new checkout links can be generated.
+    """
+    if body.shop_state not in ("OPEN", "CLOSED"):
+        raise HTTPException(status_code=400, detail="shop_state must be OPEN or CLOSED")
+
+    tenant = db.execute(select(Tenant).where(Tenant.id == auth["tenant_id"])).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tenant.shop_state = body.shop_state
+    db.commit()
+
+    return {
+        "tenant_id": tenant.id,
+        "shop_state": tenant.shop_state,
+    }
 

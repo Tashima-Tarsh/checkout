@@ -20,6 +20,13 @@ def upgrade():
         "ap_tenants",
         sa.Column("id", sa.String(64), nullable=False),
         sa.Column("name", sa.String(128), nullable=False),
+        sa.Column("owner_id", sa.String(128), nullable=True),
+        sa.Column("owner_email", sa.String(256), nullable=True),
+        sa.Column("receiving_upi_id", sa.String(128), nullable=True),
+        sa.Column("bank_alert_email", sa.String(256), nullable=True),
+        sa.Column("collection_threshold_paise", sa.Integer(), nullable=True),
+        sa.Column("shop_state", sa.String(16), nullable=True),
+        sa.Column("observation_mode", sa.String(16), nullable=True),
         sa.Column("created", sa.BigInteger(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -244,10 +251,66 @@ def upgrade():
     )
     op.create_index("ix_ap_role_assignments_employee_id", "ap_role_assignments", ["employee_id"])
 
+    op.create_table(
+        "ap_email_configs",
+        sa.Column("id", sa.String(64), nullable=False),
+        sa.Column("tenant_id", sa.String(64), nullable=True),
+        sa.Column("email_address", sa.String(256), nullable=False),
+        sa.Column("imap_host", sa.String(256), nullable=True),
+        sa.Column("imap_port", sa.Integer(), nullable=True),
+        sa.Column("oauth_refresh_token", sa.Text(), nullable=True),
+        sa.Column("oauth_access_token", sa.Text(), nullable=True),
+        sa.Column("oauth_token_expiry", sa.BigInteger(), nullable=True),
+        sa.Column("is_connected", sa.Boolean(), nullable=True),
+        sa.Column("last_polled", sa.BigInteger(), nullable=True),
+        sa.Column("allowed_senders", sa.Text(), nullable=True),
+        sa.Column("created", sa.BigInteger(), nullable=True),
+        sa.Column("updated", sa.BigInteger(), nullable=True),
+        sa.ForeignKeyConstraint(["tenant_id"], ["ap_tenants.id"], ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_ap_email_configs_tenant_id", "ap_email_configs", ["tenant_id"])
+
+    op.create_table(
+        "ap_email_observation_events",
+        sa.Column("id", sa.String(128), nullable=False),
+        sa.Column("tenant_id", sa.String(64), nullable=True),
+        sa.Column("email_message_id", sa.String(256), nullable=True),
+        sa.Column("checkout_id", sa.String(64), nullable=True),
+        sa.Column("agent_id", sa.String(64), nullable=True),
+        sa.Column("observed_receiver_upi", sa.String(128), nullable=True),
+        sa.Column("payer_name", sa.String(128), nullable=True),
+        sa.Column("payer_upi_id", sa.String(128), nullable=True),
+        sa.Column("amount_paise", sa.Integer(), nullable=True),
+        sa.Column("currency", sa.String(8), nullable=True),
+        sa.Column("utr_rrn", sa.String(64), nullable=True),
+        sa.Column("app_transaction_id", sa.String(128), nullable=True),
+        sa.Column("transaction_direction", sa.String(16), nullable=True),
+        sa.Column("app_reported_status", sa.String(32), nullable=True),
+        sa.Column("transaction_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("observation_timestamp", sa.BigInteger(), nullable=False),
+        sa.Column("server_ingestion_timestamp", sa.BigInteger(), nullable=True),
+        sa.Column("source_email", sa.String(256), nullable=True),
+        sa.Column("evidence_type", sa.String(32), nullable=False),
+        sa.Column("evidence_fingerprint", sa.String(128), nullable=True),
+        sa.Column("observation_authenticity", sa.String(32), nullable=True),
+        sa.Column("checkout_correlation", sa.String(32), nullable=True),
+        sa.Column("financial_verification", sa.Boolean(), nullable=True),
+        sa.Column("created", sa.BigInteger(), nullable=True),
+        sa.ForeignKeyConstraint(["tenant_id"], ["ap_tenants.id"], ),
+        sa.ForeignKeyConstraint(["checkout_id"], ["ap_checkouts.id"], ),
+        sa.ForeignKeyConstraint(["agent_id"], ["ap_mobile_agents.id"], ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_ap_email_observations_tenant_ingested", "ap_email_observation_events", ["tenant_id", "server_ingestion_timestamp"])
+    op.create_index("ix_ap_email_observations_utr", "ap_email_observation_events", ["utr_rrn"])
+
 
 def downgrade():
     op.drop_table("ap_role_assignments")
     op.drop_table("ap_device_sessions")
+    op.drop_table("ap_email_observation_events")
+    op.drop_table("ap_email_configs")
     op.drop_table("ap_audit_events")
     op.drop_table("ap_outbox")
     op.drop_table("ap_ledger_entries")
