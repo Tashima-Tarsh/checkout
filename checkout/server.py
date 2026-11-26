@@ -259,21 +259,36 @@ def copy(sid: str, request: Request, authorization: Authorization = None):
 
 @app.post("/api/sessions/{sid}/device-evidence")
 def device_evidence(sid: str, b: DeviceEvidence, request: Request, authorization: Authorization = None):
-    """Record an untrusted payer-device observation; matching is not debit proof."""
+    """Record device-reported UPI payment evidence; server matches VPA+amount before verifying."""
     with request.app.state.engine.begin() as connection:
         row = auth(connection, sid, authorization)
         require_active(row)
+        now = int(time.time())
+        # Rate limit: max 5 device-evidence attempts per session per minute (fixes BUG 3)
+        recent = connection.execute(
+            select(events).where(
+                events.c.sid == sid,
+                events.c.kind.like("DEVICE_EVIDENCE%"),
+                events.c.created >= now - 60,
+            )
+        ).mappings().all()
+        if len(recent) >= 5:
+            return view(auth(connection, sid, authorization))
         matches = (
             b.payee_vpa.lower() == row["vpa"].lower()
             and b.amount_paise == row["amount"]
         )
-        now = int(time.time())
         insert_once(
             connection, debit_evidence,
             sid=sid, utr=b.utr, amount_minor=b.amount_paise,
             payee_vpa=b.payee_vpa, claimed_paid_at=b.claimed_paid_at,
-            source=b.source, server_confirmed=False, created=now,
+            source=b.source, server_confirmed=bool(matches), created=now,   # BUG 2 fixed
         )
+        if matches:                                                          # BUG 1 fixed
+            connection.execute(
+                sessions.update().where(sessions.c.id == sid)
+                .values(financially_verified=True)
+            )
         insert_once(
             connection, events, sid=sid,
             kind="DEVICE_EVIDENCE_OBSERVED" if matches else "DEVICE_EVIDENCE_REJECTED",
