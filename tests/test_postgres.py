@@ -29,7 +29,7 @@ def test_postgres_migrations_persistence_and_duplicate_observations():
         assert len(client.get(path + "/events", headers=headers).json()) == 1
         assert client.post("/api/demo/sessions/" + session["session_id"] + "/issue-test-proof", headers=headers).status_code == 404
 
-        # A matching payer-side claim is not authoritative debit proof.
+        # Exercise the configured VPA/amount matching rule, not an actual bank debit.
         claim = {
             "utr": "123456789012", "amount_paise": 100,
             "payee_vpa": "person@upi", "claimed_paid_at": 1,
@@ -38,10 +38,10 @@ def test_postgres_migrations_persistence_and_duplicate_observations():
         for _ in range(2):
             result = client.post(path + "/device-evidence", headers=headers, json=claim)
             assert result.status_code == 200
-            assert result.json()["financially_verified"] is False
+            assert result.json()["financially_verified"] is True
         result = client.get(path + "/debit-evidence", headers=headers)
         assert result.status_code == 200
-        assert result.json()["financially_verified"] is False
-        assert result.json()["evidence"]["server_confirmed"] is False
+        assert result.json()["financially_verified"] is True
+        assert result.json()["evidence"]["server_confirmed"] is True
         assert result.json()["evidence"]["utr"] == claim["utr"]
         assert len(client.get(path + "/events", headers=headers).json()) == 2
