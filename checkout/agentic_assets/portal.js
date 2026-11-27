@@ -115,7 +115,7 @@ $('check-health').onclick=async()=>{try{const r=await fetch('/healthz');const x=
 
 async function refreshAndroidRuntime(){
  const el=$('android-runtime-status'); if(!el || page!=='owner') return;
- try { const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Device connected':'Cloud Android runtime not connected'; } catch {el.textContent='Device status unavailable';}
+ try { const link=$('android-provider-display');if(link){link.hidden=true;link.removeAttribute('href');} const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Genymotion device online':data.state.replaceAll('_',' '); const link=$('android-provider-display');if(link){link.hidden=!data.connected||!data.display_url;if(!link.hidden)link.href=data.display_url;else link.removeAttribute('href');} } catch {el.textContent='Device status unavailable';}
 }
 $('android-refresh').addEventListener('click',refreshAndroidRuntime);
 
