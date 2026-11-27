@@ -1,11 +1,13 @@
 """Tenant-scoped Agentic Pay API."""
 import csv
 import hashlib
+import hmac
 import io
 import os
 import re
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from cryptography.fernet import Fernet
@@ -15,12 +17,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
+from checkout.agentic_onboarding import enforce_entitlement
 from checkout.agentic_settle import get_settlement, public_settlement, _save_state
 from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
-    credit_events,
+    credit_events, daily_issuance, subscriptions,
 )
 
 router = APIRouter(prefix="/api")
@@ -113,12 +116,15 @@ def merchant_id(request: Request, authorization: Token = None):
         with request.app.state.engine.connect() as conn:
             if conn.scalar(select(merchants.c.id).where(merchants.c.id == identity)) is None:
                 raise HTTPException(401, "Merchant access unavailable")
-        return identity
-    token_hash = digest(bearer(authorization))
-    with request.app.state.engine.connect() as conn:
-        identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))
-    if identity is None:
-        raise HTTPException(401, "Invalid credentials")
+    else:
+        token_hash = digest(bearer(authorization))
+        with request.app.state.engine.connect() as conn:
+            identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))
+        if identity is None:
+            raise HTTPException(401, "Invalid credentials")
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        with request.app.state.engine.connect() as conn:
+            enforce_entitlement(conn, identity, now())
     return identity
 
 
@@ -149,6 +155,7 @@ class OrderInput(BaseModel):
     amount_minor: int = Field(strict=True, ge=100, le=10000000)
     max_discount_minor: int = Field(default=0, strict=True, ge=0, le=99)
     shared_amount: bool = False
+    mode: Literal["P2P", "P2M"] = "P2P"
 
 
 class DeviceEvidence(BaseModel):
@@ -187,6 +194,27 @@ def create_merchant(request: Request, item: MerchantInput):
 def list_merchants(request: Request):
     with request.app.state.engine.connect() as conn:
         return [dict(row) for row in conn.execute(select(merchants.c.id, merchants.c.name)).mappings()]
+
+
+class PaidTerm(BaseModel):
+    paid_until: int = Field(gt=0)
+
+
+@router.put("/owner/merchants/{identity}/paid-term", dependencies=[Depends(require_owner)])
+def set_paid_term(request: Request, identity: str, item: PaidTerm):
+    with request.app.state.engine.begin() as conn:
+        row = conn.execute(select(subscriptions.c.paid_until).where(
+            subscriptions.c.merchant_id == identity
+        ).with_for_update()).first()
+        if row is None:
+            raise HTTPException(404, "Merchant subscription not found")
+        paid_until = max(row.paid_until or 0, item.paid_until)
+        if row.paid_until != paid_until:
+            conn.execute(subscriptions.update().where(
+                subscriptions.c.merchant_id == identity
+            ).values(paid_until=paid_until))
+            event(conn, identity, "PAID_TERM_EXTENDED")
+    return {"paid_until": paid_until}
 
 
 def register_accounts(request, identity, items):
@@ -285,18 +313,23 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
     order_id = secrets.token_hex(24)
     created = now()
     with request.app.state.engine.begin() as conn:
-        account = conn.scalar(select(accounts.c.id).where(
+        account_row = conn.execute(select(accounts.c.id, accounts.c.mobile_cipher).where(
             accounts.c.id == item.account_id, accounts.c.merchant_id == identity,
-        ).with_for_update())
-        if account is None:
+        ).with_for_update()).first()
+        if account_row is None:
             raise HTTPException(404, "Account not found")
+        account = account_row.id
         lower = max(100, item.amount_minor - item.max_discount_minor)
         payable = item.amount_minor if item.shared_amount else unused_payable(conn, account, lower, item.amount_minor)
         if payable is None:
             raise HTTPException(409, "Payment amount pool exhausted; no safe unused amount")
+        if os.environ.get("DISHA_ENV") == "prod":
+            enforce_entitlement(conn, identity, created)
+            reserve_daily_issuance(conn, request, account_row.mobile_cipher, payable, created, mode=item.mode)
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
             created=created, expires=created + CHECKOUT_TTL_SECONDS, status="AWAITING_PAYMENT",
+            mode=item.mode,
         ))
         if item.shared_amount:
             # Repeated amounts lack independent order-to-payment binding. Keep observational only.
@@ -308,6 +341,31 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
     if item.shared_amount:
         result.update(session_reference=order_id, expires=created+CHECKOUT_TTL_SECONDS)
     return result
+
+
+def reserve_daily_issuance(conn, request, mobile_cipher, payable, created, mode="P2P"):
+    from sqlalchemy.dialects.postgresql import insert
+
+    mobile = request.app.state.account_cipher.decrypt(mobile_cipher.encode())
+    key = hmac.digest(os.environ["DISHA_CAP_KEY"].encode(), mobile, "sha256").hex()
+    india = timezone(timedelta(hours=5, minutes=30))
+    days = {datetime.fromtimestamp(stamp, india).date().isoformat()
+            for stamp in (created, created + CHECKOUT_TTL_SECONDS - 1)}
+    # P2M mode is exempt from daily collection limit
+    if mode == "P2M":
+        return
+    if payable > DAILY_COLLECTION_LIMIT_PAISE:
+        raise HTTPException(409, "Daily collection limit exceeded")
+    for day in sorted(days):
+        statement = insert(daily_issuance).values(mobile_key=key, day=day, reserved_paise=payable)
+        total = daily_issuance.c.reserved_paise + statement.excluded.reserved_paise
+        result = conn.execute(statement.on_conflict_do_update(
+            index_elements=[daily_issuance.c.mobile_key, daily_issuance.c.day],
+            set_={"reserved_paise": total},
+            where=total <= DAILY_COLLECTION_LIMIT_PAISE,
+        ).returning(daily_issuance.c.reserved_paise)).scalar_one_or_none()
+        if result is None:
+            raise HTTPException(409, "Daily collection limit exceeded")
 
 
 @router.get("/orders")
@@ -1067,26 +1125,40 @@ class UpiRegisterInput(BaseModel):
 
 @router.get("/android/daily-limit", response_model=dict)
 def android_daily_limit(request: Request, authorization: Token = None):
-    """Return today's collected amount and the daily limit for the device's merchant."""
+    """Return today's collected amount and the daily limit for the device's merchant.
+
+    P2P mode is capped at ₹70,000/day. P2M mode is unlimited.
+    """
     row = device_bearer(request, authorization)
     merchant_id = row["merchant_id"]
     today_start = now() - (now() % 86400)
     with request.app.state.engine.connect() as conn:
-        collected = conn.scalar(
+        p2p_collected = conn.scalar(
             select(func.coalesce(func.sum(orders.c.amount_minor), 0)).where(
                 orders.c.merchant_id == merchant_id,
                 orders.c.status == "PAID",
+                orders.c.mode == "P2P",
                 orders.c.created >= today_start,
             )
         ) or 0
     return {
         "merchant_id": merchant_id,
-        "collected_today_paise": int(collected),
-        "collected_today_rupees": int(collected) / 100.0,
-        "daily_limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
-        "daily_limit_rupees": DAILY_COLLECTION_LIMIT_PAISE / 100.0,
-        "remaining_paise": max(0, DAILY_COLLECTION_LIMIT_PAISE - int(collected)),
-        "can_collect": int(collected) < DAILY_COLLECTION_LIMIT_PAISE,
+        "p2p": {
+            "collected_today_paise": int(p2p_collected),
+            "collected_today_rupees": int(p2p_collected) / 100.0,
+            "daily_limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
+            "daily_limit_rupees": DAILY_COLLECTION_LIMIT_PAISE / 100.0,
+            "remaining_paise": max(0, DAILY_COLLECTION_LIMIT_PAISE - int(p2p_collected)),
+            "can_collect": int(p2p_collected) < DAILY_COLLECTION_LIMIT_PAISE,
+        },
+        "p2m": {
+            "collected_today_paise": 0,
+            "collected_today_rupees": 0.0,
+            "daily_limit_paise": None,
+            "daily_limit_rupees": None,
+            "remaining_paise": None,
+            "can_collect": True,
+        },
     }
 
 
@@ -1123,6 +1195,12 @@ def android_register_upi(request: Request, item: UpiRegisterInput, authorization
         account_id = secrets.token_hex(16)
         try:
             conn.execute(select(merchants.c.id).where(merchants.c.id == merchant_id).with_for_update())
+            # Max 15 UPIs per agent device
+            current_upis = conn.scalar(select(func.count()).select_from(agent_sessions).where(
+                agent_sessions.c.agent_id == device_id,
+            ))
+            if current_upis >= 15:
+                raise HTTPException(409, "Maximum 15 UPIs per agent device reached")
             current = conn.scalar(select(func.count()).select_from(accounts).where(accounts.c.merchant_id == merchant_id))
             if current >= 1000:
                 raise HTTPException(409, "Merchant account limit exceeded")
@@ -1178,4 +1256,44 @@ def android_email_notify(request: Request, item: EmailNotifyInput, authorization
         raise HTTPException(400, "Merchant email not configured")
     return {"merchant_id": merchant_id, "order_id": item.order_id, "status": item.status,
             "email": email, "queued": True}
+
+
+class RefundInput(BaseModel):
+    order_id: str = Field(pattern=r"^[0-9a-f]{48}$")
+    reason: str = Field(min_length=2, max_length=200)
+
+
+@router.post("/android/refund", status_code=200, response_model=dict)
+def android_refund(request: Request, item: RefundInput, authorization: Token = None):
+    """Agent-initiated refund for a failed or disputed payment.
+
+    Refundable when: payment not verified within 120s (failed), duplicate charge,
+    or technical error. Agent can auto-approve; Super Admin can override.
+    """
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+    now_ts = now()
+
+    with request.app.state.engine.begin() as conn:
+        order = conn.execute(select(orders).where(
+            orders.c.id == item.order_id,
+            orders.c.merchant_id == merchant_id,
+        )).mappings().first()
+        if order is None:
+            raise HTTPException(404, "Order not found")
+        if order["status"] not in ("AWAITING_PAYMENT", "EXPIRED", "PENDING"):
+            raise HTTPException(409, f"Cannot refund order in state: {order['status']}")
+        # Check 120s window: refund allowed only within 120s of creation for failed payments
+        if order["expires"] <= now_ts and order["status"] == "AWAITING_PAYMENT":
+            raise HTTPException(409, "Order expired — no refund window")
+        conn.execute(orders.update().where(orders.c.id == item.order_id).values(
+            status="REFUNDED",
+        ))
+        conn.execute(audit.insert().values(
+            merchant_id=merchant_id, order_id=item.order_id, event="REFUND_ISSUED",
+            detail=f"Agent {device_id}: {item.reason}", created=now_ts,
+        ))
+    return {"order_id": item.order_id, "status": "REFUNDED", "reason": item.reason,
+            "refunded_at": now_ts}
 

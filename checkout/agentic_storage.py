@@ -63,6 +63,7 @@ orders = Table(
     Column("created", BigInteger, nullable=False),
     Column("expires", BigInteger, nullable=False),
     Column("status", String(16), nullable=False),
+    Column("mode", String(4), nullable=False, default="P2P"),
     ForeignKeyConstraint(["merchant_id", "account_id"], ["ap_accounts.merchant_id", "ap_accounts.id"]),
 )
 jobs = Table(
@@ -308,4 +309,10 @@ def ensure_schema(engine):
                 "created_at BIGINT NOT NULL,"
                 "updated_at BIGINT"
                 ")"
+            ))
+        # orders.mode column migration (idempotent)
+        order_cols = {c["name"] for c in inspector.get_columns("ap_orders")}
+        if "mode" not in order_cols:
+            connection.execute(text(
+                "ALTER TABLE ap_orders ADD COLUMN mode VARCHAR(4) DEFAULT 'P2P'"
             ))

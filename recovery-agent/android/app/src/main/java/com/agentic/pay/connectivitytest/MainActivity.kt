@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var refreshButton: Button
     private lateinit var upiButton: Button
     private lateinit var checkoutButton: Button
+    private lateinit var refundButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -142,6 +143,12 @@ class MainActivity : Activity() {
         }
         layout.addView(checkoutButton)
 
+        refundButton = Button(this).apply {
+            text = "Refund Payment"
+            isEnabled = false
+        }
+        layout.addView(refundButton)
+
         refreshButton = Button(this).apply { text = "Refresh Status" }
         layout.addView(refreshButton)
 
@@ -165,6 +172,11 @@ class MainActivity : Activity() {
 
         checkoutButton.setOnClickListener {
             val intent = Intent(this, CheckoutActivity::class.java)
+            startActivity(intent)
+        }
+
+        refundButton.setOnClickListener {
+            val intent = Intent(this, RefundActivity::class.java)
             startActivity(intent)
         }
 
@@ -230,6 +242,7 @@ class MainActivity : Activity() {
         pairButton.text = if (enrolled) "Re-enroll Device" else "Enroll Device (Pairing Code)"
         upiButton.isEnabled = enrolled
         checkoutButton.isEnabled = enrolled && upiRegistered
+        refundButton.isEnabled = enrolled && upiRegistered
     }
 
     private fun observeButtonState(enrolled: Boolean) {

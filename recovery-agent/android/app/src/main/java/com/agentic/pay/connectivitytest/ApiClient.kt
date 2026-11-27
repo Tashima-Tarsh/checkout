@@ -147,15 +147,28 @@ object ApiClient {
     }
 
     /** Create a checkout order. Returns order id and checkout path. */
-    fun createOrder(credential: String, amountPaise: Long, accountId: String,
+    fun createOrder(credential: String, amountPaise: Long, accountId: String, mode: String = "P2P",
                     callback: (Result<String>) -> Unit) {
         thread {
             val body = mapOf(
                 "account_id" to accountId,
                 "amount_minor" to amountPaise,
                 "shared_amount" to false,
+                "mode" to mode,
             )
             val result = httpPost("/api/orders", body, credential)
+            callback(result)
+        }
+    }
+
+    /** Agent-initiated refund for a failed or disputed payment. */
+    fun refund(orderId: String, reason: String, credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mapOf(
+                "order_id" to orderId,
+                "reason" to reason,
+            )
+            val result = httpPost("/api/android/refund", body, credential)
             callback(result)
         }
     }

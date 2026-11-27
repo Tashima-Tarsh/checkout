@@ -13,6 +13,7 @@ class CheckoutActivity : Activity() {
 
     private lateinit var credentialStore: CredentialStore
     private lateinit var amountInput: EditText
+    private lateinit var modeSpinner: Spinner
     private lateinit var statusText: TextView
     private lateinit var timerText: TextView
     private lateinit var linkText: TextView
@@ -32,7 +33,6 @@ class CheckoutActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
-            // Security: refuse to run on rooted devices
             if (RootUtil.isRooted(this)) {
                 showErrorScreen("Security: Rooted devices are not allowed.")
                 return
@@ -70,6 +70,21 @@ class CheckoutActivity : Activity() {
             textSize = 14f
         }
         layout.addView(dailyLimitText)
+
+        // Mode selection: P2P (₹70k/day cap) vs P2M (unlimited)
+        val modeLabel = TextView(this).apply {
+            text = "Payment Mode"
+            textSize = 16f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(modeLabel)
+
+        modeSpinner = Spinner(this)
+        val modes = arrayOf("P2P — Person to Person (₹70,000/day cap)", "P2M — Person to Merchant (unlimited)")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, modes)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        modeSpinner.adapter = adapter
+        layout.addView(modeSpinner)
 
         amountInput = EditText(this).apply {
             hint = "Amount (₹)"
@@ -155,15 +170,27 @@ class CheckoutActivity : Activity() {
                     is ApiClient.Result.Success -> {
                         try {
                             val json = JsonParser.parseString(result.value).asJsonObject
-                            val collected = json.get("collected_today_rupees").asDouble
-                            val limit = json.get("daily_limit_rupees").asDouble
-                            val remaining = json.get("remaining_rupees").asDouble
-                            val canCollect = json.get("can_collect").asBoolean
-                            dailyLimitText.text = "Daily collected: ₹${"%.2f".format(collected)} / ₹${"%.2f".format(limit)} (remaining: ₹${"%.2f".format(remaining)})"
-                            if (!canCollect) {
+                            val p2p = json.getAsJsonObject("p2p")
+                            val p2m = json.getAsJsonObject("p2m")
+                            val p2pCollected = p2p.get("collected_today_rupees").asDouble
+                            val p2pLimit = p2p.get("daily_limit_rupees").asDouble
+                            val p2pRemaining = p2p.get("remaining_rupees").asDouble
+                            val p2pCanCollect = p2p.get("can_collect").asBoolean
+                            val p2mCanCollect = p2m.get("can_collect").asBoolean
+
+                            dailyLimitText.text = "P2P: ₹${"%.2f".format(p2pCollected)} / ₹${"%.2f".format(p2pLimit)} (remaining: ₹${"%.2f".format(p2pRemaining)})   |   P2M: unlimited"
+
+                            val selectedMode = if (modeSpinner.selectedItemPosition == 0) "P2P" else "P2M"
+                            if (selectedMode == "P2P" && !p2pCanCollect) {
                                 createButton.isEnabled = false
-                                createButton.text = "Daily limit reached — shop closed"
-                                statusText.text = "₹70,000 daily limit reached. No more checkouts today."
+                                createButton.text = "P2P daily limit reached — shop closed"
+                                statusText.text = "₹70,000 P2P daily limit reached. Use P2M mode or wait until tomorrow."
+                            } else if (selectedMode == "P2M" && !p2mCanCollect) {
+                                createButton.isEnabled = false
+                                createButton.text = "P2M temporarily unavailable"
+                            } else {
+                                createButton.isEnabled = true
+                                createButton.text = "Create Checkout"
                             }
                         } catch (e: Exception) {
                             dailyLimitText.text = "Daily limit: parse error"
@@ -202,10 +229,12 @@ class CheckoutActivity : Activity() {
             return
         }
 
+        val mode = if (modeSpinner.selectedItemPosition == 0) "P2P" else "P2M"
+
         createButton.isEnabled = false
         statusText.text = "Creating checkout…"
 
-        ApiClient.createOrder(token, amountPaise, accountId) { result ->
+        ApiClient.createOrder(token, amountPaise, accountId, mode) { result ->
             runOnUiThread {
                 createButton.isEnabled = true
                 when (result) {
@@ -218,7 +247,7 @@ class CheckoutActivity : Activity() {
                             orderExpiresAt = (System.currentTimeMillis() / 1000) + DeviceConfig.CHECKOUT_WINDOW_SECONDS
                             secondsRemaining = DeviceConfig.CHECKOUT_WINDOW_SECONDS
                             linkText.text = "Payment link: $path"
-                            statusText.text = "Checkout created. Share this link with the customer."
+                            statusText.text = "Checkout created ($mode). Share this link with the customer."
                             timerText.text = "Time remaining: $secondsRemaining s"
                             verifyButton.isEnabled = true
                             startPolling()
@@ -260,7 +289,6 @@ class CheckoutActivity : Activity() {
                                 statusText.text = "PAYMENT VERIFIED — Debit confirmed ✓"
                                 linkText.text = ""
                                 stopPolling()
-                                // Send email notification
                                 sendPaymentEmail(orderIdVal!!, "VERIFIED")
                             } else if (status == "PAID" || settlementState == "SETTLED") {
                                 statusText.text = "Payment received — awaiting final confirmation"
@@ -317,7 +345,6 @@ class CheckoutActivity : Activity() {
                         statusText.append("\nEmail notification queued for order $orderId ($status).")
                     }
                     is ApiClient.Result.Error -> {
-                        // Email is non-fatal; don't block the verified state.
                         statusText.append("\nEmail notification: ${result.message}")
                     }
                 }
