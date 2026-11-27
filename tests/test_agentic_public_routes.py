@@ -251,3 +251,12 @@ def test_vision_permission_uat_isolated():
     assert client.get("/assets/vision-uat.js").status_code == 200
     assert client.post("/research/vision-uat").status_code == 405
     assert "/research/vision-uat" not in client.get("/checkout/" + "a"*48).text
+
+
+def test_android_workspace_uses_existing_owner_portal_and_requires_session():
+    client = TestClient(app, follow_redirects=False)
+    response = client.get("/android/workspace")
+    assert response.status_code == 307
+    assert response.headers["location"] == "/owner#androidworkspace"
+    assert 'id="view-androidworkspace"' in client.get("/owner").text
+    assert client.get("/api/android/workspace/status").status_code == 401
