@@ -67,8 +67,14 @@ def bearer(authorization):
     return token
 
 
-def device_bearer(request: Request, authorization: Token = None):
-    """Authenticate an enrolled device using its stored credential."""
+def device_bearer(request: Request, authorization: Token = None, *, allow_offline: bool = False):
+    """Authenticate an enrolled device using its stored credential.
+
+    By default the device must be ONLINE. Pass allow_offline=True for the
+    heartbeat endpoint so a device that fell OFFLINE (missed the 90s window)
+    can re-heartbeat and come back online instead of being locked out.
+    Revoked or expired credentials are still rejected.
+    """
     if authorization is None:
         raise HTTPException(401, "Device credentials required")
     token = bearer(authorization)
@@ -87,7 +93,7 @@ def device_bearer(request: Request, authorization: Token = None):
         raise HTTPException(401, "Device revoked")
     if row["expires"] is not None and row["expires"] <= now:
         raise HTTPException(401, "Device credential expired")
-    if row["state"] != DEVICE_STATE_ONLINE:
+    if row["state"] != DEVICE_STATE_ONLINE and not allow_offline:
         raise HTTPException(401, "Device not enrolled")
     return row
 
@@ -746,8 +752,12 @@ def device_pair(request: Request, item: DevicePairInput):
 
 @router.post("/android/heartbeat", status_code=204)
 def device_heartbeat(request: Request, authorization: Token = None):
-    """Authenticated device heartbeat. Updates last-seen timestamp."""
-    row = device_bearer(request, authorization)
+    """Authenticated device heartbeat. Updates last-seen timestamp.
+
+    Allows an OFFLINE device to re-heartbeat and return to ONLINE; revoked
+    or expired credentials are still rejected.
+    """
+    row = device_bearer(request, authorization, allow_offline=True)
     ts = now()
     with request.app.state.engine.begin() as conn:
         conn.execute(
