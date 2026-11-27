@@ -1,0 +1,97 @@
+DISHA — Agentic UPI Payment Verification Platform
+Proprietary Commercial License (PCL-1.0)
+
+Copyright (c) 2026 Tashima-Tarsh. All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary property of Tashima-Tarsh ("Licensor"). The Software is licensed,
+not sold, and is protected by copyright laws and international treaty
+provisions.
+
+1. GRANT OF LICENSE
+
+Subject to the terms and conditions of this License, Licensor hereby grants
+You a limited, non-exclusive, non-transferable, revocable license to:
+
+(a) Use the Software solely for internal evaluation, development, and
+    operation of your own UPI merchant verification workflows;
+
+(b) Modify and create derivative works of the Software for Your internal
+    use, provided that all such modifications remain subject to this License;
+
+(c) Deploy the Software on infrastructure You control or on third-party
+    cloud platforms (including Railway) for Your own merchant operations.
+
+2. RESERVATION OF RIGHTS
+
+All rights not expressly granted to You are reserved by Licensor. In
+particular, Licensor reserves the following rights:
+
+(a) The right to sell, sublicense, or commercially distribute the Software;
+
+(b) The right to use the Software as part of a payment gateway, escrow
+    service, wallet, or any system that holds, moves, or settles customer
+    funds;
+
+(c) The right to offer the Software as a managed service, SaaS offering,
+    or white-label solution to third parties;
+
+(d) The right to integrate the Software into bank participation programs,
+    payment rails, or regulated financial infrastructure.
+
+3. RESTRICTIONS
+
+You may not:
+
+(a) Reverse engineer, decompile, disassemble, or attempt to derive the
+    source code of the Software, except as expressly permitted by law;
+
+(b) Remove, obscure, or alter any copyright, trademark, or proprietary
+    notice contained in the Software;
+
+(c) Use the Software to hold, settle, escrow, or otherwise take custody of
+    customer funds. The Software is a verification observability layer and
+    must not be used as a payment gateway, wallet, or payment system;
+
+(d) Sublicense, rent, lease, or transfer the Software or any portion of it
+    to any third party;
+
+(e) Use the Software in connection with any activity that violates
+    applicable law, including RBI UPI guidelines, NPCI specifications, or
+    any applicable anti-money laundering or know-your-customer regulations;
+
+(f) Deploy the Software for the benefit of third parties as a service
+    without a separate commercial agreement with Licensor.
+
+4. BANK PARTICIPATION
+
+Any use of the Software in connection with a bank participation program,
+licensed payment system, or regulated financial infrastructure requires a
+separate written commercial agreement with Licensor. Bank participation
+licensing is currently in progress; contact Licensor for availability.
+
+5. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. TERMINATION
+
+This License is effective until terminated. Licensor may terminate this
+License at any time upon written notice if You breach any term. Upon
+termination, You must cease all use of the Software and destroy all copies.
+
+7. GOVERNING LAW
+
+This License shall be governed by and construed in accordance with the laws
+of India, without regard to its conflict-of-law principles.
+
+8. CONTACT
+
+For commercial licensing, bank participation, or enterprise deployment
+inquiries, contact Licensor through GitHub Issues or the repository contact
+information.
