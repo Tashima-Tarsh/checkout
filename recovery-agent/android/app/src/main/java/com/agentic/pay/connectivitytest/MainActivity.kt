@@ -44,14 +44,14 @@ class MainActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Agentic Pay Receiver"
+            text = "G Shop App"
             textSize = 22f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
         layout.addView(title)
 
         val deviceId = TextView(this).apply {
-            text = "Device ID: ${DeviceConfig.DEVICE_ID}"
+            text = "Disha"
             textSize = 16f
         }
         layout.addView(deviceId)
@@ -69,7 +69,7 @@ class MainActivity : Activity() {
         layout.addView(heartbeatText)
 
         versionText = TextView(this).apply {
-            text = "App version: —"
+            text = "App version: 2.3"
             textSize = 16f
         }
         layout.addView(versionText)
@@ -91,7 +91,7 @@ class MainActivity : Activity() {
         layout.addView(refreshButton)
 
         val msg = TextView(this).apply {
-            text = "Connection refreshes while this screen is open. No automatic payment source configured."
+            text = "Checkout window: 120 seconds. Connection refreshes while open. Automatic payment source not configured."
             textSize = 12f
         }
         layout.addView(msg)
@@ -183,7 +183,7 @@ class MainActivity : Activity() {
         if (token == null) {
             statusText.text = "Status: Not enrolled"
             heartbeatText.text = "Last heartbeat: —"
-            versionText.text = "App version: ${credentialStore.getAppVersion() ?: "—"}"
+            versionText.text = "App version: 2.3"
             return
         }
         val expiresAt = credentialStore.getCredentialExpiresAt()
@@ -203,7 +203,7 @@ class MainActivity : Activity() {
                             val connected = json.get("connected").asBoolean
                             statusText.text = "Status: $state (${if (connected) "ONLINE" else "OFFLINE"})"
                             heartbeatText.text = "Last heartbeat: ${(json.get("last_heartbeat")?.takeUnless { it.isJsonNull }?.asString ?: "—")}"
-                            versionText.text = "App version: ${(json.get("app_version")?.takeUnless { it.isJsonNull }?.asString ?: "—")}"
+                            versionText.text = "App version: 2.3"
                         } catch (e: Exception) {
                             statusText.text = "Status: Parse error"
                         }
