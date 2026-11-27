@@ -83,6 +83,8 @@ async def lifespan(app):
 app = FastAPI(title="Agentic Pay", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(router)
 app.include_router(login_router)
+from checkout.agentic_owner_dashboard import router as owner_dashboard_router
+app.include_router(owner_dashboard_router)
 app.include_router(vision_router)
 app.include_router(live_vision_router)
 app.include_router(test_checkout_router)
