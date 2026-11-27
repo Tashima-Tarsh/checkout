@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.agentic_api import ORDER_ID, digest, now, router
-from checkout.agentic_login import configure, router as login_router
+from checkout.agentic_login import configure, require_session, router as login_router
 from checkout.agentic_live_vision_api import router as live_vision_router
 from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links, ensure_schema
 from checkout.agentic_worker import N8nProvider, dispatch_next
@@ -181,3 +181,15 @@ def public_test_checkout(request: Request):
     if order["status"] != "AWAITING_PAYMENT" or order["expires"] <= now():
         raise HTTPException(410, "Test checkout expired or already submitted")
     return RedirectResponse(f"/checkout/{order_id}", status_code=303)
+
+
+@app.get("/android/workspace")
+def android_workspace():
+    return RedirectResponse("/owner#androidworkspace")
+
+
+@app.get("/api/android/workspace/status")
+def android_workspace_status(request: Request):
+    require_session(request)
+    return {"connected": False, "state": "CLOUD_RUNTIME_NOT_CONNECTED",
+            "device_id": "AgenticMobile0001", "financially_verified": False}
