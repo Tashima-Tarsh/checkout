@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#065440">
+  <title>Prism Operations — Agent Portal</title>
+  <link rel="stylesheet" href="/static/prism.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <script src="/static/prism.js?v=1.0" defer></script>
+</head>
+<body class="prism-body agent-portal">
+  <div id="toast-container"></div>
+
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand" onclick="showPage('agent-dashboard')">
+        <span class="brandmark">D</span>
+        <span class="brand-name">Prism Operations</span>
+        <span class="brand-sub">Agent Portal</span>
+      </div>
+      <div class="topbar-search">
+        <input type="text" placeholder="Search orders, UPI IDs…" class="search-input">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-item">
+        <span class="badge badge-success">ONLINE</span>
+      </div>
+      <button class="btn-icon" aria-label="Notifications">🔔</button>
+      <button class="btn-icon" aria-label="User profile">👤</button>
+      <button class="btn-secondary" onclick="showPage('login')">Sign out</button>
+    </div>
+  </header>
+
+  <div class="prism-shell">
+    <nav class="prism-sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-section">
+        <div class="nav-section-title">OPERATIONS</div>
+        <a class="nav-link active" href="#a-dashboard" onclick="showPage('a-dashboard')">
+          <span class="nav-icon">📊</span>Dashboard
+        </a>
+        <a class="nav-link" href="#a-checkouts" onclick="showPage('a-checkouts')">
+          <span class="nav-icon">💳</span>Active Checkouts
+        </a>
+        <a class="nav-link" href="#a-refunds" onclick="showPage('a-refunds')">
+          <span class="nav-icon">↩️</span>Refunds
+        </a>
+        <a class="nav-link" href="#a-history" onclick="showPage('a-history')">
+          <span class="nav-icon">📋</span>History
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">DEVICES</div>
+        <a class="nav-link" href="#a-devices" onclick="showPage('a-devices')">
+          <span class="nav-icon">📱</span>My Android Device
+        </a>
+        <a class="nav-link" href="#a-upi-apps" onclick="showPage('a-upi-apps')">
+          <span class="nav-icon">📱</span>UPI App Switcher
+        </a>
+      </div>
+    </nav>
+
+    <main class="prism-main">
+      <!-- Agent Dashboard -->
+      <section id="a-dashboard" class="page">
+        <div class="page-header">
+          <h1>Operations Dashboard</h1>
+          <p>Your assigned checkouts and payment verification queue.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Active Checkouts</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">awaiting payment</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Verified Today</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">server-confirmed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Collected Today</div>
+            <div class="stat-value">₹0.00</div>
+            <div class="stat-trend neutral">P2P cap ₹70,000</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Refunds Today</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">agent-initiated</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Registered UPIs</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">max 15 per device</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Worker Fleet</div>
+            <div class="stat-value">15</div>
+            <div class="stat-trend neutral">auto-monitoring</div>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="prism-glass-strong" style="grid-column: 1 / -1;">
+            <div class="sectionheading"><span class="step">01</span><div><h2>Active Checkouts</h2><p>Orders awaiting customer payment — auto-verifies within 120 seconds.</p></div></div>
+            <div class="table-wrap" style="margin-top: 1rem;">
+              <table class="table">
+                <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>UPI ID</th><th>Status</th><th>Time Left</th></tr></thead>
+                <tbody id="a-active-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No active checkouts.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="prism-glass">
+            <div class="sectionheading"><span class="step">02</span><div><h2>Quick Actions</h2><p>Create checkout, verify payment, or issue refund.</p></div></div>
+            <div class="field-group two" style="margin-top: 1rem;">
+              <div class="field">
+                <button class="btn-primary" onclick="showPage('a-create-checkout')" style="width:100%;">Create Checkout</button>
+              </div>
+              <div class="field">
+                <button class="btn-secondary" onclick="showPage('a-refunds')" style="width:100%;">Issue Refund</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Checkouts -->
+      <section id="a-checkouts" class="page" hidden>
+        <div class="page-header">
+          <h1>Active Checkouts</h1>
+          <p>Orders awaiting customer payment — auto-verification within 120s window.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Order ID</th><th>Amount</th><th>UPI ID</th><th>Mode</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead>
+            <tbody id="a-active-body2"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No active checkouts.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Refunds -->
+      <section id="a-refunds" class="page" hidden>
+        <div class="page-header">
+          <h1>Refund Payments</h1>
+          <p>Agent-initiated refunds for failed, expired, or disputed payments.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <form id="a-refund-form" class="field-group">
+            <div class="field">
+              <label>Order ID</label>
+              <input type="text" id="a-refund-order" placeholder="Order ID" class="field input" required>
+            </div>
+            <div class="field">
+              <label>Reason</label>
+              <select id="a-refund-reason" class="field input" required>
+                <option value="payment_not_verified">Payment not verified within 120s</option>
+                <option value="duplicate_charge">Duplicate charge</option>
+                <option value="technical_error">Technical error</option>
+                <option value="customer_dispute">Customer dispute</option>
+              </select>
+            </div>
+            <button class="btn-primary" type="submit">Issue Refund</button>
+          </form>
+          <p class="notice" style="margin-top: 1rem;">Refundable only within the 120-second verification window for unconfirmed payments.</p>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section id="a-history" class="page" hidden>
+        <div class="page-header">
+          <h1>Operation History</h1>
+          <p>All checkouts, verifications, and refunds processed by this agent.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Order ID</th><th>Amount</th><th>Mode</th><th>Action</th><th>Result</th><th>Time</th></tr></thead>
+            <tbody id="a-hist-body"><tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No history.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- My Device -->
+      <section id="a-devices" class="page" hidden>
+        <div class="page-header">
+          <h1>My Android Device</h1>
+          <p>Device enrollment, heartbeat status, and UPI registrations.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Device ID</label>
+              <input type="text" value="device_abc123" class="field input" readonly>
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <span class="badge badge-success">ONLINE</span>
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>Last Heartbeat</label>
+              <input type="text" value="Just now" class="field input" readonly>
+            </div>
+          </div>
+          <div class="field-group" style="margin-top: 1.5rem;">
+            <label>UPI Apps Installed</label>
+            <div class="prism-glass" style="padding: 1rem;">
+              <div class="field-group">
+                <span class="badge badge-success">GPay</span>
+                <span class="badge badge-success">PhonePe</span>
+                <span class="badge badge-success">BHIM</span>
+                <span class="badge badge-success">WhatsApp Pay</span>
+                <span class="badge badge-success">Cred</span>
+                <span class="badge badge-success">Mi Pay</span>
+                <span class="badge badge-success">Paytm</span>
+                <span class="badge badge-success">Amazon Pay</span>
+                <span class="badge badge-success">Airtel Pay</span>
+                <span class="badge badge-success">JioPay</span>
+                <span class="badge badge-success">BharatPe</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Refresh Heartbeat</button>
+        </div>
+      </section>
+
+      <!-- UPI App Switcher -->
+      <section id="a-upi-apps" class="page" hidden>
+        <div class="page-header">
+          <h1>UPI App Switcher</h1>
+          <p>Workers switch between UPI apps to distribute payment volume across devices.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Active App</label>
+              <select class="field input">
+                <option>GPay — Primary</option>
+                <option>PhonePe</option>
+                <option>BHIM</option>
+                <option>Paytm</option>
+                <option>Amazon Pay</option>
+              </select>
+            </div>
+            <div class="field">
+              <button class="btn-primary" type="button">Switch App</button>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top: 1rem;">
+            <table class="table">
+              <thead><tr><th>App</th><th>Package</th><th>Status</th><th>Daily Txns</th><th>Last Used</th></tr></thead>
+              <tbody>
+                <tr><td>GPay</td><td>com.google.android.apps.nbu.paisa.user</td><td><span class="badge badge-success">Installed</span></td><td>12</td><td>2 min ago</td></tr>
+                <tr><td>PhonePe</td><td>com.phonepe.app</td><td><span class="badge badge-success">Installed</span></td><td>8</td><td>15 min ago</td></tr>
+                <tr><td>BHIM</td><td>in.org.npci.upiapp</td><td><span class="badge badge-success">Installed</span></td><td>5</td><td>1 hour ago</td></tr>
+                <tr><td>Paytm</td><td>net.one97.paytm</td><td><span class="badge badge-success">Installed</span></td><td>3</td><td>3 hours ago</td></tr>
+                <tr><td>WhatsApp Pay</td><td>com.whatsapp</td><td><span class="badge badge-warning">Not Installed</span></td><td>0</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Create Checkout (Agent) -->
+      <section id="a-create-checkout" class="page" hidden>
+        <div class="page-header">
+          <h1>Create Checkout</h1>
+          <p>Generate a payment link for your customer.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <form id="a-create-form" class="field-group">
+            <div class="field">
+              <label>Amount (₹)</label>
+              <input type="number" id="a-amount" min="1" max="1000000" step=".01" placeholder="499.00" required class="field input">
+            </div>
+            <div class="field">
+              <label>Payment Mode</label>
+              <select id="a-mode" class="field input">
+                <option value="P2P">P2P — Person to Person (₹70k/day cap)</option>
+                <option value="P2M">P2M — Person to Merchant (unlimited)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Customer Name</label>
+              <input type="text" id="a-name" placeholder="Customer name" class="field input" required>
+            </div>
+            <div class="field">
+              <label>Assign to Worker (UPI ID)</label>
+              <select id="a-worker" class="field input">
+                <option>Auto-select (intelligent routing)</option>
+                <option>Worker 0 — name@upi (GPay)</option>
+                <option>Worker 1 — merchant@upi (PhonePe)</option>
+                <option>Worker 2 — shop@upi (BHIM)</option>
+              </select>
+            </div>
+            <button class="btn-primary" type="submit">Create Checkout Link</button>
+          </form>
+          <p class="notice" style="margin-top: 1rem;">The checkout link is unique and time-bound (120 seconds). Sharing it does not confirm payment.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/prism.js?v=1.0"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('a-dashboard');
+      navLinkActive();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#065440">
+  <title>Prism Business — Merchant Portal</title>
+  <link rel="stylesheet" href="/static/prism.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <script src="/static/prism.js?v=1.0" defer></script>
+</head>
+<body class="prism-body merchant-portal">
+  <div id="toast-container"></div>
+
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand" onclick="showPage('merchant-dashboard')">
+        <span class="brandmark">D</span>
+        <span class="brand-name">Prism Business</span>
+        <span class="brand-sub">Merchant Portal</span>
+      </div>
+      <div class="topbar-search">
+        <input type="text" placeholder="Search transactions, UPI IDs…" class="search-input">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-item">
+        <span class="badge badge-success">ACTIVE</span>
+      </div>
+      <button class="btn-icon" aria-label="Notifications">🔔</button>
+      <button class="btn-icon" aria-label="User profile">👤</button>
+      <button class="btn-secondary" onclick="showPage('login')">Sign out</button>
+    </div>
+  </header>
+
+  <div class="prism-shell">
+    <nav class="prism-sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-section">
+        <div class="nav-section-title">DASHBOARD</div>
+        <a class="nav-link active" href="#m-dashboard" onclick="showPage('m-dashboard')">
+          <span class="nav-icon">📊</span>Dashboard
+        </a>
+        <a class="nav-link" href="#m-create" onclick="showPage('m-create-checkout')">
+          <span class="nav-icon">💳</span>Create Checkout
+        </a>
+        <a class="nav-link" href="#m-transactions" onclick="showPage('m-transactions')">
+          <span class="nav-icon">💳</span>Transactions
+        </a>
+        <a class="nav-link" href="#m-upi" onclick="showPage('m-upi-accounts')">
+          <span class="nav-icon">🏧</span>UPI Accounts
+        </a>
+        <a class="nav-link" href="#m-receipts" onclick="showPage('m-receipts')">
+          <span class="nav-icon">🧾</span>Receipts
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">CONFIGURE</div>
+        <a class="nav-link" href="#m-branding" onclick="showPage('m-branding')">
+          <span class="nav-icon">🎨</span>Branding
+        </a>
+        <a class="nav-link" href="#m-api" onclick="showPage('m-api-keys')">
+          <span class="nav-icon">🔑</span>API Keys
+        </a>
+      </div>
+    </nav>
+
+    <main class="prism-main">
+      <!-- Merchant Dashboard -->
+      <section id="m-dashboard" class="page">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Your business payment activity — daily cap ₹70,000 per agent device.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Collected Today</div>
+            <div class="stat-value">₹0.00</div>
+            <div class="stat-trend neutral">₹70,000 daily cap</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">0 today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Verified Debits</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">server-confirmed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">awaiting payment</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Registered UPIs</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">max 15 per device</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Agent Devices</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">online</div>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="prism-glass-strong" style="grid-column: 1 / -1;">
+            <div class="sectionheading"><span class="step">01</span><div><h2>Recent Transactions</h2><p>Latest payment observations across your UPI accounts.</p></div></div>
+            <div class="table-wrap" style="margin-top: 1rem;">
+              <table class="table">
+                <thead><tr><th>Order ID</th><th>UPI ID</th><th>Amount</th><th>Mode</th><th>Status</th><th>Time</th></tr></thead>
+                <tbody id="m-tx-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No transactions yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="prism-glass">
+            <div class="sectionheading"><span class="step">02</span><div><h2>Quick Actions</h2><p>Create a payment link or view UPI pool status.</p></div></div>
+            <div class="field-group two" style="margin-top: 1rem;">
+              <div class="field">
+                <button class="btn-primary" onclick="showPage('m-create-checkout')" style="width:100%;">Create Payment Link</button>
+              </div>
+              <div class="field">
+                <button class="btn-secondary" onclick="showPage('m-upi-accounts')" style="width:100%;">Manage UPIs</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Create Checkout -->
+      <section id="m-create-checkout" class="page" hidden>
+        <div class="page-header">
+          <h1>Create Payment Link</h1>
+          <p>Share a checkout link with your customer. They pay via UPI; you verify in seconds.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <form id="m-create-form" class="field-group">
+            <div class="field">
+              <label>Amount (₹)</label>
+              <input type="number" id="m-amount" min="1" max="1000000" step=".01" placeholder="499.00" required class="field input">
+            </div>
+            <div class="field">
+              <label>Payment Mode</label>
+              <select id="m-mode" class="field input">
+                <option value="P2P">P2P — Person to Person (₹70k/day cap)</option>
+                <option value="P2M">P2M — Person to Merchant (unlimited)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Customer Name</label>
+              <input type="text" id="m-name" placeholder="Customer name" class="field input" required>
+            </div>
+            <div class="field">
+              <label>Receiving UPI ID</label>
+              <input type="text" id="m-vpa" placeholder="yourname@upi" class="field input" required>
+            </div>
+            <button class="btn-primary" type="submit">Create Checkout Link</button>
+          </form>
+          <p class="notice" style="margin-top: 1rem;">Sharing the link does not confirm payment. Verification occurs when the server matches the debit.</p>
+        </div>
+      </section>
+
+      <!-- Transactions -->
+      <section id="m-transactions" class="page" hidden>
+        <div class="page-header">
+          <h1>Transactions</h1>
+          <p>All payment observations for your registered UPI accounts.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Order ID</th><th>UPI ID</th><th>Amount</th><th>Mode</th><th>Settlement</th><th>Verified</th><th>Time</th></tr></thead>
+            <tbody id="m-tx-body2"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No transactions.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- UPI Accounts -->
+      <section id="m-upi-accounts" class="page" hidden>
+        <div class="page-header">
+          <h1>UPI Accounts</h1>
+          <p>Register up to 15 UPI IDs per agent device for receiving payments.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 640px;">
+          <div class="field-group two">
+            <div class="field">
+              <input type="text" id="m-new-upi" placeholder="UPI ID (e.g., name@upi)" class="field input">
+            </div>
+            <div class="field">
+              <input type="text" id="m-new-mobile" placeholder="Mobile (10 digits)" class="field input">
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <input type="text" id="m-new-bank" placeholder="Bank Name" class="field input">
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <input type="text" id="m-new-holder" placeholder="Account Holder Name" class="field input">
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <input type="text" id="m-new-acct" placeholder="Account Number" class="field input">
+            </div>
+            <button class="btn-primary" type="button" onclick="registerUpi()" style="grid-column: 1 / -1;">Register UPI ID</button>
+          </div>
+          <div class="table-wrap" style="margin-top: 1.5rem;">
+            <table class="table">
+              <thead><tr><th>UPI ID</th><th>Bank</th><th>Holder</th><th>Last 4</th><th>Status</th><th>Daily Collected</th><th>Actions</th></tr></thead>
+              <tbody id="m-upi-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No UPI IDs registered.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Receipts -->
+      <section id="m-receipts" class="page" hidden>
+        <div class="page-header">
+          <h1>Receipts</h1>
+          <p>Verified payment receipts — SHA-256 digest audit trail.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Receipt ID</th><th>Order ID</th><th>Amount</th><th>UTR</th><th>Status</th><th>Generated</th><th>Actions</th></tr></thead>
+            <tbody id="m-r-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No receipts.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Branding -->
+      <section id="m-branding" class="page" hidden>
+        <div class="page-header">
+          <h1>Branding</h1>
+          <p>Customize your checkout and receipt appearance.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Brand Name</label>
+              <input type="text" id="mb-name" value="Disha Store" class="field input">
+            </div>
+            <div class="field">
+              <label>Checkout Headline</label>
+              <input type="text" id="mb-headline" value="Copy UPI ID. Pay. Verify." class="field input">
+            </div>
+          </div>
+          <div class="field" style="margin-top: 1rem;">
+            <label>Accent Color</label>
+            <input type="color" id="mb-accent" value="#08785C" class="field input">
+          </div>
+          <div class="field-group" style="margin-top: 1.5rem;">
+            <label>Preview</label>
+            <div class="prism-glass" style="padding: 2rem; max-width: 380px;">
+              <div style="font-size:0.875rem;color:var(--prism-text-secondary);text-transform:uppercase;letter-spacing:0.16em;">Direct UPI / 01</div>
+              <div style="font-size:1.5rem;font-weight:800;margin:0.5rem 0;">Copy UPI ID</div>
+              <button class="btn-primary" style="margin-top: 1rem;width:100%;">Preview Checkout</button>
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Save Branding</button>
+        </div>
+      </section>
+
+      <!-- API Keys -->
+      <section id="m-api-keys" class="page" hidden>
+        <div class="page-header">
+          <h1>API Keys</h1>
+          <p>Programmatic access for your systems.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 640px;">
+          <p class="notice">Keys are shown once at creation. Store them securely.</p>
+          <div class="field-group two" style="margin-top: 1rem;">
+            <div class="field">
+              <input type="text" id="m-key-name" placeholder="Key name (e.g., Accounting)" class="field input">
+            </div>
+            <div class="field">
+              <button class="btn-primary" type="button">Generate Key</button>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top: 1rem;">
+            <table class="table">
+              <thead><tr><th>Key ID</th><th>Scopes</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody><tr><td colspan="5" style="text-align:center;color:var(--prism-text-muted);">No API keys.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/prism.js?v=1.0"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('m-dashboard');
+      navLinkActive();
+    });
+    function registerUpi() {
+      const upi = document.getElementById('m-new-upi').value.trim();
+      const mobile = document.getElementById('m-new-mobile').value.trim();
+      const bank = document.getElementById('m-new-bank').value.trim();
+      const holder = document.getElementById('m-new-holder').value.trim();
+      const acct = document.getElementById('m-new-acct').value.trim();
+      if (!upi || !mobile || !bank || !holder || !acct) {
+        toast('All fields are required.', 'error');
+        return;
+      }
+      toast('UPI registration requires device enrollment. Complete setup first.', 'info');
+    }
+  </script>
+</body>
+</html>

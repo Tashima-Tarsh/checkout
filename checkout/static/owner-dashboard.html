@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#065440">
+  <title>Prism Enterprise — Super Admin Control Center</title>
+  <link rel="stylesheet" href="/static/prism.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <script src="/static/prism.js?v=1.0" defer></script>
+</head>
+<body class="prism-body owner-portal">
+  <div id="toast-container"></div>
+
+  <!-- Topbar -->
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand" onclick="showPage('owner-dashboard')">
+        <span class="brandmark">D</span>
+        <span class="brand-name">Prism Enterprise</span>
+        <span class="brand-sub">Super Admin Control Center</span>
+      </div>
+      <div class="topbar-search">
+        <input type="text" placeholder="Search merchants, agents, transactions…" class="search-input">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-item">
+        <span class="badge badge-success">ONLINE</span>
+      </div>
+      <button class="btn-icon" title="Notifications" aria-label="Notifications">🔔</button>
+      <button class="btn-icon" title="User profile" aria-label="User profile" onclick="showPage('profile')">👤</button>
+      <button class="btn-secondary" onclick="showPage('login')">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Main shell -->
+  <div class="prism-shell">
+    <!-- Sidebar -->
+    <nav class="prism-sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-section">
+        <div class="nav-section-title">DASHBOARD</div>
+        <a class="nav-link active" href="#owner-dashboard" onclick="showPage('owner-dashboard')">
+          <span class="nav-icon">📊</span>Dashboard
+        </a>
+        <a class="nav-link" href="#merchants" onclick="showPage('merchant-list')">
+          <span class="nav-icon">🏪</span>Merchants
+        </a>
+        <a class="nav-link" href="#agents" onclick="showPage('agent-list')">
+          <span class="nav-icon">👥</span>Agents
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">FINANCE</div>
+        <a class="nav-link" href="#transactions" onclick="showPage('transaction-list')">
+          <span class="nav-icon">💳</span>Transactions
+        </a>
+        <a class="nav-link" href="#receipts" onclick="showPage('receipt-list')">
+          <span class="nav-icon">🧾</span>Receipts
+        </a>
+        <a class="nav-link" href="#daily-report" onclick="showPage('daily-report')">
+          <span class="nav-icon">📈</span>Daily Report
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">CONFIGURE</div>
+        <a class="nav-link" href="#theme-studio" onclick="showPage('theme-studio')">
+          <span class="nav-icon">🎨</span>Theme Studio
+        </a>
+        <a class="nav-link" href="#checkout-studio" onclick="showPage('checkout-studio')">
+          <span class="nav-icon">🔧</span>Checkout Studio
+        </a>
+        <a class="nav-link" href="#receipt-studio" onclick="showPage('receipt-studio')">
+          <span class="nav-icon">✨</span>Receipt Studio
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">SYSTEM</div>
+        <a class="nav-link" href="#api-keys" onclick="showPage('api-keys')">
+          <span class="nav-icon">🔑</span>API Keys
+        </a>
+        <a class="nav-link" href="#ip-whitelist" onclick="showPage('ip-whitelist')">
+          <span class="nav-icon">🛡️</span>IP Whitelist
+        </a>
+        <a class="nav-link" href="#audit-logs" onclick="showPage('audit-logs')">
+          <span class="nav-icon">📋</span>Audit Logs
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="prism-main">
+      <!-- Owner Dashboard -->
+      <section id="owner-dashboard" class="page">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Super Admin overview — all merchants, agents, and payment activity.</p>
+        </div>
+
+        <!-- Stat tiles -->
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Total Payment Volume</div>
+            <div class="stat-value">₹0.00</div>
+            <div class="stat-trend neutral">₹0 today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Checkouts</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">0 today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Merchants</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">0 new this week</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Agents</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">0 on duty</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">P2P Daily Cap</div>
+            <div class="stat-value">₹70,000</div>
+            <div class="stat-trend neutral">per agent device</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Financially Verified</div>
+            <div class="stat-value">0</div>
+            <div class="stat-trend neutral">never from client proof</div>
+          </div>
+        </div>
+
+        <!-- Charts & activity -->
+        <div class="dashboard-grid">
+          <div class="prism-glass-strong" style="grid-column: 1 / -1;">
+            <div class="sectionheading">
+              <span class="step">01</span>
+              <div><h2>Transaction Activity</h2><p>Real-time payment verification events across all merchants.</p></div>
+            </div>
+            <div class="table-wrap" style="margin-top: 1rem;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th><th>Merchant</th><th>Agent</th><th>Amount</th><th>Mode</th><th>Status</th><th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="tx-table-body">
+                  <tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No transactions yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="prism-glass" style="grid-column: span 2;">
+            <div class="sectionheading">
+              <span class="step">02</span>
+              <div><h2>Merchant Overview</h2><p>Per-merchant collection status and daily cap utilization.</p></div>
+            </div>
+            <div class="table-wrap" style="margin-top: 1rem;">
+              <table class="table">
+                <thead>
+                  <tr><th>Merchant</th><th>Agent Device</th><th>UPI IDs</th><th>P2P Collected</th><th>Cap Utilization</th><th>Status</th></tr>
+                </thead>
+                <tbody id="merchant-table-body">
+                  <tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No merchants registered.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Merchant List -->
+      <section id="merchant-list" class="page" hidden>
+        <div class="page-header">
+          <h1>Merchant Management</h1>
+          <p>Create, suspend, and configure merchant accounts.</p>
+        </div>
+        <div class="field-group two" style="margin-bottom: 1rem;">
+          <div class="field">
+            <input type="text" id="m-search" placeholder="Search merchants…" class="field input">
+          </div>
+          <div class="field">
+            <button class="btn-primary" onclick="showPage('create-merchant')">+ Create Merchant</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Merchant</th><th>Email</th><th>Tier</th><th>Daily Collected</th><th>Agent Device</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="m-table-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No merchants.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Agent List -->
+      <section id="agent-list" class="page" hidden>
+        <div class="page-header">
+          <h1>Agent Management</h1>
+          <p>Assign agents to merchants and monitor collection activity.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Agent Device</th><th>Merchant</th><th>UPI IDs</th><th>Status</th><th>Last Heartbeat</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="a-table-body">
+              <tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No agents enrolled.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Transaction List -->
+      <section id="transaction-list" class="page" hidden>
+        <div class="page-header">
+          <h1>Transaction Verification</h1>
+          <p>All payment observations across merchants — financially_verified stays 0 until server-confirmed.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Order ID</th><th>Merchant</th><th>Amount</th><th>Mode</th><th>Settlement</th><th>Verified</th><th>Time</th></tr>
+            </thead>
+            <tbody id="t-table-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No transactions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Receipt List -->
+      <section id="receipt-list" class="page" hidden>
+        <div class="page-header">
+          <h1>Transaction Receipts</h1>
+          <p>Verified payment receipts with SHA-256 digest audit trail.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Receipt ID</th><th>Order ID</th><th>Amount</th><th>UTR</th><th>Status</th><th>Generated</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="r-table-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No receipts.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Daily Report -->
+      <section id="daily-report" class="page" hidden>
+        <div class="page-header">
+          <h1>Daily Report</h1>
+          <p>P2P vs P2M collection summary with UPI pool health.</p>
+        </div>
+        <div class="field">
+          <button class="btn-primary" onclick="generateDailyReport()">Generate Today's Report</button>
+        </div>
+        <div id="daily-report-content" class="prism-glass" style="margin-top: 1rem; padding: 1.5rem; display:none;">
+          <h3 id="dr-business">Business Name</h3>
+          <div class="field-group two" style="margin-top: 1rem;">
+            <div class="field">
+              <label>P2P Collected</label>
+              <div class="stat-value" id="dr-p2p">₹0.00</div>
+            </div>
+            <div class="field">
+              <label>P2M Collected</label>
+              <div class="stat-value" id="dr-p2m">₹0.00</div>
+            </div>
+          </div>
+          <div id="dr-upi-table-wrap" class="table-wrap" style="margin-top: 1rem;">
+            <table class="table">
+              <thead><tr><th>UPI ID</th><th>Daily Txns</th><th>Volume</th><th>Success Rate</th><th>Available</th></tr></thead>
+              <tbody id="dr-upi-body"></tbody>
+            </table>
+          </div>
+          <div id="dr-email" class="notice" style="margin-top: 1rem;"></div>
+        </div>
+      </section>
+
+      <!-- Theme Studio -->
+      <section id="theme-studio" class="page" hidden>
+        <div class="page-header">
+          <h1>Theme Studio</h1>
+          <p>Configure Prism design tokens, colors, and glass materials across portals.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group three">
+            <div class="field">
+              <label>Primary Color</label>
+              <input type="color" id="theme-primary" value="#08785C">
+            </div>
+            <div class="field">
+              <label>Accent Color</label>
+              <input type="color" id="theme-accent" value="#A98245">
+            </div>
+            <div class="field">
+              <label>Background</label>
+              <input type="color" id="theme-bg" value="#F8F6EF">
+            </div>
+          </div>
+          <div class="field-group two" style="margin-top: 1rem;">
+            <div class="field">
+              <label>Glass Material</label>
+              <select class="field input">
+                <option>Pearl Glass</div>
+                <option>Liquid Glass</div>
+                <option>Crystal Glass</div>
+                <option>Emerald Glass</div>
+              </select>
+            </div>
+            <div class="field">
+              <label>Border Radius</label>
+              <input type="range" min="4" max="48" value="24" class="field input">
+            </div>
+          </div>
+          <div class="field-group" style="margin-top: 1.5rem;">
+            <label>Preview</label>
+            <div class="prism-glass" style="padding: 2rem; display:flex; align-items:center; gap:1rem;">
+              <div style="width:48px;height:48px;border-radius:12px;background:var(--gradient-emerald);"></div>
+              <div>
+                <div style="font-weight:700;color:var(--prism-text);">Sample Card</div>
+                <div style="font-size:0.875rem;color:var(--prism-text-secondary);">Premium glass material preview</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Save Theme</button>
+          <button class="btn-secondary" style="margin-left: 0.5rem;">Reset to Default</button>
+        </div>
+      </section>
+
+      <!-- Checkout Studio -->
+      <section id="checkout-studio" class="page" hidden>
+        <div class="page-header">
+          <h1>Checkout Studio</h1>
+          <p>Configure the customer checkout experience — brand, headline, accent, success animation.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Checkout Brand</label>
+              <input type="text" id="cs-brand" value="Disha Pay" class="field input">
+            </div>
+            <div class="field">
+              <label>Checkout Headline</label>
+              <input type="text" id="cs-headline" value="Copy UPI ID. Pay. Verify." class="field input">
+            </div>
+          </div>
+          <div class="field-group two" style="margin-top: 1rem;">
+            <div class="field">
+              <label>Accent Color</label>
+              <input type="color" id="cs-accent" value="#08785C">
+            </div>
+            <div class="field">
+              <label>Success Animation</label>
+              <select class="field input">
+                <option>Crystal ripple</option>
+                <option>Emerald seal</option>
+                <option>Champagne glow</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group" style="margin-top: 1.5rem;">
+            <label>Preview</label>
+            <div class="prism-glass" style="padding: 2rem; max-width: 420px;">
+              <div style="font-size:0.875rem;color:var(--prism-text-secondary);text-transform:uppercase;letter-spacing:0.16em;">Direct UPI / 01</div>
+              <div style="font-size:1.5rem;font-weight:800;margin:0.5rem 0;">Copy UPI ID</div>
+              <div style="font-size:0.9375rem;color:var(--prism-text-secondary);max-width:300px;">Pay from any UPI app, then return here. Verification confirmed when the server matches.</div>
+              <button class="btn-primary" style="margin-top: 1rem;width:100%;">Create Checkout</button>
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Publish Checkout Theme</button>
+        </div>
+      </section>
+
+      <!-- Receipt Studio -->
+      <section id="receipt-studio" class="page" hidden>
+        <div class="page-header">
+          <h1>Receipt Studio</h1>
+          <p>Configure receipt branding — logo, colors, materials, and field visibility.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Receipt Material</label>
+              <select class="field input">
+                <option>Ivory Paper</option>
+                <option>Pearl Glass</option>
+                <option>Emerald Crystal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Accent Color</label>
+              <input type="color" id="rs-accent" value="#08785C">
+            </div>
+          </div>
+          <div class="field-group" style="margin-top: 1rem;">
+            <label>Preview</label>
+            <div class="prism-glass" style="padding: 2rem; max-width: 420px; border-left: 4px solid var(--prism-emerald);">
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <div style="width:28px;height:28px;border-radius:8px;background:#08785C;display:flex;place-items:center;color:#fff;font-weight:800;font-size:0.75rem;">D</div>
+                <div>
+                  <div style="font-weight:700;color:var(--prism-text);">Disha Pay</div>
+                  <div style="font-size:0.8125rem;color:var(--prism-text-secondary);">Receipt #INV-2024-001</div>
+                </div>
+              </div>
+              <div style="margin-top: 1rem;font-size:0.875rem;color:var(--prism-text-secondary);">
+                <div><strong>Amount:</strong> ₹12,500.00</div>
+                <div><strong>Status:</strong> <span class="badge badge-success">Verified</span></div>
+                <div><strong>UTR:</strong> 2147483647</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Publish Receipt Theme</button>
+        </div>
+      </section>
+
+      <!-- API Keys -->
+      <section id="api-keys" class="page" hidden>
+        <div class="page-header">
+          <h1>API Keys</h1>
+          <p>Manage merchant API credentials for programmatic access.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <p class="notice">API keys are shown once at creation. Store them securely.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Key ID</th><th>Merchant</th><th>Scopes</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody><tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No API keys.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- IP Whitelist -->
+      <section id="ip-whitelist" class="page" hidden>
+        <div class="page-header">
+          <h1>IP Whitelist</h1>
+          <p>Restrict Super Admin and merchant API access by IP address.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <input type="text" id="ip-addr" placeholder="192.168.1.100" class="field input">
+            </div>
+            <div class="field">
+              <button class="btn-primary">Add to Whitelist</button>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top: 1rem;">
+            <table class="table">
+              <thead><tr><th>IP Address</th><th>Added</th><th>Actions</th></tr></thead>
+              <tbody><tr><td colspan="3" style="text-align:center;color:var(--prism-text-muted);">No whitelisted IPs.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audit Logs -->
+      <section id="audit-logs" class="page" hidden>
+        <div class="page-header">
+          <h1>Audit Logs</h1>
+          <p>Immutable record of all administrative and system events.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Time</th><th>Event</th><th>Merchant</th><th>Detail</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--prism-text-muted);">No audit events.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Create Merchant -->
+      <section id="create-merchant" class="page" hidden>
+        <div class="page-header">
+          <h1>Create Merchant</h1>
+          <p>Register a new business on the platform.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem; max-width: 520px;">
+          <form id="create-m-form" class="field-group">
+            <div class="field">
+              <label>Business Name</label>
+              <input type="text" id="m-bname" placeholder="Disha General Store" class="field input" required>
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="m-email" placeholder="owner@disha.store" class="field input" required>
+            </div>
+            <div class="field">
+              <label>GST Number</label>
+              <input type="text" id="m-gst" placeholder="27ABCDE1234F1Z5" class="field input">
+            </div>
+            <div class="field">
+              <label>Tier</label>
+              <select class="field input">
+                <option>starter</option><option>growth</option><option>business</option><option>scale</option><option>enterprise</option>
+              </select>
+            </div>
+            <button class="btn-primary" type="submit">Create Merchant</button>
+            <button class="btn-secondary" type="button" onclick="showPage('merchant-list')">Cancel</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/prism.js?v=1.0"></script>
+  <script>
+    // Initialize portal
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('owner-dashboard');
+      navLinkActive();
+    });
+  </script>
+</body>
+</html>
