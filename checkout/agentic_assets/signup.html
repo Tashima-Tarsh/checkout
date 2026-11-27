@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DISHA 8.2 merchant signup</title>
+<style>
+body{font:1rem system-ui;background:#f6f4ee;color:#242c24;margin:0;padding:2rem}main{max-width:38rem;margin:auto;background:white;padding:2rem;border-radius:1.25rem}form{display:grid;gap:1rem}label{display:grid;gap:.25rem}input,select,button{font:inherit;padding:.65rem;border:1px solid #a7aca2;border-radius:.5rem}button{background:#295e49;color:white;cursor:pointer}output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:1rem}
+</style><script defer src="/assets/signup.js"></script></head>
+<body><main><h1>Merchant signup</h1><form id="signup">
+<label>Expected monthly volume (₹)<input name="monthly_volume" type="number" min="0" max="10000000000" required></label>
+<label>Aggregator setup fee (₹)<input name="setup_fee" type="number" min="0" value="0"></label>
+<label>Aggregator annual maintenance (₹)<input name="annual_maintenance" type="number" min="0" value="0"></label>
+<label>Subscription billing<select name="billing"><option>monthly</option><option>annual</option></select></label>
+<button type="button" id="quote">Estimate savings</button>
+<label>Business name<input name="business_name" minlength="3" maxlength="150" required></label>
+<label>GST number<input name="gst" maxlength="15" required></label>
+<label>Bank account number<input name="bank_account" inputmode="numeric" pattern="[0-9]{6,34}" required></label>
+<label>Merchant subdomain<input name="slug" required></label>
+<label>Verified Cognito access token<input name="token" type="password" autocomplete="off" required></label>
+<button>Start one-day trial</button></form><output aria-live="polite"></output></main></body></html>

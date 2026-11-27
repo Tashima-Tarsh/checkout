@@ -1,0 +1,263 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "On-demand image builder for DISHA Dev and UAT only.",
+  "Parameters": {
+    "DevRepository": {
+      "Type": "String",
+      "AllowedPattern": "[a-z0-9][a-z0-9._/-]+"
+    },
+    "UatRepository": {
+      "Type": "String",
+      "AllowedPattern": "[a-z0-9][a-z0-9._/-]+"
+    },
+    "ReleaseCommit": {
+      "Type": "String",
+      "AllowedPattern": "[0-9a-f]{40}",
+      "Default": "351e3317867229622f234f67591ee4afac5971fc"
+    }
+  },
+  "Resources": {
+    "SourceBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        }
+      }
+    },
+    "SourceBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "SourceBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SourceBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${SourceBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BuildLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 14
+      }
+    },
+    "BuildRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codebuild.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/${AWS::StackName}-build"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "BuildDishaRelease",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:GetObjectVersion"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${SourceBucket.Arn}/source/${ReleaseCommit}.zip"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:GetBucketAcl"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "SourceBucket",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BuildLogs}:log-stream:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "ecr:GetAuthorizationToken",
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:DescribeImages",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:PutImage",
+                    "ecr:UploadLayerPart"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${DevRepository}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${UatRepository}"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Builder": {
+      "Type": "AWS::CodeBuild::Project",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-build"
+        },
+        "ServiceRole": {
+          "Fn::GetAtt": [
+            "BuildRole",
+            "Arn"
+          ]
+        },
+        "Artifacts": {
+          "Type": "NO_ARTIFACTS"
+        },
+        "Source": {
+          "Type": "S3",
+          "Location": {
+            "Fn::Sub": "${SourceBucket}/source/${ReleaseCommit}.zip"
+          },
+          "BuildSpec": "version: 0.2\nenv:\n  shell: bash\nphases:\n  pre_build:\n    commands:\n      - |\n        set -euo pipefail\n        [[ \"$RELEASE_SHA\" =~ ^[0-9a-f]{40}$ ]]\n        mkdir -p /tmp/disha-rds-image\n        curl --fail --silent --show-error --retry 3 https://truststore.pki.rds.amazonaws.com/ap-southeast-2/ap-southeast-2-bundle.pem -o /tmp/disha-rds-image/rds-ca.pem\n        cat > /tmp/disha-rds-image/Dockerfile <<'DOCKERFILE'\n        ARG BASE_IMAGE\n        FROM ${BASE_IMAGE}\n        COPY rds-ca.pem /opt/disha/rds-ca.pem\n        ENV NODE_EXTRA_CA_CERTS=/opt/disha/rds-ca.pem\n        DOCKERFILE\n        for env in \"$DEV_REPOSITORY\" \"$UAT_REPOSITORY\"; do\n          aws ecr get-login-password --region \"$AWS_DEFAULT_REGION\" |\n            docker login --username AWS --password-stdin \"${env%/*}\"\n        done\n  build:\n    commands:\n      - |\n        set -euo pipefail\n        for service in checkout agentic workflow; do\n          case \"$service\" in\n            checkout) dockerfile=Dockerfile ;;\n            agentic) dockerfile=Dockerfile.agentic ;;\n            workflow) dockerfile=Dockerfile.n8n ;;\n          esac\n          tag=\"$service-$RELEASE_SHA\"\n          docker build --file \"$dockerfile\" --label \"org.opencontainers.image.revision=$RELEASE_SHA\" --tag \"disha-base:$tag\" .\n          docker build --build-arg \"BASE_IMAGE=disha-base:$tag\" --tag \"disha:$tag\" /tmp/disha-rds-image\n          for uri in \"$DEV_REPOSITORY\" \"$UAT_REPOSITORY\"; do\n            repo=\"${uri#*/}\"\n            if aws ecr describe-images --repository-name \"$repo\" --image-ids imageTag=\"$tag\" >/dev/null 2>&1; then\n              echo \"$repo already contains immutable tag $tag\"\n              continue\n            fi\n            docker tag \"disha:$tag\" \"$uri:$tag\"\n            docker push \"$uri:$tag\"\n          done\n        done\n"
+        },
+        "Environment": {
+          "Type": "LINUX_CONTAINER",
+          "Image": "aws/codebuild/standard:7.0",
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "PrivilegedMode": true,
+          "EnvironmentVariables": [
+            {
+              "Name": "RELEASE_SHA",
+              "Value": {
+                "Ref": "ReleaseCommit"
+              }
+            },
+            {
+              "Name": "DEV_REPOSITORY",
+              "Value": {
+                "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${DevRepository}"
+              }
+            },
+            {
+              "Name": "UAT_REPOSITORY",
+              "Value": {
+                "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${UatRepository}"
+              }
+            }
+          ]
+        },
+        "LogsConfig": {
+          "CloudWatchLogs": {
+            "Status": "ENABLED",
+            "GroupName": {
+              "Ref": "BuildLogs"
+            },
+            "StreamName": "release"
+          }
+        },
+        "TimeoutInMinutes": 35,
+        "QueuedTimeoutInMinutes": 15,
+        "ConcurrentBuildLimit": 1
+      }
+    }
+  },
+  "Outputs": {
+    "SourceBucket": {
+      "Value": {
+        "Ref": "SourceBucket"
+      }
+    },
+    "Builder": {
+      "Value": {
+        "Ref": "Builder"
+      }
+    }
+  }
+}

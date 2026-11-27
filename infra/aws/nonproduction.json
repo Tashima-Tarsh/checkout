@@ -1,0 +1,1114 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DISHA isolated Dev and UAT foundations with optional private runtime dependencies.",
+  "Resources": {
+    "DevVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.81.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "CidrBlock": "10.81.0.0/22",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevRoutesA": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevRouteAssociationA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DevSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "DevRoutesA"
+        }
+      }
+    },
+    "DevSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "CidrBlock": "10.81.4.0/22",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevRoutesB": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevRouteAssociationB": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DevSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "DevRoutesB"
+        }
+      }
+    },
+    "DevArtifactEndpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "VpcEndpointType": "Gateway",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.s3"
+        },
+        "RouteTableIds": [
+          {
+            "Ref": "DevRoutesA"
+          },
+          {
+            "Ref": "DevRoutesB"
+          }
+        ]
+      }
+    },
+    "DevCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevImages": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": {
+          "ScanOnPush": true
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "DevLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 14,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.82.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "CidrBlock": "10.82.0.0/22",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatRoutesA": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatRouteAssociationA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "UatSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "UatRoutesA"
+        }
+      }
+    },
+    "UatSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "CidrBlock": "10.82.4.0/22",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatRoutesB": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatRouteAssociationB": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "UatSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "UatRoutesB"
+        }
+      }
+    },
+    "UatArtifactEndpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "VpcEndpointType": "Gateway",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.s3"
+        },
+        "RouteTableIds": [
+          {
+            "Ref": "UatRoutesA"
+          },
+          {
+            "Ref": "UatRoutesB"
+          }
+        ]
+      }
+    },
+    "UatCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "UatImages": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "ImageTagMutability": "IMMUTABLE",
+        "ImageScanningConfiguration": {
+          "ScanOnPush": true
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "UatLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 14,
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "uat"
+          },
+          {
+            "Key": "Project",
+            "Value": "DISHA"
+          }
+        ]
+      }
+    },
+    "DevTaskSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "Private DISHA nonproduction tasks",
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "SecurityGroupIngress": []
+      }
+    },
+    "DevDatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "PostgreSQL from nonproduction tasks",
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Ref": "DevTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "DevCacheSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "TLS Valkey from nonproduction tasks",
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 6379,
+            "ToPort": 6379,
+            "SourceSecurityGroupId": {
+              "Ref": "DevTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "DevEndpointSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "Private AWS endpoints from nonproduction tasks",
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "SourceSecurityGroupId": {
+              "Ref": "DevTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "DevDbSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "DBSubnetGroupDescription": "Private DISHA nonproduction database subnets",
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          },
+          {
+            "Ref": "DevSubnetB"
+          }
+        ]
+      }
+    },
+    "DevDatabase": {
+      "Type": "AWS::RDS::DBInstance",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "Engine": "postgres",
+        "EngineVersion": "18",
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "MultiAZ": false,
+        "PubliclyAccessible": false,
+        "BackupRetentionPeriod": 1,
+        "CopyTagsToSnapshot": true,
+        "ManageMasterUserPassword": true,
+        "MasterUsername": "dishaadmin",
+        "DBName": "checkout",
+        "DBSubnetGroupName": {
+          "Ref": "DevDbSubnetGroup"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "DevDatabaseSecurityGroup"
+          }
+        ]
+      },
+      "DeletionPolicy": "Snapshot",
+      "UpdateReplacePolicy": "Snapshot"
+    },
+    "DevCacheSubnets": {
+      "Type": "AWS::ElastiCache::SubnetGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "Description": "Private DISHA nonproduction cache subnets",
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          },
+          {
+            "Ref": "DevSubnetB"
+          }
+        ]
+      }
+    },
+    "DevCache": {
+      "Type": "AWS::ElastiCache::ReplicationGroup",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "ReplicationGroupDescription": "Private DISHA nonproduction Redis-compatible cache",
+        "Engine": "valkey",
+        "EngineVersion": "8.0",
+        "CacheNodeType": "cache.t4g.micro",
+        "CacheSubnetGroupName": {
+          "Ref": "DevCacheSubnets"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "DevCacheSecurityGroup"
+          }
+        ],
+        "NumCacheClusters": 1,
+        "AutomaticFailoverEnabled": false,
+        "AtRestEncryptionEnabled": true,
+        "TransitEncryptionEnabled": true
+      }
+    },
+    "DevServiceNamespace": {
+      "Type": "AWS::ServiceDiscovery::PrivateDnsNamespace",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "Name": "dev.disha.internal",
+        "Vpc": {
+          "Ref": "DevVpc"
+        }
+      }
+    },
+    "DevEcrApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.ecr.api"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "DevEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "DevEcrDocker": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.ecr.dkr"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "DevEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "DevLogsApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.logs"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "DevEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "DevSecretsApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "DevDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.secretsmanager"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "DevSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "DevEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "UatTaskSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "Private DISHA nonproduction tasks",
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "SecurityGroupIngress": []
+      }
+    },
+    "UatDatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "PostgreSQL from nonproduction tasks",
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "SourceSecurityGroupId": {
+              "Ref": "UatTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "UatCacheSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "TLS Valkey from nonproduction tasks",
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 6379,
+            "ToPort": 6379,
+            "SourceSecurityGroupId": {
+              "Ref": "UatTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "UatEndpointSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "GroupDescription": "Private AWS endpoints from nonproduction tasks",
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "SourceSecurityGroupId": {
+              "Ref": "UatTaskSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "UatDbSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "DBSubnetGroupDescription": "Private DISHA nonproduction database subnets",
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          },
+          {
+            "Ref": "UatSubnetB"
+          }
+        ]
+      }
+    },
+    "UatDatabase": {
+      "Type": "AWS::RDS::DBInstance",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "Engine": "postgres",
+        "EngineVersion": "18",
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "MultiAZ": false,
+        "PubliclyAccessible": false,
+        "BackupRetentionPeriod": 1,
+        "CopyTagsToSnapshot": true,
+        "ManageMasterUserPassword": true,
+        "MasterUsername": "dishaadmin",
+        "DBName": "checkout",
+        "DBSubnetGroupName": {
+          "Ref": "UatDbSubnetGroup"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "UatDatabaseSecurityGroup"
+          }
+        ]
+      },
+      "DeletionPolicy": "Snapshot",
+      "UpdateReplacePolicy": "Snapshot"
+    },
+    "UatCacheSubnets": {
+      "Type": "AWS::ElastiCache::SubnetGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "Description": "Private DISHA nonproduction cache subnets",
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          },
+          {
+            "Ref": "UatSubnetB"
+          }
+        ]
+      }
+    },
+    "UatCache": {
+      "Type": "AWS::ElastiCache::ReplicationGroup",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "ReplicationGroupDescription": "Private DISHA nonproduction Redis-compatible cache",
+        "Engine": "valkey",
+        "EngineVersion": "8.0",
+        "CacheNodeType": "cache.t4g.micro",
+        "CacheSubnetGroupName": {
+          "Ref": "UatCacheSubnets"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "UatCacheSecurityGroup"
+          }
+        ],
+        "NumCacheClusters": 1,
+        "AutomaticFailoverEnabled": false,
+        "AtRestEncryptionEnabled": true,
+        "TransitEncryptionEnabled": true
+      }
+    },
+    "UatServiceNamespace": {
+      "Type": "AWS::ServiceDiscovery::PrivateDnsNamespace",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "Name": "uat.disha.internal",
+        "Vpc": {
+          "Ref": "UatVpc"
+        }
+      }
+    },
+    "UatEcrApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.ecr.api"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "UatEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "UatEcrDocker": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.ecr.dkr"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "UatEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "UatLogsApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.logs"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "UatEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    },
+    "UatSecretsApi": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "UatDependenciesEnabled",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UatVpc"
+        },
+        "VpcEndpointType": "Interface",
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.secretsmanager"
+        },
+        "SubnetIds": [
+          {
+            "Ref": "UatSubnetA"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "UatEndpointSecurityGroup"
+          }
+        ],
+        "PrivateDnsEnabled": true
+      }
+    }
+  },
+  "Outputs": {
+    "DevVpc": {
+      "Value": {
+        "Ref": "DevVpc"
+      }
+    },
+    "DevSubnetA": {
+      "Value": {
+        "Ref": "DevSubnetA"
+      }
+    },
+    "DevSubnetB": {
+      "Value": {
+        "Ref": "DevSubnetB"
+      }
+    },
+    "DevCluster": {
+      "Value": {
+        "Ref": "DevCluster"
+      }
+    },
+    "DevImages": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DevImages",
+          "RepositoryUri"
+        ]
+      }
+    },
+    "DevLogs": {
+      "Value": {
+        "Ref": "DevLogs"
+      }
+    },
+    "UatVpc": {
+      "Value": {
+        "Ref": "UatVpc"
+      }
+    },
+    "UatSubnetA": {
+      "Value": {
+        "Ref": "UatSubnetA"
+      }
+    },
+    "UatSubnetB": {
+      "Value": {
+        "Ref": "UatSubnetB"
+      }
+    },
+    "UatCluster": {
+      "Value": {
+        "Ref": "UatCluster"
+      }
+    },
+    "UatImages": {
+      "Value": {
+        "Fn::GetAtt": [
+          "UatImages",
+          "RepositoryUri"
+        ]
+      }
+    },
+    "UatLogs": {
+      "Value": {
+        "Ref": "UatLogs"
+      }
+    },
+    "DevTaskSecurityGroup": {
+      "Condition": "DevDependenciesEnabled",
+      "Value": {
+        "Ref": "DevTaskSecurityGroup"
+      }
+    },
+    "DevDatabaseEndpoint": {
+      "Condition": "DevDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "DevDatabase",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "DevDatabaseMasterSecret": {
+      "Condition": "DevDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "DevDatabase",
+          "MasterUserSecret.SecretArn"
+        ]
+      }
+    },
+    "DevCacheEndpoint": {
+      "Condition": "DevDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "DevCache",
+          "PrimaryEndPoint.Address"
+        ]
+      }
+    },
+    "DevServiceNamespace": {
+      "Condition": "DevDependenciesEnabled",
+      "Value": {
+        "Ref": "DevServiceNamespace"
+      }
+    },
+    "UatTaskSecurityGroup": {
+      "Condition": "UatDependenciesEnabled",
+      "Value": {
+        "Ref": "UatTaskSecurityGroup"
+      }
+    },
+    "UatDatabaseEndpoint": {
+      "Condition": "UatDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "UatDatabase",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "UatDatabaseMasterSecret": {
+      "Condition": "UatDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "UatDatabase",
+          "MasterUserSecret.SecretArn"
+        ]
+      }
+    },
+    "UatCacheEndpoint": {
+      "Condition": "UatDependenciesEnabled",
+      "Value": {
+        "Fn::GetAtt": [
+          "UatCache",
+          "PrimaryEndPoint.Address"
+        ]
+      }
+    },
+    "UatServiceNamespace": {
+      "Condition": "UatDependenciesEnabled",
+      "Value": {
+        "Ref": "UatServiceNamespace"
+      }
+    }
+  },
+  "Parameters": {
+    "DevDependencies": {
+      "Type": "String",
+      "Default": "Disabled",
+      "AllowedValues": [
+        "Disabled",
+        "Enabled"
+      ],
+      "Description": "Enable private test dependencies. RDS, cache, and interface endpoints consume credits while provisioned."
+    },
+    "UatDependencies": {
+      "Type": "String",
+      "Default": "Disabled",
+      "AllowedValues": [
+        "Disabled",
+        "Enabled"
+      ],
+      "Description": "Enable private test dependencies. RDS, cache, and interface endpoints consume credits while provisioned."
+    }
+  },
+  "Conditions": {
+    "DevDependenciesEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "DevDependencies"
+        },
+        "Enabled"
+      ]
+    },
+    "UatDependenciesEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "UatDependencies"
+        },
+        "Enabled"
+      ]
+    }
+  }
+}

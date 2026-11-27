@@ -1,0 +1,467 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DISHA brand network foundation. No compute, NAT, public IPs, database or version projects.",
+  "Resources": {
+    "DishaVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.80.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-VPC"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-IGW"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "GatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Public-Routes"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      },
+      "DependsOn": "GatewayAttachment"
+    },
+    "PublicSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": "10.80.0.0/22",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Public-A"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PublicSubnetAAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PublicSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "PrivateSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": "10.80.16.0/22",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Private-A"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTableA": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Isolated-Routes-A"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PrivateSubnetAAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PrivateSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTableA"
+        }
+      }
+    },
+    "PublicSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": "10.80.4.0/22",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Public-B"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PublicSubnetBAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PublicSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "PrivateSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": "10.80.20.0/22",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Private-B"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTableB": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Isolated-Routes-B"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "PrivateSubnetBAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PrivateSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTableB"
+        }
+      }
+    },
+    "ClosedSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "DISHA reserved deny-by-default workload group; no inbound rules",
+        "VpcId": {
+          "Ref": "DishaVpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "127.0.0.1/32",
+            "Description": "No routable outbound destinations"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DISHA-Closed"
+          },
+          {
+            "Key": "Brand",
+            "Value": "DISHA"
+          },
+          {
+            "Key": "Scope",
+            "Value": "Foundation"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "DishaVpc": {
+      "Description": "DishaVpc",
+      "Value": {
+        "Ref": "DishaVpc"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-DishaVpc"
+        }
+      }
+    },
+    "PublicSubnetA": {
+      "Description": "PublicSubnetA",
+      "Value": {
+        "Ref": "PublicSubnetA"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PublicSubnetA"
+        }
+      }
+    },
+    "PublicSubnetB": {
+      "Description": "PublicSubnetB",
+      "Value": {
+        "Ref": "PublicSubnetB"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PublicSubnetB"
+        }
+      }
+    },
+    "PrivateSubnetA": {
+      "Description": "PrivateSubnetA",
+      "Value": {
+        "Ref": "PrivateSubnetA"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PrivateSubnetA"
+        }
+      }
+    },
+    "PrivateSubnetB": {
+      "Description": "PrivateSubnetB",
+      "Value": {
+        "Ref": "PrivateSubnetB"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PrivateSubnetB"
+        }
+      }
+    },
+    "ClosedSecurityGroup": {
+      "Description": "ClosedSecurityGroup",
+      "Value": {
+        "Ref": "ClosedSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-ClosedSecurityGroup"
+        }
+      }
+    },
+    "PrivateRouteTableA": {
+      "Value": {
+        "Ref": "PrivateRouteTableA"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PrivateRouteTableA"
+        }
+      }
+    },
+    "PrivateRouteTableB": {
+      "Value": {
+        "Ref": "PrivateRouteTableB"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-PrivateRouteTableB"
+        }
+      }
+    }
+  }
+}

@@ -2322,3 +2322,64 @@ def superadmin_aws_credits(request: Request, authorization: Token = None):
         "note": "AWS credit data requires Billing and Cost Management access configured in the environment.",
     }
 
+
+# ============================================================================
+# Business Inquiry API
+# ============================================================================
+
+class ContactInquiryInput(BaseModel):
+    name: str = Field(min_length=2, max_length=150)
+    company: str = Field(min_length=2, max_length=150)
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    country: str = Field(min_length=2, max_length=100)
+    monthly_volume: str = Field(default="", max_length=100)
+    provider: str = Field(default="", max_length=100)
+    message: str = Field(min_length=1, max_length=2000)
+
+
+@app.post("/api/contact", status_code=201, response_model=dict)
+def contact_inquiry(request: Request, item: ContactInquiryInput):
+    """Business inquiry form submission."""
+    now_ts = _now_ts()
+    with request.app.state.engine.begin() as conn:
+        conn.execute(audit.insert().values(
+            merchant_id=None,
+            event="BUSINESS_INQUIRY",
+            detail=f"{item.name} ({item.company}) - {item.country} - {item.email}",
+            created=now_ts,
+        ))
+    return {
+        "status": "received",
+        "message": "Thank you for your inquiry. Our team will contact you soon.",
+        "contact_email": "nitish@thenitishkr.in",
+        "contact_whatsapp": "+91-9142197135",
+        "submitted_at": now_ts,
+    }
+
+
+# ============================================================================
+# Canonical URL Registry Endpoint
+# ============================================================================
+
+@app.get("/api/canonical-urls", response_model=dict)
+def canonical_urls(request: Request):
+    """Return all canonical URL mappings for the platform."""
+    return {
+        "environment": ENVIRONMENT,
+        "base_domain": BASE_DOMAIN,
+        "services": {
+            "website": "https://disha8-2.thenitishkr.in/",
+            "superadmin": "https://superadmin.disha8-2.thenitishkr.in/",
+            "merchant_portal": "https://merchant.disha8-2.thenitishkr.in/",
+            "agent_portal": "https://agenticpay.disha8-2.thenitishkr.in/",
+            "support_portal": "https://support.disha8-2.thenitishkr.in/",
+            "checkout": "https://checkout.disha8-2.thenitishkr.in/",
+            "receipt": "https://receipt.disha8-2.thenitishkr.in/",
+            "api_public": "https://api.disha8-2.thenitishkr.in/",
+            "system_status": "https://status.disha8-2.thenitishkr.in/",
+        },
+        "contact_email": "nitish@thenitishkr.in",
+        "contact_whatsapp": "+91-9142197135",
+        "generated_at": now(),
+    }
+
