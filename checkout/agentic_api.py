@@ -23,7 +23,7 @@ from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
-    credit_events, daily_issuance, subscriptions,
+    credit_events, daily_issuance, subscriptions, upi_health, upi_ledger,
 )
 
 router = APIRouter(prefix="/api")
@@ -1657,4 +1657,101 @@ def android_daily_report(request: Request, authorization: Token = None):
         report["reason"] = "merchant email not configured"
 
     return report
+
+
+@app.get("/android/upi-master-ledger", response_model=dict)
+def android_upi_master_ledger(request: Request, authorization: Token = None):
+    """Master UPI ledger: all UPI IDs for the merchant with P2P consumption,
+    cooldown status, and which UPI is next in rotation when one hits ₹70k cap."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    now_ts = _now_ts()
+    today_start = now_ts - (now_ts % 86400)
+
+    with request.app.state.engine.connect() as conn:
+        upi_rows = conn.execute(
+            select(upi_health).where(upi_health.c.merchant_id == merchant_id)
+            .order_by(upi_health.c.upi_id)
+        ).mappings().all()
+
+        # P2P collected per UPI today (from orders)
+        upi_p2p_collected = {}
+        p2p_rows = conn.execute(
+            select(orders.c.upi_id,
+                   func.coalesce(func.sum(orders.c.amount_minor), 0).label("total"),
+                   func.count(orders.c.id).label("cnt"))
+            .where(orders.c.merchant_id == merchant_id,
+                   orders.c.mode == "P2P",
+                   orders.c.status == "PAID",
+                   orders.c.upi_id.is_not(None),
+                   orders.c.created >= today_start)
+            .group_by(orders.c.upi_id)
+        ).mappings().all()
+        for r in p2p_rows:
+            upi_p2p_collected[r["upi_id"]] = {"collected_paise": r["total"], "txn_count": r["cnt"]}
+
+    ledger = []
+    next_upi = None
+    for r in upi_rows:
+        r = _reset_daily_if_needed(r, now_ts)
+        upi_id = r["upi_id"]
+        daily_count = r.get("daily_count", 0) or 0
+        daily_volume = r.get("daily_volume", 0) or 0
+        p2p_data = upi_p2p_collected.get(upi_id, {"collected_paise": 0, "txn_count": 0})
+        p2p_collected_paise = p2p_data["collected_paise"]
+        p2p_limit_reached = p2p_collected_paise >= DAILY_COLLECTION_LIMIT_PAISE
+
+        # Determine if this UPI is available for next P2P transaction
+        cooldown_until = r.get("cooldown_until", 0) or 0
+        penalty_until = r.get("penalty_until", 0) or 0
+        available = (
+            not r.get("blacklisted")
+            and now_ts >= cooldown_until
+            and now_ts >= penalty_until
+            and daily_count < UPI_DAILY_TXN_LIMIT
+            and daily_volume < UPI_DAILY_VOLUME_LIMIT
+            and p2p_collected_paise < DAILY_COLLECTION_LIMIT_PAISE
+            and not r.get("warmup_required")
+        )
+
+        ledger.append({
+            "upi_id": upi_id,
+            "p2p_collected_paise": p2p_collected_paise,
+            "p2p_collected_rupees": p2p_collected_paise / 100.0,
+            "p2p_limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
+            "p2p_limit_rupees": DAILY_COLLECTION_LIMIT_PAISE / 100.0,
+            "p2p_limit_reached": p2p_limit_reached,
+            "p2p_remaining_paise": max(0, DAILY_COLLECTION_LIMIT_PAISE - p2p_collected_paise),
+            "routing_daily_count": daily_count,
+            "routing_daily_volume": daily_volume,
+            "success_rate": r.get("success_rate", 1.0),
+            "blacklisted": bool(r.get("blacklisted")),
+            "available_for_next_p2p": available,
+            "cooldown_until": cooldown_until,
+        })
+
+        if available and next_upi is None:
+            next_upi = upi_id
+
+    # Sort: available first, then by P2P consumed ascending
+    ledger.sort(key=lambda x: (not x["available_for_next_p2p"], x["p2p_collected_paise"]))
+
+    total_p2p_collected = sum(l["p2p_collected_paise"] for l in ledger)
+    total_limit = DAILY_COLLECTION_LIMIT_PAISE * len(ledger)
+    all_caps_reached = all(l["p2p_limit_reached"] for l in ledger) if ledger else False
+
+    return {
+        "merchant_id": merchant_id,
+        "date": today_start,
+        "upi_count": len(ledger),
+        "max_upis": 15,
+        "total_p2p_collected_paise": total_p2p_collected,
+        "total_p2p_collected_rupees": total_p2p_collected / 100.0,
+        "total_p2p_limit_paise": total_limit,
+        "total_p2p_limit_rupees": total_limit / 100.0,
+        "all_p2p_caps_reached": all_caps_reached,
+        "next_upi_for_p2p": next_upi,
+        "ledger": ledger,
+        "generated_at": now_ts,
+    }
 

@@ -251,6 +251,12 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         try {
+            // If not enrolled, route to SetupActivity first
+            if (!credentialStore.isEnrolled()) {
+                val intent = Intent(this, SetupActivity::class.java)
+                startActivity(intent)
+                return
+            }
             updateButtons()
             refreshStatus()
             loadDailyLimit()

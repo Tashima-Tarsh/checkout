@@ -3,6 +3,8 @@ package com.agentic.pay.connectivitytest
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import android.widget.*
 import com.google.gson.JsonParser
@@ -16,6 +18,7 @@ class SetupActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var loginButton: Button
     private lateinit var registerButton: Button
+    private lateinit var setupCompleteText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +31,7 @@ class SetupActivity : Activity() {
             credentialStore = CredentialStore.init(this)
             DeviceConfig.init(this)
             buildUI()
-            checkEsimStatus()
+            checkSetupState()
         } catch (e: Exception) {
             showErrorScreen("Initialization failed: ${e.message}")
         }
@@ -48,13 +51,20 @@ class SetupActivity : Activity() {
         layout.addView(title)
 
         val hint = TextView(this).apply {
-            text = "One-time device setup. Login with email/password, verify eSIM, then register UPIs."
+            text = "One-time setup: login with email/password, verify eSIM, register your UPIs."
             textSize = 14f
         }
         layout.addView(hint)
 
+        setupCompleteText = TextView(this).apply {
+            text = ""
+            textSize = 14f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(setupCompleteText)
+
         emailInput = EditText(this).apply {
-            hint = "Email address"
+            hint = "Email address (Clerk account)"
             textSize = 18f
             maxLines = 1
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
@@ -81,16 +91,16 @@ class SetupActivity : Activity() {
         }
         layout.addView(statusText)
 
-        loginButton = Button(this).apply { text = "Login & Register Device" }
+        loginButton = Button(this).apply { text = "Login & Enroll Device" }
         layout.addView(loginButton)
 
         registerButton = Button(this).apply {
-            text = "Register UPIs (after login)"
+            text = "Register UPI IDs (up to 15)"
             isEnabled = false
         }
         layout.addView(registerButton)
 
-        val backButton = Button(this).apply { text = "Back" }
+        val backButton = Button(this).apply { text = "Skip & Go to Dashboard" }
         layout.addView(backButton)
 
         setContentView(layout)
@@ -100,7 +110,42 @@ class SetupActivity : Activity() {
             val intent = Intent(this, RegisterUpiActivity::class.java)
             startActivity(intent)
         }
-        backButton.setOnClickListener { finish() }
+        backButton.setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun checkSetupState() {
+        val enrolled = credentialStore.isEnrolled()
+        val upiRegistered = DeviceConfig.upiRegistered
+
+        runOnUiThread {
+            if (enrolled && upiRegistered) {
+                setupCompleteText.text = "✓ Setup complete. Device enrolled and UPI registered."
+                setupCompleteText.setTextColor(0xFF065F46.toInt())
+                emailInput.isEnabled = false
+                passwordInput.isEnabled = false
+                loginButton.isEnabled = false
+                registerButton.isEnabled = false
+                backButton.text = "Go to Dashboard"
+            } else if (enrolled) {
+                setupCompleteText.text = "Device enrolled. Register your UPI IDs to complete setup."
+                setupCompleteText.setTextColor(0xFF0F172A.toInt())
+                emailInput.isEnabled = false
+                passwordInput.isEnabled = false
+                loginButton.isEnabled = false
+                registerButton.isEnabled = true
+            } else {
+                setupCompleteText.text = "Not enrolled. Login with email/password to begin."
+                setupCompleteText.setTextColor(0xFF64748B.toInt())
+                emailInput.isEnabled = true
+                passwordInput.isEnabled = true
+                loginButton.isEnabled = true
+                registerButton.isEnabled = false
+            }
+        }
     }
 
     private fun showErrorScreen(message: String) {
@@ -133,7 +178,6 @@ class SetupActivity : Activity() {
     }
 
     private fun checkEsimStatus() {
-        // eSIM status check via TelephonyManager
         val telephonyManager = getSystemService(android.content.Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
         val simState = telephonyManager.simState
         val isEsimReady = simState == android.telephony.TelephonyManager.SIM_STATE_READY
@@ -144,7 +188,7 @@ class SetupActivity : Activity() {
                 esimStatusText.text = "eSIM: Active ($simOperator)"
                 esimStatusText.setTextColor(0xFF065F46.toInt())
             } else {
-                esimStatusText.text = "eSIM: Not configured — insert/activate eSIM first"
+                esimStatusText.text = "eSIM: Not configured — configure eSIM in device Settings first"
                 esimStatusText.setTextColor(0xFFDC2626.toInt())
             }
         }
@@ -162,20 +206,33 @@ class SetupActivity : Activity() {
         loginButton.isEnabled = false
         statusText.text = "Logging in…"
 
-        // Simulate Clerk OAuth login — in production, this calls Clerk SDK
-        // For now, store credentials locally and mark device as enrolled
+        // Clerk OAuth integration point — replace with Clerk SDK signIn flow
         android.os.Handler(Looper.getMainLooper()).postDelayed({
-            credentialStore.saveCredential("dev-token-${email.hashCode()}")
-            credentialStore.saveAccountId("acct_${email.hashCode().toString()}")
-            DeviceConfig.saveUpiRegistration(email, email) // placeholder
+            // Simulate successful Clerk OAuth login
+            val deviceToken = "clerk_device_" + email.hashCode().toString().removePrefix("-")
+            credentialStore.saveCredential(deviceToken)
+            credentialStore.saveAccountId("acct_${email.hashCode().toString().removePrefix("-")}")
+            DeviceConfig.saveUpiRegistration(email, email) // placeholder mobile
             runOnUiThread {
                 statusText.text = "Login successful. Device enrolled."
                 loginButton.isEnabled = false
                 registerButton.isEnabled = true
                 emailInput.isEnabled = false
                 passwordInput.isEnabled = false
+                setupCompleteText.text = "Device enrolled. Register your UPI IDs to complete setup."
+                setupCompleteText.setTextColor(0xFF0F172A.toInt())
             }
         }, 1000)
+    }
+
+    private fun checkEsimStatusPublic() {
+        checkEsimStatus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkSetupState()
+        checkEsimStatus()
     }
 
     override fun onDestroy() {
