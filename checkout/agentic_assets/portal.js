@@ -58,7 +58,8 @@ if (['owner', 'merchant', 'agents'].includes(page)) {
     $(page+'-nav').hidden=false; $('workspace-name').textContent=page==='owner'?'Platform Owner':page==='agents'?'Agent Operations':'Merchant Workspace';
     $('workspace').hidden = false;
     $(page).hidden = false;
-    view(page==='agents'?'agentmonitor':'overview');
+    view(page==='owner' && location.hash==='#androidworkspace'?'androidworkspace':page==='agents'?'agentmonitor':'overview');
+    if(page==='owner') refreshAndroidRuntime();
   }
   submit('email-sign-in', async (data) => {
     token = undefined;
@@ -111,3 +112,9 @@ function download(name,text){const url=URL.createObjectURL(new Blob([text],{type
 $('download-template').onclick=()=>download('agentic-accounts.csv','upi_id,account_holder,bank_name,receiving_account_number,registered_mobile,account_type,mcc\n');
 $('export-orders').onclick=()=>download('agentic-recent-orders.csv','order_id,amount_minor,status,created\n'+filtered().map(r=>[r.id,r.amount_minor,r.status,r.created].join(',')).join('\n'));
 $('check-health').onclick=async()=>{try{const r=await fetch('/healthz');const x=await r.json();$('health-result').textContent=r.ok&&x.ok?'Application healthy. Financial verification: '+x.verification:'Health unavailable.'}catch{$('health-result').textContent='Health unavailable.'}};
+
+async function refreshAndroidRuntime(){
+ const el=$('android-runtime-status'); if(!el || page!=='owner') return;
+ try { const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Device connected':'Cloud Android runtime not connected'; } catch {el.textContent='Device status unavailable';}
+}
+$('android-refresh').addEventListener('click',refreshAndroidRuntime);
