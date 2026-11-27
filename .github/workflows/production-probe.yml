@@ -30,3 +30,11 @@ jobs:
           path: production-probe.json
           if-no-files-found: warn
           retention-days: 7
+
+  verify-public-agentic-pay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify Agentic Pay public health endpoint
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --max-time 15 https://agenticpay.thenitishkr.in/healthz | python3 -c 'import json, sys; data = json.load(sys.stdin); assert data.get("ok") is True, data; print("Agentic Pay health: ok")'

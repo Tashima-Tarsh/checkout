@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var refreshButton: Button
     private lateinit var upiButton: Button
     private lateinit var checkoutButton: Button
+    private var uiReady = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +38,7 @@ class MainActivity : Activity() {
             credentialStore = CredentialStore.init(this)
             DeviceConfig.init(this)
             buildUI()
+            uiReady = true
             updateButtons()
             refreshStatus()
             loadDailyLimit()
@@ -71,11 +73,11 @@ class MainActivity : Activity() {
         }
         layout.addView(deviceId)
 
-        val version = TextView(this).apply {
+        versionText = TextView(this).apply {
             text = "Version: ${DeviceConfig.APP_VERSION_NAME} (${DeviceConfig.APP_VERSION_CODE})"
             textSize = 14f
         }
-        layout.addView(version)
+        layout.addView(versionText)
 
         statusText = TextView(this).apply {
             text = "Status: Checking…"
@@ -151,7 +153,7 @@ class MainActivity : Activity() {
         }
         layout.addView(msg)
 
-        setContentView(layout)
+        setContentView(ScrollView(this).apply { addView(layout) })
 
         pairButton.setOnClickListener {
             val intent = android.content.Intent(this, PairingActivity::class.java)
@@ -184,6 +186,7 @@ class MainActivity : Activity() {
     }
 
     private fun showErrorScreen(message: String) {
+        uiReady = false
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -214,6 +217,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (!uiReady) return
         try {
             updateButtons()
             refreshStatus()

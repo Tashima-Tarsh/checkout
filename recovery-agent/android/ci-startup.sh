@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 pkg=com.agentic.pay.connectivitytest
-trap 'adb logcat -b crash -d > startup-logcat.txt || true' EXIT
+trap 'adb logcat -b crash -d > startup-logcat.txt || true; cp /tmp/agentic-ui.xml startup-ui.xml 2>/dev/null || true' EXIT
 adb install -r -t recovery-agent/android/app/build/outputs/apk/debug/app-debug.apk
 adb logcat -b crash -c
 adb shell pm path "$pkg"
@@ -23,8 +23,22 @@ launch() {
   adb shell dumpsys activity activities | grep -E 'mResumedActivity.*com\.agentic\.pay\.connectivitytest/(com\.agentic\.pay\.connectivitytest)?\.MainActivity'
   adb shell uiautomator dump /sdcard/agentic-ui.xml
   adb pull /sdcard/agentic-ui.xml /tmp/agentic-ui.xml
-  grep -qi 'Enroll Device' /tmp/agentic-ui.xml
-  ! grep -qi 'Application Error' /tmp/agentic-ui.xml
+  if grep -qi 'Application Error' /tmp/agentic-ui.xml; then
+    echo 'Unexpected application error screen'
+    cat /tmp/agentic-ui.xml
+    return 1
+  fi
+  if ! grep -qi 'Enroll Device' /tmp/agentic-ui.xml; then
+    # The dashboard is scrollable on smaller emulator displays.
+    adb shell input swipe 300 650 300 250 500
+    adb shell uiautomator dump /sdcard/agentic-ui.xml
+    adb pull /sdcard/agentic-ui.xml /tmp/agentic-ui.xml
+  fi
+  if ! grep -qi 'Enroll Device' /tmp/agentic-ui.xml; then
+    echo 'Enrollment control not found'
+    cat /tmp/agentic-ui.xml
+    return 1
+  fi
 }
 launch
 coords=$(python - <<'PY'
