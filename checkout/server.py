@@ -473,34 +473,40 @@ def health(request: Request):
 _host_ws: WebSocket | None = None
 _viewer_ws: WebSocket | None = None
 
-# WebSocket authentication helper
-async def _auth_ws(websocket: WebSocket, request: Request) -> bool:
+# WebSocket authentication helper for Android Workspace
+async def _auth_websocket(websocket: WebSocket) -> str | None:
     """Authenticate WebSocket connection using Bearer token from query params.
-    Token must be a valid session token from the sessions table.
+    Token must match the PDEP_ADMIN_TOKEN environment variable.
+    Returns the tenant_id on success.
     """
     auth_header = websocket.query_params.get("authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         await websocket.close(code=4001, reason="Authentication required")
-        return False
+        return None
 
     token = auth_header.split(" ", 1)[1]
 
+    # Verify token using the existing admin auth helper
+    from checkout.vpa_admin import require_admin
+
+    class _FakeRequest:
+        def __init__(self, token_val: str):
+            self.headers = {"authorization": f"Bearer {token_val}"}
+            self.client = type("client", (), {"host": "127.0.0.1"})()
+
+    fake_request = _FakeRequest(token)
     try:
-        with request.app.state.engine.connect() as connection:
-            row = auth(connection, None, Authorization(token))
-            if not row:
-                await websocket.close(code=4001, reason="Invalid token")
-                return False
-            # Owner role required for Android Workspace access
-            if row.get("state") != "AWAITING_PAYMENT":
-                await websocket.close(code=4003, reason="Owner access required")
-                return False
+        require_admin(fake_request)
+    except HTTPException:
+        await websocket.close(code=4001, reason="Invalid or expired token")
+        return None
     except Exception:
         await websocket.close(code=4001, reason="Authentication failed")
-        return False
+        return None
 
-    await websocket.accept()
-    return True
+    # Tenant ID comes from environment (single-tenant deployment)
+    tenant_id = os.getenv("ANDROID_TENANT_ID", "shop-0001")
+    return tenant_id
 
 
 @app.get("/api/android/workspace/status")
@@ -574,25 +580,13 @@ def android_workspace_page():
 @app.websocket("/android/ws/host")
 async def android_ws_host(websocket: WebSocket):
     """WebSocket endpoint for the Android host agent (runs on local Windows machine).
-    Requires Bearer token authentication matching an active session.
+    Requires Bearer token authentication matching PDEP_ADMIN_TOKEN.
     """
     global _host_ws
 
-    # Authenticate before accepting
-    auth_header = websocket.query_params.get("authorization")
-    if not auth_header or not auth_header.lower().startswith("bearer "):
-        await websocket.close(code=4001, reason="Authentication required")
+    tenant_id = await _auth_websocket(websocket)
+    if tenant_id is None:
         return
-
-    token = auth_header.split(" ", 1)[1]
-    with request.app.state.engine.connect() as connection:
-        row = auth(connection, None, Authorization(token))
-        if not row:
-            await websocket.close(code=4001, reason="Invalid token")
-            return
-        if row.get("state") != "AWAITING_PAYMENT":
-            await websocket.close(code=4003, reason="Owner access required")
-            return
 
     await websocket.accept()
     _host_ws = websocket
@@ -604,6 +598,7 @@ async def android_ws_host(websocket: WebSocket):
             "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
             "connected": True,
             "state": "connected",
+            "tenant_id": tenant_id,
         })
 
         # Relay messages from host to viewers
@@ -640,23 +635,9 @@ async def android_ws_viewer(websocket: WebSocket):
     """
     global _viewer_ws
 
-    # Authenticate: require Bearer token in query params
-    auth_header = websocket.query_params.get("authorization")
-    if not auth_header or not auth_header.lower().startswith("bearer "):
-        await websocket.close(code=4001, reason="Authentication required")
+    tenant_id = await _auth_websocket(websocket)
+    if tenant_id is None:
         return
-
-    token = auth_header.split(" ", 1)[1]
-
-    with request.app.state.engine.connect() as connection:
-        row = auth(connection, None, Authorization(token))
-        if not row:
-            await websocket.close(code=4001, reason="Invalid token")
-            return
-        # Only owner/collection_manager/auditor can view Android Workspace
-        if row.get("state") != "AWAITING_PAYMENT":
-            await websocket.close(code=4003, reason="Owner/admin access required")
-            return
 
     await websocket.accept()
     _viewer_ws = websocket
@@ -668,6 +649,7 @@ async def android_ws_viewer(websocket: WebSocket):
             "type": "connection",
             "status": "connected",
             "host_connected": _host_ws is not None,
+            "tenant_id": tenant_id,
         })
 
         # Relay messages from viewer to host
@@ -710,4 +692,3 @@ async def android_ws_viewer(websocket: WebSocket):
 
 # Mount Android observer static files
 app.mount("/android/assets", StaticFiles(directory=ROOT / "static" / "android"), name="android_assets")
-
