@@ -13,6 +13,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.google.gson.reflect.TypeToken
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -48,7 +49,7 @@ class UpiPaymentObserver : NotificationListenerService() {
         internal val REFERENCE_PATTERN = Regex("\\b[0-9]{12}\\b")
 
         // Amount pattern: ₹<amount> or Rs.<amount> or INR <amount> or just a number with optional decimals.
-        internal val AMOUNT_PATTERN = Regex("""(?:₹|Rs\.?|INR)\s*([0-9]{1,10}(?:\.[0-9]{1,2})?)\b""", RegexOption.IGNORECASE)
+        internal val AMOUNT_PATTERN = Regex("(?i)(?:₹|Rs\\.?|INR)\\s*([0-9]{1,10}(?:\\.[0-9]{1,2})?)\\b")
 
         // Credit direction keywords in notification text.
         internal val CREDIT_KEYWORDS = setOf("credited", "received", "received ₹", "money received",
@@ -161,8 +162,8 @@ class UpiPaymentObserver : NotificationListenerService() {
             return null
         }
         val amountStr = amountMatch.groupValues[1]
-        val amountDouble = amountStr.toDoubleOrNull() ?: return null
-        val amountPaise = (amountDouble * 100).roundToInt()
+        val amountDouble: Double = amountStr.toDoubleOrNull() ?: return null
+        val amountPaise = (amountDouble * 100.0).toInt()
         if (amountPaise < 100) {
             Log.w(TAG, "Amount below minimum (₹1.00): $amountPaise paise")
             return null
@@ -195,17 +196,14 @@ class UpiPaymentObserver : NotificationListenerService() {
     private fun extractNotificationText(notification: Notification): String {
         val parts = mutableListOf<String>()
 
-        // From the status bar icon/content title.
-        notification?.let {
-            if (it.contentTitle.isNotBlank()) parts.add(it.contentTitle)
-            if (it.contentText.isNotBlank()) parts.add(it.contentText)
-            if (it.subText.isNotBlank()) parts.add(it.subText)
-        }
-
-        // From big content view (expanded notification).
-        notification?.bigContentView?.let { views ->
-            // Collect text from known view IDs generically without accessing private fields.
-            // We only capture visible text strings the user already sees.
+        // From the notification extras bundle (title, text, sub-text).
+        notification.extras?.let { extras ->
+            val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+            val sub = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+            if (title?.isNotBlank() == true) parts.add(title)
+            if (text?.isNotBlank() == true) parts.add(text)
+            if (sub?.isNotBlank() == true) parts.add(sub)
         }
 
         return parts.joinToString(" ")
@@ -248,8 +246,9 @@ class UpiPaymentObserver : NotificationListenerService() {
 
     private fun queueRetry(event: CreditEvent) {
         val existing = prefs.getString(KEY_RETRY_QUEUE, "[]")
-        val queue = try {
-            gson.fromJson<Array<String>>(existing, Array::class.java) ?: emptyList()
+        val queue: List<String> = try {
+            val parsed = gson.fromJson<Array<String>>(existing, Array::class.java)
+            if (parsed == null) emptyList() else parsed.asList()
         } catch (e: JsonSyntaxException) {
             emptyList()
         }
@@ -262,8 +261,9 @@ class UpiPaymentObserver : NotificationListenerService() {
         val token = credentialStore.getCredential() ?: return
         val accountId = credentialStore.getAccountId() ?: return
         val existing = prefs.getString(KEY_RETRY_QUEUE, "[]")
-        val queue = try {
-            gson.fromJson<Array<String>>(existing, Array::class.java) ?: emptyList()
+        val queue: List<String> = try {
+            val parsed = gson.fromJson<Array<String>>(existing, Array::class.java)
+            if (parsed == null) emptyList() else parsed.asList()
         } catch (e: JsonSyntaxException) {
             emptyList()
         }
@@ -272,10 +272,11 @@ class UpiPaymentObserver : NotificationListenerService() {
         val remaining = mutableListOf<String>()
         for (item in queue) {
             val event = try {
-                gson.fromJson(item, CreditEvent::class.java)
+                gson.fromJson(item, object : com.google.gson.reflect.TypeToken<CreditEvent>() {}.type) as? CreditEvent
             } catch (e: JsonSyntaxException) {
                 continue
             }
+            if (event == null) continue
             val body = mutableMapOf<String, Any?>(
                 "event_id" to event.eventId,
                 "amount_paise" to event.amountPaise,
