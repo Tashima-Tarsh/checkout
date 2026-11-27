@@ -466,73 +466,102 @@ def health(request: Request):
 
 
 # ============================================================================
-# Android Workspace - Live Android Emulator inside SaaS
+# Android Workspace - WebSocket relay between host agent and browser
 # ============================================================================
 
 # Connected WebSocket clients
 _host_ws: WebSocket | None = None
 _viewer_ws: WebSocket | None = None
 
-# Screen frame queue for relay between host and viewer
-from asyncio import Queue as _Queue
-_screen_queue: _Queue[bytes] = _Queue(maxsize=10)
+# WebSocket authentication helper
+async def _auth_ws(websocket: WebSocket, request: Request) -> bool:
+    """Authenticate WebSocket connection using Bearer token from query params.
+    Token must be a valid session token from the sessions table.
+    """
+    auth_header = websocket.query_params.get("authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        await websocket.close(code=4001, reason="Authentication required")
+        return False
+
+    token = auth_header.split(" ", 1)[1]
+
+    try:
+        with request.app.state.engine.connect() as connection:
+            row = auth(connection, None, Authorization(token))
+            if not row:
+                await websocket.close(code=4001, reason="Invalid token")
+                return False
+            # Owner role required for Android Workspace access
+            if row.get("state") != "AWAITING_PAYMENT":
+                await websocket.close(code=4003, reason="Owner access required")
+                return False
+    except Exception:
+        await websocket.close(code=4001, reason="Authentication failed")
+        return False
+
+    await websocket.accept()
+    return True
 
 
 @app.get("/api/android/workspace/status")
 def android_workspace_status(request: Request):
-    """Get Android emulator device status."""
+    """Get Android workspace connection status (host agent reports via WebSocket)."""
     return {
-        "connected": manager.is_emulator_running(),
-        "device_id": DEVICE_ID,
-        "tenant_id": TENANT_ID,
-        "state": "booted" if manager.is_emulator_running() else "offline",
+        "connected": _host_ws is not None,
+        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
+        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
     }
 
 
 @app.post("/api/android/workspace/start")
 def android_workspace_start(request: Request):
-    """Start the Android emulator."""
-    if manager.is_emulator_running():
-        return {"status": "already_running"}
-    success = manager.start_emulator()
-    return {"status": "started" if success else "failed"}
+    """Request emulator start on the host agent (relayed via WebSocket)."""
+    if _host_ws:
+        asyncio.create_task(_host_ws.send_json({"type": "start_emulator"}))
+        return {"status": "start_requested"}
+    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/stop")
 def android_workspace_stop(request: Request):
-    """Stop the Android emulator."""
-    manager.stop_emulator()
-    return {"status": "stopped"}
+    """Request emulator stop on the host agent (relayed via WebSocket)."""
+    if _host_ws:
+        asyncio.create_task(_host_ws.send_json({"type": "stop_emulator"}))
+        return {"status": "stop_requested"}
+    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/restart")
 def android_workspace_restart(request: Request):
-    """Restart the Android emulator."""
-    manager.stop_emulator()
-    success = manager.start_emulator()
-    return {"status": "restarted" if success else "failed"}
+    """Request emulator restart on the host agent (relayed via WebSocket)."""
+    if _host_ws:
+        asyncio.create_task(_host_ws.send_json({"type": "restart_emulator"}))
+        return {"status": "restart_requested"}
+    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/input")
 def android_workspace_input(request: Request, body: dict):
-    """Inject input into the Android emulator."""
+    """Inject input into the Android emulator (relayed to host agent).
+    Requires authenticated session token.
+    """
     action = body.get("action")
     if not action:
         raise HTTPException(400, "Missing action")
-    manager.inject_input(action, **{
-        k: v for k, v in body.items()
-        if k not in ("action",)
-    })
-    return {"status": "ok"}
+    if _host_ws:
+        asyncio.create_task(_host_ws.send_json(body))
+        return {"status": "input_sent"}
+    return {"status": "host_not_connected"}
 
 
 @app.get("/api/android/workspace/config")
 def android_workspace_config(request: Request):
     """Get Android Workspace configuration."""
     return {
-        "device_id": DEVICE_ID,
-        "tenant_id": TENANT_ID,
+        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
+        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
         "ws_url": f"/android/ws/viewer",
+        "host_connected": _host_ws is not None,
     }
 
 
@@ -545,44 +574,37 @@ def android_workspace_page():
 @app.websocket("/android/ws/host")
 async def android_ws_host(websocket: WebSocket):
     """WebSocket endpoint for the Android host agent (runs on local Windows machine).
-    Requires Bearer token authentication with owner role and tenant isolation.
+    Requires Bearer token authentication matching an active session.
     """
     global _host_ws
-    
-    # Authenticate: require Bearer token in query params
+
+    # Authenticate before accepting
     auth_header = websocket.query_params.get("authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         await websocket.close(code=4001, reason="Authentication required")
         return
-    
+
     token = auth_header.split(" ", 1)[1]
-    
-    # Verify token against sessions table
     with request.app.state.engine.connect() as connection:
         row = auth(connection, None, Authorization(token))
         if not row:
             await websocket.close(code=4001, reason="Invalid token")
             return
-        # Owner-only access for host agent
         if row.get("state") != "AWAITING_PAYMENT":
             await websocket.close(code=4003, reason="Owner access required")
             return
-    
+
     await websocket.accept()
     _host_ws = websocket
     log.info("Android host agent connected via WebSocket")
     try:
-        # Send initial device status
-        status = manager.get_device_status()
+        # Send initial device status (host reports its own state)
         await websocket.send_json({
             "type": "device_status",
-            "device_id": DEVICE_ID,
-            **status,
+            "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
+            "connected": True,
+            "state": "connected",
         })
-
-        # Start scrcpy if not running
-        if not manager.scrcpy_proc:
-            manager.start_scrcpy()
 
         # Relay messages from host to viewers
         while True:
@@ -617,16 +639,15 @@ async def android_ws_viewer(websocket: WebSocket):
     Requires Bearer token authentication with owner/admin role.
     """
     global _viewer_ws
-    
+
     # Authenticate: require Bearer token in query params
     auth_header = websocket.query_params.get("authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         await websocket.close(code=4001, reason="Authentication required")
         return
-    
+
     token = auth_header.split(" ", 1)[1]
-    
-    # Verify token against sessions table
+
     with request.app.state.engine.connect() as connection:
         row = auth(connection, None, Authorization(token))
         if not row:
@@ -636,177 +657,11 @@ async def android_ws_viewer(websocket: WebSocket):
         if row.get("state") != "AWAITING_PAYMENT":
             await websocket.close(code=4003, reason="Owner/admin access required")
             return
-    
+
     await websocket.accept()
     _viewer_ws = websocket
     log.info("Android Workspace viewer connected")
 
-    try:
-        # Send initial connection status
-        await websocket.send_json({
-            "type": "connection",
-            "status": "connected",
-            "host_connected": _host_ws is not None,
-        })
-
-        # Relay messages from viewer to host
-        while True:
-            message = await websocket.receive_text()
-            try:
-                data = json.loads(message)
-                msg_type = data.get("type")
-
-                if msg_type == "inject_input":
-                    # Forward input to host agent
-                    if _host_ws:
-                        await _host_ws.send_json(data)
-                    else:
-                        # Process locally if no host connected
-                        manager.inject_input(data.get("action"), **{
-                            k: v for k, v in data.items()
-                            if k not in ("type", "action", "timestamp")
-                        })
-                elif msg_type == "get_status":
-                    # Request status from host
-                    if _host_ws:
-                        await _host_ws.send_json({"type": "get_status"})
-                    else:
-                        await websocket.send_json({
-                            "type": "device_status",
-                            "connected": False,
-                            "state": "offline",
-                        })
-                elif msg_type == "ping":
-                    await websocket.send_json({"type": "pong"})
-            except json.JSONDecodeError:
-                log.error(f"Invalid message from viewer: {message}")
-    except WebSocketDisconnect:
-        log.info("Android Workspace viewer disconnected")
-    except Exception as e:
-        log.error(f"Viewer WebSocket error: {e}")
-    finally:
-        _viewer_ws = None
-
-
-# Mount Android observer static files
-app.mount("/android/assets", StaticFiles(directory=ROOT / "static" / "android"), name="android_assets")
-
-# ============================================================================
-# Android Workspace - WebSocket relay between host agent and browser
-# ============================================================================
-
-# Connected WebSocket clients
-_host_ws: WebSocket | None = None
-_viewer_ws: WebSocket | None = None
-
-
-@app.get("/api/android/workspace/status")
-def android_workspace_status(request: Request):
-    """Get Android workspace status (host agent reports via WebSocket)."""
-    return {
-        "connected": _host_ws is not None,
-        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
-        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
-    }
-
-
-@app.post("/api/android/workspace/start")
-def android_workspace_start(request: Request):
-    """Request emulator start (relayed to host agent)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "start_emulator"}))
-        return {"status": "start_requested"}
-    return {"status": "host_not_connected"}
-
-
-@app.post("/api/android/workspace/stop")
-def android_workspace_stop(request: Request):
-    """Request emulator stop (relayed to host agent)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "stop_emulator"}))
-        return {"status": "stop_requested"}
-    return {"status": "host_not_connected"}
-
-
-@app.post("/api/android/workspace/restart")
-def android_workspace_restart(request: Request):
-    """Request emulator restart (relayed to host agent)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "restart_emulator"}))
-        return {"status": "restart_requested"}
-    return {"status": "host_not_connected"}
-
-
-@app.post("/api/android/workspace/input")
-def android_workspace_input(request: Request, body: dict):
-    """Inject input into the Android emulator (relayed to host agent)."""
-    action = body.get("action")
-    if not action:
-        raise HTTPException(400, "Missing action")
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json(body))
-        return {"status": "input_sent"}
-    return {"status": "host_not_connected"}
-
-
-@app.get("/api/android/workspace/config")
-def android_workspace_config(request: Request):
-    """Get Android Workspace configuration."""
-    return {
-        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
-        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
-        "ws_url": f"/android/ws/viewer",
-        "host_connected": _host_ws is not None,
-    }
-
-
-@app.get("/android/workspace", response_class=HTMLResponse)
-def android_workspace_page():
-    """Serve the Android Workspace HTML page."""
-    return (ROOT / "static" / "android_workspace.html").read_text(encoding="utf-8")
-
-
-@app.websocket("/android/ws/host")
-async def android_ws_host(websocket: WebSocket):
-    """WebSocket endpoint for the Android host agent (runs on local Windows machine)."""
-    global _host_ws
-    await websocket.accept()
-    _host_ws = websocket
-    log.info("Android host agent connected via WebSocket")
-    try:
-        while True:
-            message = await websocket.receive_text()
-            try:
-                data = json.loads(message)
-                msg_type = data.get("type")
-
-                if msg_type == "screen_frame":
-                    # Forward screen frame to browser viewer
-                    if _viewer_ws:
-                        await _viewer_ws.send_json(data)
-                elif msg_type == "device_status":
-                    # Forward device status to browser viewer
-                    if _viewer_ws:
-                        await _viewer_ws.send_json(data)
-                elif msg_type == "ping":
-                    await websocket.send_json({"type": "pong"})
-            except json.JSONDecodeError:
-                log.error(f"Invalid message from host: {message}")
-    except WebSocketDisconnect:
-        log.info("Android host agent disconnected")
-        _host_ws = None
-    except Exception as e:
-        log.error(f"Host WebSocket error: {e}")
-        _host_ws = None
-
-
-@app.websocket("/android/ws/viewer")
-async def android_ws_viewer(websocket: WebSocket):
-    """WebSocket endpoint for the Android Workspace viewer (browser)."""
-    global _viewer_ws
-    await websocket.accept()
-    _viewer_ws = websocket
-    log.info("Android Workspace viewer connected")
     try:
         # Send initial connection status
         await websocket.send_json({
