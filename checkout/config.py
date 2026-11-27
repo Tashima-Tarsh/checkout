@@ -1,17 +1,16 @@
 """
-DISHA 8.2 - Canonical URL Configuration Registry
+DISHA 8.2 - Canonical URL Registry
 ================================================
 Centralized environment-aware URL configuration for all subdomains.
 All domain and URL configurations are centralized here to prevent
 hardcoded URLs throughout the codebase.
 
 Environments: DEVELOPMENT, UAT, PRODUCTION
-AWS Region: ap-southeast-2
+AWS Region: ap-southeast-2 (Asia Pacific / Sydney)
 """
 
 import os
-from typing import Dict, Optional, Literal
-from urllib.parse import urljoin
+from typing import Dict, Optional
 
 # ---------------------------------------------------------------------------
 # Environment Configuration
@@ -81,7 +80,6 @@ CANONICAL_URLS: Dict[str, str] = {}
 
 # Public Website
 CANONICAL_URLS["website_public"] = https_url("disha8-2.thenitishkr.in", "/")
-# Actually the main website IS at the base domain
 CANONICAL_URLS["website_home"] = https_url("", "/")
 
 # Super Admin Control Center
@@ -151,7 +149,7 @@ def get_all_urls() -> Dict[str, str]:
 
 CONTACT_EMAIL = os.environ.get("DISHA_CONTACT_EMAIL", "nitish@thenitishkr.in")
 CONTACT_WHATSAPP = os.environ.get("DISHA_WHATSAPP", "+91-9142197135")
-CONTACT_WHATSAPP_LINK = f"https://wa.me/919142197135"
+CONTACT_WHATSAPP_LINK = "https://wa.me/919142197135"
 COMPANY_NAME = "DishaNitish Technologies"
 PRODUCT_NAME = "DISHA 8.2"
 
