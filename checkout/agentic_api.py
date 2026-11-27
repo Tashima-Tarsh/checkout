@@ -20,6 +20,7 @@ from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
+    credit_events,
 )
 
 router = APIRouter(prefix="/api")
@@ -40,6 +41,9 @@ OBS_STATE_RECEIVED = "OBSERVATION_RECEIVED"
 OBS_STATE_MATCHED = "OBSERVATION_MATCHED"
 OBS_STATE_AMBIGUOUS = "AMBIGUOUS_OBSERVATION"
 OBS_STATE_REJECTED = "OBSERVATION_REJECTED"
+OBS_STATE_EXPIRED = "EXPIRED"
+OBS_STATE_SETTLED = "SETTLED"
+OBS_STATE_AWAITING = "AWAITING_PAYMENT"
 HEARTBEAT_OFFLINE_TIMEOUT = 90
 CREDENTIAL_TTL_SECONDS = 30 * 24 * 60 * 60
 DEVICE_RECONNECT_BASE = 2
@@ -63,8 +67,14 @@ def bearer(authorization):
     return token
 
 
-def device_bearer(request: Request, authorization: Token = None):
-    """Authenticate an enrolled device using its stored credential."""
+def device_bearer(request: Request, authorization: Token = None, *, allow_offline: bool = False):
+    """Authenticate an enrolled device using its stored credential.
+
+    By default the device must be ONLINE. Pass allow_offline=True for the
+    heartbeat endpoint so a device that fell OFFLINE (missed the 90s window)
+    can re-heartbeat and come back online instead of being locked out.
+    Revoked or expired credentials are still rejected.
+    """
     if authorization is None:
         raise HTTPException(401, "Device credentials required")
     token = bearer(authorization)
@@ -83,7 +93,7 @@ def device_bearer(request: Request, authorization: Token = None):
         raise HTTPException(401, "Device revoked")
     if row["expires"] is not None and row["expires"] <= now:
         raise HTTPException(401, "Device credential expired")
-    if row["state"] not in {DEVICE_STATE_ONLINE, DEVICE_STATE_OFFLINE}:
+    if row["state"] != DEVICE_STATE_ONLINE and not allow_offline:
         raise HTTPException(401, "Device not enrolled")
     return row
 
@@ -549,6 +559,25 @@ class DeviceObservationOutput(BaseModel):
     reason: str | None
 
 
+class CreditEventInput(BaseModel):
+    event_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    amount_paise: int = Field(strict=True, ge=100, le=100000000)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    observation_direction: str = Field(pattern=r"^(incoming|outgoing)$")
+    receiving_account_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    transaction_reference: str | None = Field(default=None, pattern=r"^[0-9]{12}$")
+    observation_timestamp: int = Field(strict=True, ge=0)
+    source_app_id: str | None = Field(default=None, max_length=256)
+
+
+class CreditEventOutput(BaseModel):
+    event_id: str
+    state: str
+    decision: str | None
+    reason: str | None
+    matched_order_id: str | None
+
+
 def _pairing_rate_check(conn, merchant_id, now):
     window_start = now - PAIRING_RATE_WINDOW
     attempts = conn.scalar(select(func.count()).select_from(pairing_codes).where(
@@ -748,8 +777,12 @@ def device_status(request: Request, authorization: Token = None):
 
 @router.post("/android/heartbeat", status_code=204)
 def device_heartbeat(request: Request, authorization: Token = None):
-    """Authenticated device heartbeat. Updates last-seen timestamp."""
-    row = device_bearer(request, authorization)
+    """Authenticated device heartbeat. Updates last-seen timestamp.
+
+    Allows an OFFLINE device to re-heartbeat and return to ONLINE; revoked
+    or expired credentials are still rejected.
+    """
+    row = device_bearer(request, authorization, allow_offline=True)
     ts = now()
     with request.app.state.engine.begin() as conn:
         conn.execute(
@@ -833,6 +866,167 @@ def device_observation(request: Request, item: DeviceObservationInput, authoriza
     return {"observation_id": obs_id, "state": state, "decision": decision, "reason": reason}
 
 
+@router.post("/android/credit-event", status_code=202, response_model=CreditEventOutput)
+def credit_event(request: Request, item: CreditEventInput, authorization: Token = None):
+    """Authenticated incoming UPI credit event ingestion.
+
+    Resolves the active checkout from the merchant's authorized receiving
+    account, exact amount, transaction reference and event time. Does not
+    require a checkout ID and never consumes the financial settlement ledger.
+    """
+    row = device_bearer(request, authorization)
+    ts = now()
+    device_id = row["device_id"]
+    merchant_id = row["merchant_id"]
+
+    with request.app.state.engine.begin() as conn:
+        # Basic validation: currency and direction.
+        if item.currency != "INR" or item.observation_direction != "incoming":
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_REJECTED, None, ts, "INVALID_EVENT",
+                           "Only incoming INR credit events are observed.")
+            event(conn, merchant_id, "CREDIT_EVENT_REJECTED")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                reason="Only incoming INR credit events are observed.",
+                matched_order_id=None)
+
+        # Idempotent duplicate delivery: preserve previous state.
+        existing = conn.execute(
+            select(credit_events).where(credit_events.c.event_id == item.event_id)
+        ).mappings().first()
+        if existing is not None:
+            event(conn, merchant_id, "CREDIT_EVENT_DUPLICATE")
+            return CreditEventOutput(
+                event_id=item.event_id, state=existing["state"],
+                decision="MATCHED" if existing["matched_order_id"] is not None else "RECEIVED",
+                reason="Duplicate event delivery; previous state preserved.",
+                matched_order_id=existing["matched_order_id"])
+
+        # Verify the receiving account belongs to this merchant.
+        account = conn.scalar(select(accounts.c.id).where(
+            accounts.c.id == item.receiving_account_id,
+            accounts.c.merchant_id == merchant_id,
+        ))
+        if account is None:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_REJECTED, None, ts, "UNKNOWN_ACCOUNT",
+                           "Receiving account is not authorized for this merchant.")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                reason="Receiving account is not authorized for this merchant.",
+                matched_order_id=None)
+
+        # Transaction reference uniqueness: reject if already used.
+        if item.transaction_reference is not None:
+            used = conn.scalar(select(credit_events.c.event_id).where(
+                credit_events.c.merchant_id == merchant_id,
+                credit_events.c.transaction_reference == item.transaction_reference,
+                credit_events.c.state == OBS_STATE_MATCHED,
+            ))
+            if used is not None:
+                event(conn, merchant_id, "CREDIT_EVENT_REJECTED")
+                return CreditEventOutput(
+                    event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                    reason="Transaction reference already used.", matched_order_id=None)
+
+        # Resolve eligible checkouts for this account and amount.
+        eligible = conn.execute(
+            select(orders.c.id, orders.c.amount_minor, orders.c.created, orders.c.expires,
+                   orders.c.status)
+            .where(
+                orders.c.account_id == item.receiving_account_id,
+                orders.c.merchant_id == merchant_id,
+                orders.c.amount_minor == item.amount_paise,
+                orders.c.status.in_(("AWAITING_PAYMENT", "PENDING")),
+                orders.c.expires > ts,
+            )
+            .order_by(orders.c.created.desc())
+        ).mappings().all()
+
+        if len(eligible) == 0:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_RECEIVED, None, ts, "UNMATCHED",
+                           "No eligible checkout found for this credit.")
+            event(conn, merchant_id, "CREDIT_EVENT_UNMATCHED")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_RECEIVED, decision="RECEIVED",
+                reason="No eligible checkout found for this credit.",
+                matched_order_id=None)
+
+        if len(eligible) > 1:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_AMBIGUOUS, None, ts, "AMBIGUOUS",
+                           "Multiple eligible checkouts; no arbitrary selection.")
+            event(conn, merchant_id, "CREDIT_EVENT_AMBIGUOUS")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_AMBIGUOUS, decision="AMBIGUOUS",
+                reason="Multiple eligible checkouts; no arbitrary selection.",
+                matched_order_id=None)
+
+        # Exactly one eligible checkout: match it.
+        order = eligible[0]
+        _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                       OBS_STATE_MATCHED, order["id"], ts, "MATCHED",
+                       "Credit matched to checkout.")
+        event(conn, merchant_id, "CREDIT_EVENT_MATCHED")
+        return CreditEventOutput(
+            event_id=item.event_id, state=OBS_STATE_MATCHED, decision="MATCHED",
+            reason="Credit matched to checkout.",
+            matched_order_id=order["id"])
+
+
+def _credit_insert(conn, event_id, device_id, merchant_id, item, state, matched_order_id,
+                   ts, decision, reason):
+    """Insert a credit event record and reflect the state in settlement_states."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    values = dict(
+        event_id=event_id, device_id=device_id, merchant_id=merchant_id,
+        amount_paise=item.amount_paise, currency=item.currency,
+        observation_direction=item.observation_direction,
+        receiving_account_id=item.receiving_account_id,
+        transaction_reference=item.transaction_reference,
+        observation_timestamp=item.observation_timestamp,
+        source_app_id=item.source_app_id,
+        state=state, matched_order_id=matched_order_id,
+        created=ts, updated=ts,
+    )
+    if conn.dialect.name == "postgresql":
+        stmt = pg_insert(credit_events).values(**values).on_conflict_do_nothing(
+            index_elements=[credit_events.c.event_id],
+        )
+    elif conn.dialect.name == "sqlite":
+        stmt = sqlite_insert(credit_events).values(**values).on_conflict_do_nothing(
+            index_elements=[credit_events.c.event_id],
+        )
+    else:
+        raise RuntimeError("Unsupported ledger database")
+    conn.execute(stmt)
+    # Reflect observation state in settlement_states so the checkout UI sees it.
+    if matched_order_id is not None:
+        settle_values = dict(order_id=matched_order_id, state=state,
+                             observed_minor=item.amount_paise if state == OBS_STATE_MATCHED else None,
+                             updated=ts)
+        if conn.dialect.name == "postgresql":
+            s_stmt = pg_insert(settlement_states).values(**settle_values).on_conflict_do_update(
+                index_elements=[settlement_states.c.order_id],
+                set_=dict(state=state, observed_minor=settle_values["observed_minor"], updated=ts),
+            )
+        elif conn.dialect.name == "sqlite":
+            s_stmt = sqlite_insert(settlement_states).values(**settle_values).on_conflict_do_update(
+                index_elements=[settlement_states.c.order_id],
+                set_=dict(state=state, observed_minor=settle_values["observed_minor"], updated=ts),
+            )
+        else:
+            raise RuntimeError("Unsupported ledger database")
+        conn.execute(s_stmt)
+    conn.execute(audit.insert().values(
+        merchant_id=merchant_id, event="CREDIT_EVENT_" + state,
+        detail=decision + ": " + reason, created=ts,
+    ))
+
+
 def _device_settle_state(conn, order_id, state, observed_minor, ts, decision):
     """Record or update the settlement state for an order from a device observation."""
     merchant_id = conn.execute(select(orders.c.merchant_id).where(
@@ -857,3 +1051,131 @@ def _device_settle_state(conn, order_id, state, observed_minor, ts, decision):
         merchant_id=merchant_id, order_id=order_id, event="DEVICE_OBS_" + state,
         detail=decision, created=ts,
     ))
+
+
+# ============================================================================
+# Merchant agent daily collection limit and UPI registration
+# ============================================================================
+
+class UpiRegisterInput(BaseModel):
+    upi_id: str = Field(pattern=r"^[a-zA-Z0-9_.-]{2,256}@[a-zA-Z0-9_.-]{2,64}$")
+    mobile_number: str = Field(pattern=r"^[0-9]{10}$")
+    account_holder: str = Field(min_length=2, max_length=100)
+    bank_name: str = Field(min_length=1, max_length=100)
+    account_number: str = Field(pattern=r"^[0-9]{6,34}$")
+
+
+@router.get("/android/daily-limit", response_model=dict)
+def android_daily_limit(request: Request, authorization: Token = None):
+    """Return today's collected amount and the daily limit for the device's merchant."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    today_start = now() - (now() % 86400)
+    with request.app.state.engine.connect() as conn:
+        collected = conn.scalar(
+            select(func.coalesce(func.sum(orders.c.amount_minor), 0)).where(
+                orders.c.merchant_id == merchant_id,
+                orders.c.status == "PAID",
+                orders.c.created >= today_start,
+            )
+        ) or 0
+    return {
+        "merchant_id": merchant_id,
+        "collected_today_paise": int(collected),
+        "collected_today_rupees": int(collected) / 100.0,
+        "daily_limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
+        "daily_limit_rupees": DAILY_COLLECTION_LIMIT_PAISE / 100.0,
+        "remaining_paise": max(0, DAILY_COLLECTION_LIMIT_PAISE - int(collected)),
+        "can_collect": int(collected) < DAILY_COLLECTION_LIMIT_PAISE,
+    }
+
+
+@router.post("/android/register-upi", status_code=201, response_model=dict)
+def android_register_upi(request: Request, item: UpiRegisterInput, authorization: Token = None):
+    """Register the agent's own UPI ID + mobile number as a receiving account.
+
+    Bound to the device's paired merchant. Each agent mobile registers its
+    own UPI and mobile number once; thereafter it can create checkouts and
+    collect incoming UPI credits against that account.
+    """
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+
+    with request.app.state.engine.begin() as conn:
+        # Check if this merchant already has an account with this UPI.
+        existing = conn.scalar(select(accounts.c.id).where(
+            accounts.c.merchant_id == merchant_id,
+            accounts.c.vpa == item.upi_id.lower(),
+        ))
+        if existing is not None:
+            # Link this device to the existing account (idempotent).
+            try:
+                conn.execute(agent_sessions.insert().values(
+                    account_id=existing, agent_id=device_id, state="AUTH_REQUIRED", expires=0,
+                ))
+            except IntegrityError:
+                pass  # Agent session already exists for this device
+            return {"registered": False, "account_id": existing, "upi_id": item.upi_id.lower(),
+                    "note": "UPI already registered for this merchant."}
+
+        cipher = request.app.state.account_cipher
+        account_id = secrets.token_hex(16)
+        try:
+            conn.execute(select(merchants.c.id).where(merchants.c.id == merchant_id).with_for_update())
+            current = conn.scalar(select(func.count()).select_from(accounts).where(accounts.c.merchant_id == merchant_id))
+            if current >= 1000:
+                raise HTTPException(409, "Merchant account limit exceeded")
+            conn.execute(accounts.insert().values(
+                id=account_id, merchant_id=merchant_id, vpa=item.upi_id.lower(),
+                bank=item.bank_name, holder=item.account_holder, last4=item.account_number[-4:],
+                account_cipher=cipher.encrypt(item.account_number.encode()).decode(),
+                mobile_cipher=cipher.encrypt(item.mobile_number.encode()).decode(),
+                account_type="MERCHANT", mcc=None,
+            ))
+            conn.execute(agent_sessions.insert().values(
+                account_id=account_id, agent_id=device_id, state="AUTH_REQUIRED", expires=0,
+            ))
+            event(conn, merchant_id, "AGENT_UPI_REGISTERED")
+        except IntegrityError:
+            raise HTTPException(409, "UPI already registered") from None
+    return {"registered": True, "account_id": account_id, "upi_id": item.upi_id.lower(),
+            "mobile_number": item.mobile_number}
+
+
+DAILY_COLLECTION_LIMIT_PAISE = 7000000
+
+
+class MerchantEmailInput(BaseModel):
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@router.post("/admin/merchant-email", dependencies=[Depends(require_owner)])
+def admin_set_merchant_email(request: Request, merchant_id: str, item: MerchantEmailInput):
+    """Set the notification email for a merchant (owner only)."""
+    with request.app.state.engine.begin() as conn:
+        exists = conn.scalar(select(merchants.c.id).where(merchants.c.id == merchant_id))
+        if exists is None:
+            raise HTTPException(404, "Merchant not found")
+        conn.execute(merchants.update().where(merchants.c.id == merchant_id).values(email=item.email))
+    return {"merchant_id": merchant_id, "email": item.email}
+
+
+class EmailNotifyInput(BaseModel):
+    order_id: str
+    status: str
+
+
+@router.post("/android/email-notify")
+def android_email_notify(request: Request, item: EmailNotifyInput, authorization: Token = None):
+    """Queue a payment email notification for the device's merchant."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    with request.app.state.engine.begin() as conn:
+        email = conn.scalar(select(merchants.c.email).where(merchants.c.id == merchant_id))
+        event(conn, merchant_id, "EMAIL_NOTIFY")
+    if email is None:
+        raise HTTPException(400, "Merchant email not configured")
+    return {"merchant_id": merchant_id, "order_id": item.order_id, "status": item.status,
+            "email": email, "queued": True}
+

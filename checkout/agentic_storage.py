@@ -13,6 +13,7 @@ merchants = Table(
     Column("id", String(32), primary_key=True),
     Column("name", String(150), nullable=False),
     Column("token_hash", String(64), unique=True, nullable=False),
+    Column("email", String(254), nullable=True),
 )
 accounts = Table(
     "ap_accounts", metadata,
@@ -183,6 +184,26 @@ device_heartbeats = Table(
     Column("created", BigInteger, nullable=False),
 )
 
+# Incoming merchant credit events observed on the device.
+# One row per unique event_id; idempotent redelivery preserves prior state.
+credit_events = Table(
+    "ap_credit_events", metadata,
+    Column("event_id", String(64), primary_key=True),
+    Column("device_id", String(64), ForeignKey("ap_devices.device_id", use_alter=True, name="fk_credit_events_device"), nullable=False, index=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False, index=True),
+    Column("amount_paise", Integer, nullable=False),
+    Column("currency", String(8), nullable=False),
+    Column("observation_direction", String(16), nullable=False),
+    Column("receiving_account_id", String(32), ForeignKey("ap_accounts.id"), nullable=False, index=True),
+    Column("transaction_reference", String(128), nullable=True, index=True),
+    Column("observation_timestamp", BigInteger, nullable=False),
+    Column("source_app_id", String(256), nullable=True),
+    Column("state", String(32), nullable=False, server_default="OBSERVATION_RECEIVED"),
+    Column("matched_order_id", String(48), nullable=True, index=True),
+    Column("created", BigInteger, nullable=False),
+    Column("updated", BigInteger, nullable=False),
+)
+
 
 def isolated_database_url():
     configured = os.environ.get("AGENTIC_DATABASE_URL")
@@ -244,4 +265,9 @@ def ensure_schema(engine):
         if "detail" not in columns:
             connection.execute(text(
                 "ALTER TABLE ap_audit ADD COLUMN detail TEXT"
+            ))
+        merchant_cols = {c["name"] for c in inspector.get_columns("ap_merchants")}
+        if "email" not in merchant_cols:
+            connection.execute(text(
+                "ALTER TABLE ap_merchants ADD COLUMN email VARCHAR(254)"
             ))

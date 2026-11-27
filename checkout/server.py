@@ -501,76 +501,36 @@ async def _auth_websocket(websocket: WebSocket) -> str | None:
 @app.get("/api/android/workspace/status")
 def android_workspace_status(request: Request):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Get Android workspace connection status (host agent reports via WebSocket)."""
-    return {
-        "connected": _host_ws is not None,
-        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
-        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
-    }
 
 
 @app.post("/api/android/workspace/start")
 def android_workspace_start(request: Request):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Request emulator start on the host agent (relayed via WebSocket)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "start_emulator"}))
-        return {"status": "start_requested"}
-    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/stop")
 def android_workspace_stop(request: Request):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Request emulator stop on the host agent (relayed via WebSocket)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "stop_emulator"}))
-        return {"status": "stop_requested"}
-    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/restart")
 def android_workspace_restart(request: Request):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Request emulator restart on the host agent (relayed via WebSocket)."""
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json({"type": "restart_emulator"}))
-        return {"status": "restart_requested"}
-    return {"status": "host_not_connected"}
 
 
 @app.post("/api/android/workspace/input")
 def android_workspace_input(request: Request, body: dict):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Inject input into the Android emulator (relayed to host agent).
-    Requires authenticated session token.
-    """
-    action = body.get("action")
-    if not action:
-        raise HTTPException(400, "Missing action")
-    if _host_ws:
-        asyncio.create_task(_host_ws.send_json(body))
-        return {"status": "input_sent"}
-    return {"status": "host_not_connected"}
 
 
 @app.get("/api/android/workspace/config")
 def android_workspace_config(request: Request):
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Get Android Workspace configuration."""
-    return {
-        "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
-        "tenant_id": os.getenv("ANDROID_TENANT_ID", "shop-0001"),
-        "ws_url": f"/android/ws/viewer",
-        "host_connected": _host_ws is not None,
-    }
 
 
 @app.get("/android/workspace", response_class=HTMLResponse)
 def android_workspace_page():
     raise HTTPException(503, "Android Workspace authentication not configured")
-    """Serve the Android Workspace HTML page."""
-    return (ROOT / "static" / "android_workspace.html").read_text(encoding="utf-8")
 
 
 @app.websocket("/android/ws/host")

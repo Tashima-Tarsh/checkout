@@ -2,10 +2,18 @@
 
 const $ = id => document.getElementById(id);
 let token = null;
+let health = null;
 
 function log(message) {
   const el = $('log');
   if (el) el.textContent = message;
+}
+
+function badge(healthy) {
+  const span = document.createElement('span');
+  span.className = 'health-badge ' + (healthy ? 'ok' : 'bad');
+  span.textContent = healthy ? 'verified' : 'unavailable';
+  return span;
 }
 
 async function adminJson(url, init = {}) {
@@ -22,6 +30,46 @@ async function adminJson(url, init = {}) {
   const data = await response.json();
   if (!response.ok) throw Error(data.detail || 'Request rejected');
   return data;
+}
+
+async function loadHealth() {
+  if (!token) return;
+  try {
+    health = await adminJson('/api/admin/health');
+    applyHealthBadges();
+    log('Health verified: ' + (health.healthy ? 'all tabs ok' : 'some tabs unavailable'));
+  } catch (error) {
+    log('Health check unavailable: ' + error.message);
+  }
+}
+
+function applyHealthBadges() {
+  if (!health) return;
+  const byId = {
+    overview: $('health-overview'),
+    appearance: $('health-appearance'),
+    inventory: $('health-inventory'),
+    android_workspace: $('health-android_workspace'),
+  };
+  for (const [tab, el] of Object.entries(byId)) {
+    if (!el) continue;
+    el.replaceChildren();
+    const info = health.tabs[tab];
+    const healthy = info && info.healthy;
+    const b = badge(healthy);
+    b.title = info ? info.note : 'no data';
+    el.appendChild(b);
+    // Also show android status text inline
+    if (tab === 'android_workspace') {
+      const statusText = $('androidStatusText');
+      if (statusText) {
+        statusText.textContent = info ? info.note : 'no data';
+        statusText.style.color = healthy ? '#4ade80' : '#f28b82';
+      }
+      const btn = $('openAndroidWorkspace');
+      if (btn) btn.disabled = !healthy;
+    }
+  }
 }
 
 function money(n) {
@@ -76,6 +124,7 @@ $('loadDashboard').addEventListener('click', () => {
   token = $('adminToken').value.trim();
   if (!token) return;
   loadDashboard();
+  loadHealth();
 });
 
 $('adminToken').addEventListener('input', () => {
@@ -111,6 +160,7 @@ $('appearanceForm').addEventListener('submit', async event => {
     document.documentElement.style.setProperty('--pdp-primary', data.accent);
     document.documentElement.style.setProperty('--pdp-primary-hover', shadeColor(data.accent, -15));
     document.documentElement.style.setProperty('--pdp-primary-soft', tintColor(data.accent, 90));
+    await loadHealth();
   } catch (error) {
     status.textContent = error.message;
   } finally {
@@ -140,6 +190,7 @@ $('inventory').addEventListener('submit', async event => {
     const result = await response.json();
     if (!response.ok) throw Error(result.detail || 'Import failed');
     status.textContent = 'Imported ' + result.imported + ' configured recipients. Inventory only — no debit verified.';
+    await loadHealth();
   } catch (error) {
     status.textContent = error.message;
   } finally {

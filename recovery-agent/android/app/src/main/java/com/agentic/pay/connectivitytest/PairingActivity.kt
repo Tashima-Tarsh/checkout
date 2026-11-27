@@ -16,6 +16,7 @@ class PairingActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
             credentialStore = CredentialStore.init(this)
             keyPair = DeviceKeyStore.getOrCreateKeyPair(this)
@@ -39,7 +40,7 @@ class PairingActivity : Activity() {
         layout.addView(title)
 
         val hint = TextView(this).apply {
-            text = "Enter the pairing code from the owner dashboard (Disha 8.2 workspace). Code expires in 10 minutes."
+            text = "Enter the pairing code from the owner dashboard (Disha workspace). Code expires in 10 minutes."
             textSize = 14f
         }
         layout.addView(hint)
@@ -114,9 +115,9 @@ class PairingActivity : Activity() {
         statusText.text = "Pairing…"
 
         val publicKeyPem = DeviceKeyStore.getPublicKeyPem(keyPair)
-        val appVersion = "2.3"
+        val appVersion = DeviceConfig.APP_VERSION_NAME
 
-        ApiClient.pairDevice(code, DeviceConfig.DEVICE_ID, publicKeyPem, appVersion) { result ->
+        ApiClient.pairDevice(code, DeviceConfig.deviceId, publicKeyPem, appVersion) { result ->
             runOnUiThread {
                 submitButton.isEnabled = true
                 when (result) {
@@ -129,8 +130,6 @@ class PairingActivity : Activity() {
                             credentialStore.saveCredential(credential, expiresAt)
                             credentialStore.saveEnrolled(true)
                             credentialStore.saveAppVersion(appVersion)
-                            HeartbeatWorker.schedule(applicationContext)
-                            ApiClient.heartbeat(credential) { }
                             statusText.text = "Device enrolled successfully."
                             setResult(Activity.RESULT_OK)
                             finish()

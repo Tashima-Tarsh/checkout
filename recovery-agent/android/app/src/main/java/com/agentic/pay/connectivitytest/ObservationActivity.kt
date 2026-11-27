@@ -8,14 +8,10 @@ import com.google.gson.JsonParser
 class ObservationActivity : Activity() {
 
     private lateinit var credentialStore: CredentialStore
-    private lateinit var orderIdInput: EditText
-    private lateinit var amountInput: EditText
-    private lateinit var utrInput: EditText
-    private lateinit var statusText: TextView
-    private lateinit var submitButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
             credentialStore = CredentialStore.init(this)
             buildUI()
@@ -48,55 +44,48 @@ class ObservationActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Submit Payment Evidence"
+            text = "Credit Observation"
             textSize = 22f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
         layout.addView(title)
 
         val hint = TextView(this).apply {
-            text = "Authorized transaction evidence only. Submit one observation per checkout."
+            text = "Incoming UPI credits are observed automatically. No manual submission required."
             textSize = 14f
         }
         layout.addView(hint)
 
-        orderIdInput = EditText(this).apply {
-            this.hint = "Checkout ID"
+        val statusText = TextView(this).apply {
+            text = "Observation status: Automatic"
             textSize = 16f
-            maxLines = 1
-        }
-        layout.addView(orderIdInput)
-
-        amountInput = EditText(this).apply {
-            this.hint = "Amount (paise, e.g. 100 for ₹1)"
-            textSize = 16f
-            maxLines = 1
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        layout.addView(amountInput)
-
-        utrInput = EditText(this).apply {
-            this.hint = "Transaction reference / UTR (12 digits, optional)"
-            textSize = 16f
-            maxLines = 1
-        }
-        layout.addView(utrInput)
-
-        statusText = TextView(this).apply {
-            text = ""
-            textSize = 14f
         }
         layout.addView(statusText)
 
-        submitButton = Button(this).apply { text = "Submit Evidence" }
-        layout.addView(submitButton)
+        val lastEventText = TextView(this).apply {
+            text = "Last event: —"
+            textSize = 14f
+        }
+        layout.addView(lastEventText)
+
+        val checkoutWindowText = TextView(this).apply {
+            text = "Checkout window: ${DeviceConfig.CHECKOUT_WINDOW_SECONDS} seconds"
+            textSize = 14f
+        }
+        layout.addView(checkoutWindowText)
+
+        val note = TextView(this).apply {
+            text = "Matched observations update the checkout automatically. " +
+                "Device observations are not financial settlement confirmation."
+            textSize = 12f
+        }
+        layout.addView(note)
 
         val backButton = Button(this).apply { text = "Back to Dashboard" }
         layout.addView(backButton)
 
         setContentView(layout)
 
-        submitButton.setOnClickListener { submit() }
         backButton.setOnClickListener { finish() }
     }
 
@@ -107,7 +96,7 @@ class ObservationActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Evidence Submission Error"
+            text = "Credit Observation Error"
             textSize = 22f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
@@ -126,70 +115,6 @@ class ObservationActivity : Activity() {
 
         retryButton.setOnClickListener {
             recreate()
-        }
-    }
-
-    private fun submit() {
-        val orderId = orderIdInput.text.toString().trim()
-        val amountStr = amountInput.text.toString().trim()
-        val utr = utrInput.text.toString().trim()
-
-        if (orderId.isEmpty()) {
-            statusText.text = "Enter a checkout ID."
-            return
-        }
-        if (orderId.length != 48) {
-            statusText.text = "Checkout ID must be 48 hex characters."
-            return
-        }
-        val amount = amountStr.toIntOrNull()
-        if (amount == null || amount < 100) {
-            statusText.text = "Enter a valid amount in paise (≥100)."
-            return
-        }
-        val utrFinal = if (utr.isNotEmpty()) utr else null
-
-        submitButton.isEnabled = false
-        statusText.text = "Submitting evidence…"
-
-        val token = credentialStore.getCredential() ?: return
-        val obs = ApiClient.DeviceObservation(
-            orderId = orderId,
-            amountPaise = amount,
-            currency = "INR",
-            accountId = credentialStore.getAccountId() ?: DeviceConfig.MERCHANT,
-            transactionReference = utrFinal,
-            observationDirection = "incoming",
-            evidenceProvenance = "user_authorized",
-            observationTimestamp = System.currentTimeMillis() / 1000,
-            checkoutCreated = 0,
-            checkoutExpires = 0,
-        )
-        ApiClient.submitObservation(token, obs) { result ->
-            runOnUiThread {
-                submitButton.isEnabled = true
-                when (result) {
-                    is ApiClient.Result.Success -> {
-                        try {
-                            val json = JsonParser.parseString(result.value).asJsonObject
-                            val state = json.get("state").asString
-                            val decision = json.get("decision").asString
-                            val reason = json.get("reason").asString
-                            statusText.text = "Result: $state / $decision\n$reason"
-                            if (state == "OBSERVATION_RECEIVED" || state == "OBSERVATION_MATCHED") {
-                                amountInput.text.clear()
-                                utrInput.text.clear()
-                                orderIdInput.text.clear()
-                            }
-                        } catch (e: Exception) {
-                            statusText.text = "Submission accepted. Parse error: ${e.message}"
-                        }
-                    }
-                    is ApiClient.Result.Error -> {
-                        statusText.text = "Submission failed: ${result.message}"
-                    }
-                }
-            }
         }
     }
 }

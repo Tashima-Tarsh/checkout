@@ -6,6 +6,7 @@ let session;
 let attempt;
 let refreshPending = false;
 let payIntentLaunched = false;
+let poller = null;
 
 function log(message) {
   $('log').textContent = message;
@@ -35,6 +36,11 @@ function updateTimer() {
     $('refresh').disabled = true;
     $('demo').disabled = true;
     $('payNow').disabled = true;
+    if (poller) {
+      clearInterval(poller);
+      poller = null;
+    }
+    return;
   }
 }
 function render(update, target) {
@@ -197,7 +203,7 @@ $('demo').addEventListener('click', async () => {
   }
 });
 setInterval(updateTimer, 1000);
-setInterval(() => {
+poller = setInterval(() => {
   if (!session || session.state === 'EXPIRED') return;
   if (document.visibilityState !== 'visible') return;
   const fast = payIntentLaunched && session.state === 'PENDING_OCR';
