@@ -8,11 +8,15 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.agentic.recovery.observer'
+        applicationId 'com.agentic.pay.connectivitytest'
         minSdk 26
         targetSdk 34
         versionCode 1
         versionName '1.0'
+    }
+
+    sourceSets {
+        main.java.exclude '**/UpiPaymentObserver.kt'
     }
 
     buildTypes {
