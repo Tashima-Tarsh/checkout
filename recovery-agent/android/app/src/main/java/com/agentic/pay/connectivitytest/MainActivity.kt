@@ -25,6 +25,8 @@ class MainActivity : Activity() {
     private lateinit var upiButton: Button
     private lateinit var checkoutButton: Button
     private lateinit var refundButton: Button
+    private lateinit var upiPoolButton: Button
+    private lateinit var dailyReportButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -149,6 +151,18 @@ class MainActivity : Activity() {
         }
         layout.addView(refundButton)
 
+        upiPoolButton = Button(this).apply {
+            text = "UPI Pool Health"
+            isEnabled = false
+        }
+        layout.addView(upiPoolButton)
+
+        dailyReportButton = Button(this).apply {
+            text = "Daily Report"
+            isEnabled = false
+        }
+        layout.addView(dailyReportButton)
+
         refreshButton = Button(this).apply { text = "Refresh Status" }
         layout.addView(refreshButton)
 
@@ -177,6 +191,16 @@ class MainActivity : Activity() {
 
         refundButton.setOnClickListener {
             val intent = Intent(this, RefundActivity::class.java)
+            startActivity(intent)
+        }
+
+        upiPoolButton.setOnClickListener {
+            val intent = Intent(this, UpiPoolActivity::class.java)
+            startActivity(intent)
+        }
+
+        dailyReportButton.setOnClickListener {
+            val intent = Intent(this, DailyReportActivity::class.java)
             startActivity(intent)
         }
 
@@ -243,6 +267,8 @@ class MainActivity : Activity() {
         upiButton.isEnabled = enrolled
         checkoutButton.isEnabled = enrolled && upiRegistered
         refundButton.isEnabled = enrolled && upiRegistered
+        upiPoolButton.isEnabled = enrolled && upiRegistered
+        dailyReportButton.isEnabled = enrolled && upiRegistered
     }
 
     private fun observeButtonState(enrolled: Boolean) {

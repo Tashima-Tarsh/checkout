@@ -316,3 +316,72 @@ def ensure_schema(engine):
             connection.execute(text(
                 "ALTER TABLE ap_orders ADD COLUMN mode VARCHAR(4) DEFAULT 'P2P'"
             ))
+        if "upi_id" not in order_cols:
+            connection.execute(text(
+                "ALTER TABLE ap_orders ADD COLUMN upi_id VARCHAR(321)"
+            ))
+        # UPI per-ID ledger table (idempotent)
+        upi_ledger_cols = {c["name"] for c in inspector.get_columns("ap_upi_ledger")}
+        if not upi_ledger_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_upi_ledger ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "upi_id VARCHAR(321) NOT NULL,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "order_id VARCHAR(48),"
+                "amount_minor BIGINT NOT NULL,"
+                "currency VARCHAR(8) DEFAULT 'INR',"
+                "direction VARCHAR(16) DEFAULT 'outgoing',"
+                "created BIGINT NOT NULL,"
+                "status VARCHAR(16) DEFAULT 'pending',"
+                "cooldown_until BIGINT,"
+                "daily_count INT DEFAULT 0,"
+                "daily_volume BIGINT DEFAULT 0,"
+                "penalty_until BIGINT,"
+                "blacklisted BOOLEAN DEFAULT FALSE,"
+                "success_rate DOUBLE PRECISION DEFAULT 1.0,"
+                "last_transaction BIGINT,"
+                "CONSTRAINT fk_upi_ledger_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))
+        # UPI health state table (idempotent)
+        upi_health_cols = {c["name"] for c in inspector.get_columns("ap_upi_health")}
+        if not upi_health_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_upi_health ("
+                "upi_id VARCHAR(321) PRIMARY KEY,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "cooldown_until BIGINT DEFAULT 0,"
+                "daily_count INT DEFAULT 0,"
+                "daily_volume BIGINT DEFAULT 0,"
+                "last_daily_reset BIGINT DEFAULT 0,"
+                "rapid_fire_count INT DEFAULT 0,"
+                "rapid_fire_window_start BIGINT DEFAULT 0,"
+                "penalty_until BIGINT DEFAULT 0,"
+                "blacklisted BOOLEAN DEFAULT FALSE,"
+                "blacklist_reason VARCHAR(200),"
+                "success_count INT DEFAULT 0,"
+                "failure_count INT DEFAULT 0,"
+                "success_rate DOUBLE PRECISION DEFAULT 1.0,"
+                "last_transaction BIGINT DEFAULT 0,"
+                "warmup_required BOOLEAN DEFAULT FALSE,"
+                "CONSTRAINT fk_upi_health_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))
+        # UPI rotation audit log table (idempotent)
+        upi_rotation_cols = {c["name"] for c in inspector.get_columns("ap_upi_rotation_log")}
+        if not upi_rotation_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_upi_rotation_log ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "upi_id VARCHAR(321) NOT NULL,"
+                "order_id VARCHAR(48),"
+                "amount_minor BIGINT,"
+                "decision VARCHAR(32) NOT NULL,"
+                "reason VARCHAR(200),"
+                "correlation_id VARCHAR(64),"
+                "created BIGINT NOT NULL,"
+                "CONSTRAINT fk_upi_rotation_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))

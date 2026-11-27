@@ -53,6 +53,22 @@
             android:name=".ConnectivityActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".SetupActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".RefundActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".UpiPoolActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".DailyReportActivity"
+            android:exported="false" />
+
         <service
             android:name=".HeartbeatService"
             android:exported="false"

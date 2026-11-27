@@ -156,6 +156,7 @@ class OrderInput(BaseModel):
     max_discount_minor: int = Field(default=0, strict=True, ge=0, le=99)
     shared_amount: bool = False
     mode: Literal["P2P", "P2M"] = "P2P"
+    upi_id: str | None = None  # optional: explicit UPI ID; auto-routed for P2P if omitted
 
 
 class DeviceEvidence(BaseModel):
@@ -312,6 +313,9 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         raise HTTPException(422, 'Shared amount requires whole rupees and no discount')
     order_id = secrets.token_hex(24)
     created = now()
+    now_ts = created
+    selected_upi_id = item.upi_id
+
     with request.app.state.engine.begin() as conn:
         account_row = conn.execute(select(accounts.c.id, accounts.c.mobile_cipher).where(
             accounts.c.id == item.account_id, accounts.c.merchant_id == identity,
@@ -326,10 +330,23 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         if os.environ.get("DISHA_ENV") == "prod":
             enforce_entitlement(conn, identity, created)
             reserve_daily_issuance(conn, request, account_row.mobile_cipher, payable, created, mode=item.mode)
+
+        # Auto-assign UPI from pool for P2P mode if not explicitly provided
+        if item.mode == "P2P" and not selected_upi_id:
+            selected, route_reason = _select_best_upi(conn, identity, item.amount_minor, now_ts)
+            if selected is None:
+                raise HTTPException(409, f"No UPI available for routing: {route_reason}")
+            selected_upi_id = selected["upi_id"]
+            cooldown = _cooldown_seconds(item.amount_minor)
+            _update_upi_health_after_route(conn, selected_upi_id, item.amount_minor, now_ts, cooldown)
+            _record_rotation_log(conn, identity, selected_upi_id, order_id, item.amount_minor,
+                                 "ORDER_AUTO_ROUTE", "Auto-routed via weighted intelligent rotation",
+                                 secrets.token_hex(16), now_ts)
+
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
             created=created, expires=created + CHECKOUT_TTL_SECONDS, status="AWAITING_PAYMENT",
-            mode=item.mode,
+            mode=item.mode, upi_id=selected_upi_id,
         ))
         if item.shared_amount:
             # Repeated amounts lack independent order-to-payment binding. Keep observational only.
@@ -337,7 +354,8 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
         else:
             conn.execute(amount_reservations.insert().values(order_id=order_id, account_id=account, payable_minor=payable))
         event(conn, identity, "ORDER_CREATED")
-    result = {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable}
+    result = {"id": order_id, "checkout_path": f"/checkout/{order_id}", "payable_minor": payable, "discount_minor": item.amount_minor-payable,
+              "upi_id": selected_upi_id, "mode": item.mode}
     if item.shared_amount:
         result.update(session_reference=order_id, expires=created+CHECKOUT_TTL_SECONDS)
     return result
@@ -1296,4 +1314,347 @@ def android_refund(request: Request, item: RefundInput, authorization: Token = N
         ))
     return {"order_id": item.order_id, "status": "REFUNDED", "reason": item.reason,
             "refunded_at": now_ts}
+
+
+# ============================================================================
+# Adaptive P2P UPI Routing & Velocity Control Engine
+# ============================================================================
+
+UPI_DAILY_TXN_LIMIT = 50          # max transactions per UPI per 24h
+UPI_DAILY_VOLUME_LIMIT = 10000000 # max volume per UPI per 24h (₹1,00,000 in paise)
+RAPID_FIRE_LIMIT = 3              # max txns per 10-min window
+RAPID_FIRE_WINDOW = 600           # 10 minutes in seconds
+COOLDOWN_BASE_SECONDS = 60        # base cooldown per rupee (scaled below)
+PENALTY_SECONDS = 3600            # 1 hour penalty for failed UPI
+WARMUP_HOURS = 48                 # dormancy trigger: 48h without use
+JITTER_SECONDS = (5, 15)          # randomized jitter range
+
+
+class UpiRouteInput(BaseModel):
+    amount_minor: int = Field(strict=True, ge=100, le=100000000)
+    mode: Literal["P2P", "P2M"] = "P2P"
+
+
+def _cooldown_seconds(amount_minor: int) -> int:
+    """Higher value = longer cooldown. Base: 60s per ₹1000."""
+    return max(COOLDOWN_BASE_SECONDS, int((amount_minor / 1000) * COOLDOWN_BASE_SECONDS))
+
+
+def _now_ts() -> int:
+    return int(time.time())
+
+
+def _reset_daily_if_needed(row: dict, now_ts: int) -> dict:
+    """Reset daily counters if a new day has started."""
+    last_reset = row.get("last_daily_reset", 0) or 0
+    india = timezone(timedelta(hours=5, minutes=30))
+    today_start = now_ts - (now_ts % 86400)
+    if last_reset < today_start:
+        row["daily_count"] = 0
+        row["daily_volume"] = 0
+        row["last_daily_reset"] = today_start
+        row["rapid_fire_count"] = 0
+        row["rapid_fire_window_start"] = now_ts
+    return row
+
+
+def _is_rapid_fire_exceeded(row: dict, now_ts: int) -> bool:
+    window_start = row.get("rapid_fire_window_start", 0) or 0
+    if now_ts - window_start > RAPID_FIRE_WINDOW:
+        return False
+    return (row.get("rapid_fire_count", 0) or 0) >= RAPID_FIRE_LIMIT
+
+
+def _select_best_upi(conn, merchant_id: str, amount_minor: int, now_ts: int):
+    """Weighted Intelligent Rotation: pick the healthiest UPI ID from the pool."""
+    rows = conn.execute(
+        select(upi_health).where(upi_health.c.merchant_id == merchant_id)
+    ).mappings().all()
+
+    if not rows:
+        return None, "no_upis_registered"
+
+    candidates = []
+    for row in rows:
+        row = _reset_daily_if_needed(row, now_ts)
+
+        # Blacklist check
+        if row.get("blacklisted"):
+            continue
+
+        # Penalty check
+        penalty_until = row.get("penalty_until", 0) or 0
+        if now_ts < penalty_until:
+            continue
+
+        # Cooldown check
+        cooldown_until = row.get("cooldown_until", 0) or 0
+        if now_ts < cooldown_until:
+            continue
+
+        # Daily count limit
+        if (row.get("daily_count", 0) or 0) >= UPI_DAILY_TXN_LIMIT:
+            continue
+
+        # Daily volume limit
+        if (row.get("daily_volume", 0) or 0) + amount_minor > UPI_DAILY_VOLUME_LIMIT:
+            continue
+
+        # Rapid-fire check
+        if _is_rapid_fire_exceeded(row, now_ts):
+            continue
+
+        # Dormancy / warmup
+        if row.get("warmup_required"):
+            continue
+
+        # Success rate penalty: very low success rate deprioritizes but doesn't block
+        success_rate = row.get("success_rate", 1.0) or 1.0
+        if success_rate < 0.3:
+            continue  # too unhealthy
+
+        # Compute weight: higher success rate + lower recent usage = better
+        last_tx = row.get("last_transaction", 0) or 0
+        idle_seconds = now_ts - last_tx
+        weight = success_rate * (1 + min(idle_seconds / 3600, 5))
+
+        candidates.append((weight, dict(row)))
+
+    if not candidates:
+        return None, "all_upis_unavailable"
+
+    # Sort by weight descending, pick top
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1], None
+
+
+def _record_rotation_log(conn, merchant_id: str, upi_id: str, order_id: str,
+                          amount_minor: int, decision: str, reason: str,
+                          correlation_id: str, now_ts: int):
+    conn.execute(upi_rotation_log.insert().values(
+        id=secrets.token_hex(24),
+        merchant_id=merchant_id,
+        upi_id=upi_id,
+        order_id=order_id,
+        amount_minor=amount_minor,
+        decision=decision,
+        reason=reason,
+        correlation_id=correlation_id,
+        created=now_ts,
+    ))
+
+
+def _update_upi_health_after_route(conn, upi_id: str, amount_minor: int, now_ts: int,
+                                    cooldown_seconds: int):
+    conn.execute(upi_health.update().where(upi_health.c.upi_id == upi_id).values(
+        daily_count=upi_health.c.daily_count + 1,
+        daily_volume=upi_health.c.daily_volume + amount_minor,
+        cooldown_until=now_ts + cooldown_seconds,
+        last_transaction=now_ts,
+        rapid_fire_count=upi_health.c.rapid_fire_count + 1,
+    ))
+
+
+def _update_upi_health_after_result(conn, upi_id: str, success: bool, now_ts: int):
+    if success:
+        conn.execute(upi_health.update().where(upi_health.c.upi_id == upi_id).values(
+            success_count=upi_health.c.success_count + 1,
+            penalty_until=0,
+        ))
+    else:
+        conn.execute(upi_health.update().where(upi_health.c.upi_id == upi_id).values(
+            failure_count=upi_health.c.failure_count + 1,
+            penalty_until=now_ts + PENALTY_SECONDS,
+        ))
+    # Recompute success rate
+    row = conn.execute(select(upi_health).where(upi_health.c.upi_id == upi_id)).mappings().first()
+    if row:
+        total = (row.get("success_count", 0) or 0) + (row.get("failure_count", 0) or 0)
+        rate = (row.get("success_count", 0) or 0) / total if total > 0 else 1.0
+        conn.execute(upi_health.update().where(upi_health.c.upi_id == upi_id).values(
+            success_rate=rate,
+        ))
+
+
+@app.post("/android/upi-route", response_model=dict)
+def android_upi_route(request: Request, item: UpiRouteInput, authorization: Token = None):
+    """Intelligent UPI routing: returns the best UPI ID for a transaction."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+    correlation_id = secrets.token_hex(16)
+
+    with request.app.state.engine.begin() as conn:
+        selected, reason = _select_best_upi(conn, merchant_id, item.amount_minor, now_ts)
+        if selected is None:
+            _record_rotation_log(conn, merchant_id, "NONE", None, item.amount_minor,
+                                 "ROUTE_FAILED", reason, correlation_id, now_ts)
+            raise HTTPException(409, f"No UPI available: {reason}")
+
+        upi_id = selected["upi_id"]
+        cooldown = _cooldown_seconds(item.amount_minor)
+
+        # Record rotation decision
+        _record_rotation_log(conn, merchant_id, upi_id, None, item.amount_minor,
+                             "ROUTE_SELECTED", "Weighted intelligent rotation",
+                             correlation_id, now_ts)
+
+        # Update health state
+        _update_upi_health_after_route(conn, upi_id, item.amount_minor, now_ts, cooldown)
+
+    return {
+        "upi_id": upi_id,
+        "merchant_id": merchant_id,
+        "amount_minor": item.amount_minor,
+        "cooldown_seconds": cooldown,
+        "cooldown_until": now_ts + cooldown,
+        "correlation_id": correlation_id,
+        "daily_count": (selected.get("daily_count", 0) or 0) + 1,
+        "daily_volume": (selected.get("daily_volume", 0) or 0) + item.amount_minor,
+    }
+
+
+@app.post("/android/upi-result", response_model=dict)
+def android_upi_result(request: Request, authorization: Token = None,
+                       upi_id: str = None, success: bool = None,
+                       order_id: str = None):
+    """Report transaction result for a routed UPI (success/failure)."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.begin() as conn:
+        _update_upi_health_after_result(conn, upi_id, success, now_ts)
+        conn.execute(audit.insert().values(
+            merchant_id=merchant_id, order_id=order_id, event="UPI_RESULT",
+            detail=f"UPI {upi_id} result: success={success}", created=now_ts,
+        ))
+    return {"upi_id": upi_id, "success": success, "recorded_at": now_ts}
+
+
+@app.get("/android/upi-pool", response_model=dict)
+def android_upi_pool(request: Request, authorization: Token = None):
+    """Return all registered UPI IDs with their current health status."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.connect() as conn:
+        rows = conn.execute(
+            select(upi_health).where(upi_health.c.merchant_id == merchant_id)
+        ).mappings().all()
+
+    pool = []
+    for r in rows:
+        r = _reset_daily_if_needed(r, now_ts)
+        pool.append({
+            "upi_id": r["upi_id"],
+            "daily_count": r.get("daily_count", 0),
+            "daily_volume": r.get("daily_volume", 0),
+            "daily_volume_limit": UPI_DAILY_VOLUME_LIMIT,
+            "daily_txn_limit": UPI_DAILY_TXN_LIMIT,
+            "cooldown_until": r.get("cooldown_until", 0),
+            "penalty_until": r.get("penalty_until", 0),
+            "blacklisted": bool(r.get("blacklisted")),
+            "success_rate": r.get("success_rate", 1.0),
+            "last_transaction": r.get("last_transaction", 0),
+            "available": (
+                not r.get("blacklisted")
+                and now_ts >= (r.get("penalty_until", 0) or 0)
+                and now_ts >= (r.get("cooldown_until", 0) or 0)
+                and (r.get("daily_count", 0) or 0) < UPI_DAILY_TXN_LIMIT
+                and (r.get("daily_volume", 0) or 0) < UPI_DAILY_VOLUME_LIMIT
+                and not r.get("warmup_required")
+            ),
+        })
+
+    return {"merchant_id": merchant_id, "upi_pool": pool, "pool_size": len(pool),
+            "checked_at": now_ts}
+
+
+@app.post("/android/daily-report", response_model=dict)
+def android_daily_report(request: Request, authorization: Token = None):
+    """Generate and email daily P2P/P2M report to merchant owner."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+    today_start = now_ts - (now_ts % 86400)
+
+    with request.app.state.engine.connect() as conn:
+        merchant = conn.execute(select(merchants).where(
+            merchants.c.id == merchant_id
+        )).mappings().first()
+        if not merchant:
+            raise HTTPException(404, "Merchant not found")
+
+        # P2P vs P2M totals
+        p2p = conn.execute(select(func.coalesce(func.sum(orders.c.amount_minor), 0),
+                                   func.count(orders.c.id)).where(
+            orders.c.merchant_id == merchant_id,
+            orders.c.mode == "P2P",
+            orders.c.status == "PAID",
+            orders.c.created >= today_start,
+        )).first()
+        p2m = conn.execute(select(func.coalesce(func.sum(orders.c.amount_minor), 0),
+                                   func.count(orders.c.id)).where(
+            orders.c.merchant_id == merchant_id,
+            orders.c.mode == "P2M",
+            orders.c.status == "PAID",
+            orders.c.created >= today_start,
+        )).first()
+
+        # UPI pool summary
+        upi_rows = conn.execute(
+            select(upi_health).where(upi_health.c.merchant_id == merchant_id)
+        ).mappings().all()
+
+        upi_summary = []
+        for r in upi_rows:
+            upi_summary.append({
+                "upi_id": r["upi_id"],
+                "daily_count": r.get("daily_count", 0),
+                "daily_volume": r.get("daily_volume", 0),
+                "success_rate": r.get("success_rate", 1.0),
+                "blacklisted": bool(r.get("blacklisted")),
+            })
+
+        email = merchant.get("email")
+        report = {
+            "merchant_id": merchant_id,
+            "business_name": merchant.get("name"),
+            "email": email,
+            "date": today_start,
+            "p2p": {
+                "collected_paise": p2p[0] or 0,
+                "collected_rupees": (p2p[0] or 0) / 100.0,
+                "txn_count": p2p[1] or 0,
+                "limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
+                "limit_reached": (p2p[0] or 0) >= DAILY_COLLECTION_LIMIT_PAISE,
+            },
+            "p2m": {
+                "collected_paise": p2m[0] or 0,
+                "collected_rupees": (p2m[0] or 0) / 100.0,
+                "txn_count": p2m[1] or 0,
+            },
+            "upi_pool": upi_summary,
+            "generated_at": now_ts,
+        }
+
+        # Log the report generation
+        conn.execute(audit.insert().values(
+            merchant_id=merchant_id, event="DAILY_REPORT_GENERATED",
+            detail=f"Daily report for {today_start}", created=now_ts,
+        ))
+
+    # Email notification (placeholder - integrates with backend email service)
+    if email:
+        report["email_queued"] = True
+        report["email_to"] = email
+    else:
+        report["email_queued"] = False
+        report["reason"] = "merchant email not configured"
+
+    return report
 

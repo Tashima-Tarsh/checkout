@@ -24,6 +24,7 @@ class CheckoutActivity : Activity() {
 
     private var orderId: String? = null
     private var checkoutUrl: String? = null
+    private var routedUpi: String? = null
     private var orderExpiresAt: Long = 0
     private var pollHandler: Handler? = null
     private var pollRunnable: Runnable? = null
@@ -243,11 +244,13 @@ class CheckoutActivity : Activity() {
                             val json = JsonParser.parseString(result.value).asJsonObject
                             orderId = json.get("id").asString
                             val path = json.get("checkout_path").asString
+                            val routedUpiVal = json.get("upi_id").asString
+                            routedUpi = routedUpiVal
                             checkoutUrl = path
                             orderExpiresAt = (System.currentTimeMillis() / 1000) + DeviceConfig.CHECKOUT_WINDOW_SECONDS
                             secondsRemaining = DeviceConfig.CHECKOUT_WINDOW_SECONDS
-                            linkText.text = "Payment link: $path"
-                            statusText.text = "Checkout created ($mode). Share this link with the customer."
+                            linkText.text = "Payment link: $path\nRouted via UPI: $routedUpi"
+                            statusText.text = "Checkout created ($mode) via $routedUpi. Share this link with the customer."
                             timerText.text = "Time remaining: $secondsRemaining s"
                             verifyButton.isEnabled = true
                             startPolling()
@@ -290,6 +293,13 @@ class CheckoutActivity : Activity() {
                                 linkText.text = ""
                                 stopPolling()
                                 sendPaymentEmail(orderIdVal!!, "VERIFIED")
+                                // Report UPI result success
+                                val token = credentialStore.getCredential()
+                                if (token != null) {
+                                    ApiClient.upiResult(token, routedUpi ?: "", true, orderIdVal!!) { res ->
+                                        // fire-and-forget; result handled silently
+                                    }
+                                }
                             } else if (status == "PAID" || settlementState == "SETTLED") {
                                 statusText.text = "Payment received — awaiting final confirmation"
                             } else {
@@ -319,6 +329,13 @@ class CheckoutActivity : Activity() {
                     createButton.isEnabled = true
                     verifyButton.isEnabled = false
                     stopPolling()
+                    // Report UPI result failure for expired checkout
+                    val token = credentialStore.getCredential()
+                    if (token != null && routedUpi != null && orderId != null) {
+                        ApiClient.upiResult(token, routedUpi, false, orderId) { res ->
+                            // fire-and-forget
+                        }
+                    }
                     return
                 }
                 secondsRemaining--

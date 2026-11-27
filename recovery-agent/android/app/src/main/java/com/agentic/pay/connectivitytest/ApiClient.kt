@@ -193,6 +193,49 @@ object ApiClient {
         }
     }
 
+    /** Intelligent UPI routing: returns the best UPI ID for a transaction. */
+    fun upiRoute(credential: String, amountPaise: Long, mode: String = "P2P",
+                 callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mapOf(
+                "amount_minor" to amountPaise,
+                "mode" to mode,
+            )
+            val result = httpPost("/api/android/upi-route", body, credential)
+            callback(result)
+        }
+    }
+
+    /** Report transaction result for a routed UPI (success/failure). */
+    fun upiResult(credential: String, upiId: String, success: Boolean,
+                  orderId: String?, callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mutableMapOf<String, Any?>(
+                "upi_id" to upiId,
+                "success" to success,
+            )
+            if (orderId != null) body["order_id"] = orderId
+            val result = httpPost("/api/android/upi-result", body, credential)
+            callback(result)
+        }
+    }
+
+    /** Return all registered UPI IDs with their current health status. */
+    fun upiPool(credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val result = httpGet("/api/android/upi-pool", credential)
+            callback(result)
+        }
+    }
+
+    /** Generate and email daily P2P/P2M report to merchant owner. */
+    fun dailyReport(credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val result = httpPost("/api/android/daily-report", emptyMap(), credential)
+            callback(result)
+        }
+    }
+
     data class DeviceObservation(
         val orderId: String,
         val accountId: String,
@@ -210,6 +253,8 @@ object ApiClient {
         val id: String,
         val checkoutPath: String,
         val payableMinor: Long,
+        val upiId: String? = null,
+        val mode: String? = null,
     )
 
     data class DailyLimit(
@@ -220,5 +265,47 @@ object ApiClient {
         val dailyLimitRupees: Double,
         val remainingPaise: Long,
         val canCollect: Boolean,
+    )
+
+    data class UpiRouteResult(
+        val upiId: String,
+        val merchantId: String,
+        val amountMinor: Long,
+        val cooldownSeconds: Long,
+        val cooldownUntil: Long,
+        val correlationId: String,
+        val dailyCount: Long,
+        val dailyVolume: Long,
+    )
+
+    data class UpiPoolEntry(
+        val upiId: String,
+        val dailyCount: Int,
+        val dailyVolume: Long,
+        val dailyVolumeLimit: Long,
+        val dailyTxnLimit: Int,
+        val cooldownUntil: Long,
+        val penaltyUntil: Long,
+        val blacklisted: Boolean,
+        val successRate: Double,
+        val lastTransaction: Long,
+        val available: Boolean,
+    )
+
+    data class DailyReport(
+        val merchantId: String,
+        val businessName: String?,
+        val email: String?,
+        val date: Long,
+        val p2pCollectedRupees: Double,
+        val p2pTxnCount: Int,
+        val p2pLimitRupees: Double,
+        val p2pLimitReached: Boolean,
+        val p2mCollectedRupees: Double,
+        val p2mTxnCount: Int,
+        val upiSummary: List<Map<String, Any?>>,
+        val emailQueued: Boolean,
+        val emailTo: String?,
+        val generatedAt: Long,
     )
 }
