@@ -475,42 +475,14 @@ _viewer_ws: WebSocket | None = None
 
 # WebSocket authentication helper for Android Workspace
 async def _auth_websocket(websocket: WebSocket) -> str | None:
-    """Authenticate WebSocket connection using Bearer token from query params.
-    Token must match the PDEP_ADMIN_TOKEN environment variable.
-    Returns the tenant_id on success.
-    """
-    auth_header = websocket.query_params.get("authorization")
-    if not auth_header or not auth_header.lower().startswith("bearer "):
-        await websocket.close(code=4001, reason="Authentication required")
-        return None
-
-    token = auth_header.split(" ", 1)[1]
-
-    # Verify token using the existing admin auth helper
-    from checkout.vpa_admin import require_admin
-
-    class _FakeRequest:
-        def __init__(self, token_val: str):
-            self.headers = {"authorization": f"Bearer {token_val}"}
-            self.client = type("client", (), {"host": "127.0.0.1"})()
-
-    fake_request = _FakeRequest(token)
-    try:
-        require_admin(fake_request)
-    except HTTPException:
-        await websocket.close(code=4001, reason="Invalid or expired token")
-        return None
-    except Exception:
-        await websocket.close(code=4001, reason="Authentication failed")
-        return None
-
-    # Tenant ID comes from environment (single-tenant deployment)
-    tenant_id = os.getenv("ANDROID_TENANT_ID", "shop-0001")
-    return tenant_id
+    """Disabled until the SaaS owner and device authentication are integrated."""
+    await websocket.close(code=4001, reason="Android Workspace authentication not configured")
+    return None
 
 
 @app.get("/api/android/workspace/status")
 def android_workspace_status(request: Request):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Get Android workspace connection status (host agent reports via WebSocket)."""
     return {
         "connected": _host_ws is not None,
@@ -521,6 +493,7 @@ def android_workspace_status(request: Request):
 
 @app.post("/api/android/workspace/start")
 def android_workspace_start(request: Request):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Request emulator start on the host agent (relayed via WebSocket)."""
     if _host_ws:
         asyncio.create_task(_host_ws.send_json({"type": "start_emulator"}))
@@ -530,6 +503,7 @@ def android_workspace_start(request: Request):
 
 @app.post("/api/android/workspace/stop")
 def android_workspace_stop(request: Request):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Request emulator stop on the host agent (relayed via WebSocket)."""
     if _host_ws:
         asyncio.create_task(_host_ws.send_json({"type": "stop_emulator"}))
@@ -539,6 +513,7 @@ def android_workspace_stop(request: Request):
 
 @app.post("/api/android/workspace/restart")
 def android_workspace_restart(request: Request):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Request emulator restart on the host agent (relayed via WebSocket)."""
     if _host_ws:
         asyncio.create_task(_host_ws.send_json({"type": "restart_emulator"}))
@@ -548,6 +523,7 @@ def android_workspace_restart(request: Request):
 
 @app.post("/api/android/workspace/input")
 def android_workspace_input(request: Request, body: dict):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Inject input into the Android emulator (relayed to host agent).
     Requires authenticated session token.
     """
@@ -562,6 +538,7 @@ def android_workspace_input(request: Request, body: dict):
 
 @app.get("/api/android/workspace/config")
 def android_workspace_config(request: Request):
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Get Android Workspace configuration."""
     return {
         "device_id": os.getenv("ANDROID_DEVICE_ID", "AgenticMobile0001"),
@@ -573,6 +550,7 @@ def android_workspace_config(request: Request):
 
 @app.get("/android/workspace", response_class=HTMLResponse)
 def android_workspace_page():
+    raise HTTPException(503, "Android Workspace authentication not configured")
     """Serve the Android Workspace HTML page."""
     return (ROOT / "static" / "android_workspace.html").read_text(encoding="utf-8")
 
@@ -691,4 +669,5 @@ async def android_ws_viewer(websocket: WebSocket):
 
 
 # Mount Android observer static files
-app.mount("/android/assets", StaticFiles(directory=ROOT / "static" / "android"), name="android_assets")
+if (ROOT / "static" / "android").is_dir():
+    app.mount("/android/assets", StaticFiles(directory=ROOT / "static" / "android"), name="android_assets")
