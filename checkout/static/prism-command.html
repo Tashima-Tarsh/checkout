@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#065440">
+  <title>Prism Command — Global Platform Intelligence</title>
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <script src="/static/prism.js?v=1.1" defer></script>
+</head>
+<body class="prism-body command-portal">
+  <div id="toast-container"></div>
+
+  <!-- Super Admin Header -->
+  <header class="prism-topbar command-header" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand command-brand" onclick="showPage('cmd-overview')">
+        <span class="brandmark command-mark">D</span>
+        <div>
+          <span class="brand-name">Prism Command</span>
+          <span class="brand-sub">Global Platform Intelligence</span>
+        </div>
+      </div>
+      <div class="topbar-search command-search">
+        <input type="text" class="search-input" placeholder="Search merchants, transactions, infrastructure…">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-item">
+        <span class="badge badge-success">SUPER ADMIN</span>
+      </div>
+      <div class="topbar-item">
+        <span class="badge badge-info">ap-southeast-2</span>
+      </div>
+      <button class="btn-icon" title="Notifications" aria-label="Notifications">🔔</button>
+      <button class="btn-icon" title="User profile" aria-label="User profile" onclick="showPage('cmd-profile')">👤</button>
+      <button class="btn-secondary" onclick="showPage('cmd-login')">Sign out</button>
+    </div>
+  </header>
+
+  <div class="prism-shell command-shell">
+    <!-- Sidebar -->
+    <nav class="prism-sidebar command-sidebar" role="navigation" aria-label="Super Admin navigation">
+      <div class="sidebar-section">
+        <div class="nav-section-title">COMMAND</div>
+        <a class="nav-link active" href="#cmd-overview" onclick="showPage('cmd-overview')">
+          <span class="nav-icon">🏛️</span>Command Centre
+        </a>
+        <a class="nav-link" href="#cmd-merchants" onclick="showPage('cmd-merchants')">
+          <span class="nav-icon">🏪</span>Merchant Fleet
+        </a>
+        <a class="nav-link" href="#cmd-agents" onclick="showPage('cmd-agents')">
+          <span class="nav-icon">👥</span>Agents & Users
+        </a>
+        <a class="nav-link" href="#cmd-payments" onclick="showPage('cmd-payments')">
+          <span class="nav-icon">💳</span>Payments & Transactions
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">AWS INFRASTRUCTURE</div>
+        <a class="nav-link" href="#cmd-aws" onclick="showPage('cmd-aws')">
+          <span class="nav-icon">☁️</span>AWS Resources
+        </a>
+        <a class="nav-link" href="#cmd-topology" onclick="showPage('cmd-topology')">
+          <span class="nav-icon">🕸️</span>Infrastructure Topology
+        </a>
+        <a class="nav-link" href="#cmd-health" onclick="showPage('cmd-health')">
+          <span class="nav-icon">📊</span>CloudWatch Health
+        </a>
+        <a class="nav-link" href="#cmd-costs" onclick="showPage('cmd-costs')">
+          <span class="nav-icon">💰</span>Costs & Credits
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">OPERATIONS</div>
+        <a class="nav-link" href="#cmd-incidents" onclick="showPage('cmd-incidents')">
+          <span class="nav-icon">🚨</span>Incident Command
+        </a>
+        <a class="nav-link" href="#cmd-security" onclick="showPage('cmd-security')">
+          <span class="nav-icon">🛡️</span>Security Centre
+        </a>
+        <a class="nav-link" href="#cmd-deployments" onclick="showPage('cmd-deployments')">
+          <span class="nav-icon">🚀</span>Deployments
+        </a>
+        <a class="nav-link" href="#cmd-backups" onclick="showPage('cmd-backups')">
+          <span class="nav-icon">💾</span>Backups
+        </a>
+        <a class="nav-link" href="#cmd-automation" onclick="showPage('cmd-automation')">
+          <span class="nav-icon">⚙️</span>Automation
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">CONFIGURE</div>
+        <a class="nav-link" href="#cmd-theme" onclick="showPage('cmd-theme')">
+          <span class="nav-icon">🎨</span>Theme Studio
+        </a>
+        <a class="nav-link" href="#cmd-settings" onclick="showPage('cmd-settings')">
+          <span class="nav-icon">⚙️</span>Global Settings
+        </a>
+        <a class="nav-link" href="#cmd-audit" onclick="showPage('cmd-audit')">
+          <span class="nav-icon">📋</span>Audit Logs
+        </a>
+      </div>
+    </nav>
+
+    <main class="prism-main command-main">
+      <!-- Command Centre / Executive Dashboard -->
+      <section id="cmd-overview" class="page">
+        <div class="page-header">
+          <h1>Command Centre</h1>
+          <p>Global platform intelligence — all merchants, agents, transactions, and AWS infrastructure.</p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Total Merchants</div>
+            <div class="stat-value" id="cmd-total-merchants">0</div>
+            <div class="stat-trend neutral">All tenants</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Agents</div>
+            <div class="stat-value" id="cmd-total-agents">0</div>
+            <div class="stat-trend neutral">On duty</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value" id="cmd-total-txns">0</div>
+            <div class="stat-trend neutral">All-time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Platform Volume</div>
+            <div class="stat-value" id="cmd-total-volume">₹0.00</div>
+            <div class="stat-trend neutral">All confirmed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">AWS Resources</div>
+            <div class="stat-value" id="cmd-total-aws">0</div>
+            <div class="stat-trend neutral">ap-southeast-2</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Monthly AWS Cost</div>
+            <div class="stat-value" id="cmd-total-cost">₹0.00</div>
+            <div class="stat-trend neutral">Estimated</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="prism-glass-strong" style="grid-column: 1 / -1;">
+            <div class="sectionheading"><span class="step">01</span><div><h2>Platform Health Overview</h2><p>Real-time health of all merchants and infrastructure.</p></div></div>
+            <div class="field-group two" style="margin-top: 1rem;">
+              <div class="field">
+                <label>Merchant Health</label>
+                <div class="health-pill"><span class="health-badge ok">Healthy</span></div>
+              </div>
+              <div class="field">
+                <label>Agent Fleet</label>
+                <div class="health-pill"><span class="health-badge ok">Online</span></div>
+              </div>
+              <div class="field">
+                <label>Checkout API</label>
+                <div class="health-pill"><span class="health-badge ok">Operational</span></div>
+              </div>
+              <div class="field">
+                <label>Agentic Pay API</label>
+                <div class="health-pill"><span class="health-badge ok">Operational</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="prism-glass">
+            <div class="sectionheading"><span class="step">02</span><div><h2>Recent Activity</h2><p>Latest audit events across the platform.</p></div></div>
+            <div class="table-wrap" style="margin-top: 1rem;">
+              <table class="table">
+                <thead><tr><th>Time</th><th>Event</th><th>Merchant</th><th>Detail</th></tr></thead>
+                <tbody id="cmd-audit-body"><tr><td colspan="4" style="text-align:center;color:var(--prism-text-muted);">No audit events.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Merchant Fleet -->
+      <section id="cmd-merchants" class="page" hidden>
+        <div class="page-header">
+          <h1>Merchant Fleet</h1>
+          <p>All onboarded merchants — health, collection limits, and UPI accounts.</p>
+        </div>
+        <div class="field-group two" style="margin-bottom: 1rem;">
+          <div class="field">
+            <input type="text" id="cmd-m-search" placeholder="Search merchants…" class="field input">
+          </div>
+          <div class="field">
+            <button class="btn-secondary" onclick="refreshMerchantList()">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Merchant</th><th>Tier</th><th>Daily Collected</th><th>Cap Utilization</th><th>Agents</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="cmd-m-table-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No merchants.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Agents & Users -->
+      <section id="cmd-agents" class="page" hidden>
+        <div class="page-header">
+          <h1>Agents & Users</h1>
+          <p>All registered agent devices and their operating status.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Device ID</th><th>Merchant</th><th>UPI IDs</th><th>Status</th><th>Last Heartbeat</th><th>Actions</th></tr></thead>
+            <tbody id="cmd-a-table-body"><tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No agents.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Payments & Transactions -->
+      <section id="cmd-payments" class="page" hidden>
+        <div class="page-header">
+          <h1>Global Payments</h1>
+          <p>All payment sessions across every merchant.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Order ID</th><th>Merchant</th><th>Amount</th><th>Mode</th><th>Status</th><th>Verified</th><th>Time</th></tr></thead>
+            <tbody id="cmd-p-table-body"><tr><td colspan="7" style="text-align:center;color:var(--prism-text-muted);">No transactions.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- AWS Resources -->
+      <section id="cmd-aws" class="page" hidden>
+        <div class="page-header">
+          <h1>AWS Infrastructure</h1>
+          <p>Discovered AWS resources in ap-southeast-2 — read-only discovery.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="notice">Resource discovery is read-only. Provisioning actions require explicit Super Admin approval.</div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Service</th><th>Resource ID</th><th>Region</th><th>Status</th><th>Cost</th><th>Actions</th></tr></thead>
+              <tbody id="cmd-aws-body"><tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">AWS discovery not configured. Set AWS credentials to enable.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Infrastructure Topology -->
+      <section id="cmd-topology" class="page" hidden>
+        <div class="page-header">
+          <h1>Infrastructure Topology</h2>
+          <p>Interactive view of AWS resources and their relationships.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div id="cmd-topology-canvas" style="height: 500px; border: 1px solid var(--prism-border); border-radius: var(--prism-radius); background: var(--prism-pearl); display: flex; align-items: center; justify-content: center; color: var(--prism-text-muted);">
+            Topology graph requires AWS resource discovery.
+          </div>
+        </div>
+      </section>
+
+      <!-- CloudWatch Health -->
+      <section id="cmd-health" class="page" hidden>
+        <div class="page-header">
+          <h1>CloudWatch Health</h1>
+          <p>Application and infrastructure metrics from Amazon CloudWatch.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Service</label>
+              <select class="field input">
+                <option>checkout-api</option>
+                <option>agentic-pay</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Metric</label>
+              <select class="field input">
+                <option>CPU Utilization</option>
+                <option>Latency</option>
+                <option>Error Rate</option>
+              </select>
+            </div>
+          </div>
+          <div class="prism-glass" style="margin-top: 1rem; padding: 1rem;">
+            <div class="sectionheading"><span class="step">01</span><div><h2>Metric Chart</h2><p>CloudWatch metric visualization.</p></div></div>
+            <div style="height: 300px; display: flex; align-items: center; justify-content: center; color: var(--prism-text-muted); border: 1px solid var(--prism-border); border-radius: var(--prism-radius);">
+              CloudWatch metrics require AWS access credentials.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Costs & Credits -->
+      <section id="cmd-costs" class="page" hidden>
+        <div class="page-header">
+          <h1>Costs & Credits</h1>
+          <p>AWS expenditure, budget utilization, and credit runway.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Monthly AWS Cost</div>
+            <div class="stat-value" id="cmd-aws-cost">₹0.00</div>
+            <div class="stat-trend neutral">This month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">AWS Credits</div>
+            <div class="stat-value" id="cmd-aws-credits">₹0.00</div>
+            <div class="stat-trend neutral">Remaining</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Budget Utilization</div>
+            <div class="stat-value" id="cmd-budget-util">0%</div>
+            <div class="stat-trend neutral">Of monthly cap</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Est. Credit Runway</div>
+            <div class="stat-value" id="cmd-credit-runway">—</div>
+            <div class="stat-trend neutral">At current burn</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Incident Command -->
+      <section id="cmd-incidents" class="page" hidden>
+        <div class="page-header">
+          <h1>Incident Command</h1>
+          <p>Security and availability incidents across the platform.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Incident ID</th><th>Severity</th><th>Status</th><th>Merchant</th><th>Detected</th><th>Assigned</th></tr></thead>
+            <tbody id="cmd-incident-body"><tr><td colspan="6" style="text-align:center;color:var(--prism-text-muted);">No active incidents.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Security Centre -->
+      <section id="cmd-security" class="page" hidden>
+        <div class="page-header">
+          <h1>Security Centre</h1>
+          <p>Authentication events, IP whitelist, and security posture.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <label>IP Address</label>
+              <input type="text" id="cmd-sec-ip" placeholder="192.168.1.100" class="field input">
+            </div>
+            <div class="field">
+              <button class="btn-primary" type="button">Add to Whitelist</button>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top: 1rem;">
+            <table class="table">
+              <thead><tr><th>IP Address</th><th>Added</th><th>Actions</th></tr></thead>
+              <tbody><tr><td colspan="3" style="text-align:center;color:var(--prism-text-muted);">No whitelisted IPs.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Deployments -->
+      <section id="cmd-deployments" class="page" hidden>
+        <div class="page-header">
+          <h1>Deployments</h1>
+          <p>CI/CD pipeline status and release history.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Service</th><th>Version</th><th>Environment</th><th>Status</th><th>Deployed</th></tr></thead>
+            <tbody id="cmd-deploy-body"><tr><td colspan="5" style="text-align:center;color:var(--prism-text-muted);">No deployments.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Backups -->
+      <section id="cmd-backups" class="page" hidden>
+        <div class="page-header">
+          <h1>Backups</h1>
+          <p>Backup intelligence and recovery readiness.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Resource</th><th>Last Backup</th><th>Status</th><th>Retention</th><th>Actions</th></tr></thead>
+              <tbody><tr><td colspan="5" style="text-align:center;color:var(--prism-text-muted);">No backup data.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Automation -->
+      <section id="cmd-automation" class="page" hidden>
+        <div class="page-header">
+          <h1>Automation Centre</h1>
+          <p>Automated workflows and event-driven operations.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Workflow</th><th>Status</th><th>Last Run</th><th>Result</th><th>Actions</th></tr></thead>
+            <tbody><tr><td colspan="5" style="text-align:center;color:var(--prism-text-muted);">No automation workflows.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Theme Studio -->
+      <section id="cmd-theme" class="page" hidden>
+        <div class="page-header">
+          <h1>Theme Studio</h1>
+          <p>Configure Prism Command visual theme.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group three">
+            <div class="field">
+              <label>Primary Color</label>
+              <input type="color" id="cmd-theme-primary" value="#08785C">
+            </div>
+            <div class="field">
+              <label>Accent Color</label>
+              <input type="color" id="cmd-theme-accent" value="#A98245">
+            </div>
+            <div class="field">
+              <label>Background</label>
+              <input type="color" id="cmd-theme-bg" value="#F8F6EF">
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Save Theme</button>
+          <button class="btn-secondary" style="margin-left: 0.5rem;">Reset to Default</button>
+        </div>
+      </section>
+
+      <!-- Global Settings -->
+      <section id="cmd-settings" class="page" hidden>
+        <div class="page-header">
+          <h1>Global Settings</h1>
+          <p>Platform-wide configuration.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="field-group two">
+            <div class="field">
+              <label>Health Check Interval (seconds)</label>
+              <input type="number" id="cmd-set-hc" value="60" class="field input">
+            </div>
+            <div class="field">
+              <label>Daily Collection Cap (₹)</label>
+              <input type="number" id="cmd-set-cap" value="70000" class="field input">
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top: 1rem;">Save Settings</button>
+        </div>
+      </section>
+
+      <!-- Audit Logs -->
+      <section id="cmd-audit" class="page" hidden>
+        <div class="page-header">
+          <h1>Audit Logs</h1>
+          <p>Immutable record of all administrative events.</p>
+        </div>
+        <div class="prism-glass" style="padding: 1.5rem;">
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Time</th><th>Event</th><th>Merchant</th><th>Detail</th></tr></thead>
+              <tbody id="cmd-audit-body2"><tr><td colspan="4" style="text-align:center;color:var(--prism-text-muted);">No audit events.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/prism.js?v=1.1"></script>
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const $$ = sel => document.querySelectorAll(sel);
+
+    const API_BASE = '';
+
+    async function api(path, { method = 'GET', body, token, headers = {} } = {}) {
+      const h = { 'Content-Type': 'application/json', ...headers };
+      if (token) h.Authorization = 'Bearer ' + token;
+      const res = await fetch(API_BASE + path, {
+        method, headers: h, cache: 'no-store',
+        body: body === undefined ? undefined : JSON.stringify(body)
+      });
+      const text = await res.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { text }; }
+      if (!res.ok) throw Error(data.detail || data.text || 'Request failed (' + res.status + ')');
+      return data;
+    }
+
+    function inr(amount_paise) {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency', currency: 'INR',
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      }).format(amount_paise / 100);
+    }
+
+    function showPage(pageId) {
+      $$('.page').forEach(el => el.hidden = true);
+      const target = document.getElementById(pageId);
+      if (target) target.hidden = false;
+      window.scrollTo(0, 0);
+    }
+
+    function navLinkActive() {
+      const hash = window.location.hash || '#cmd-overview';
+      $$('.nav-link').forEach(el => {
+        const href = el.getAttribute('href');
+        if (href && hash === href) el.classList.add('active');
+        else el.classList.remove('active');
+      });
+    }
+
+    function toast(msg, kind = 'info') {
+      const el = document.createElement('div');
+      el.className = 'alert alert-' + kind;
+      el.textContent = msg;
+      const container = document.getElementById('toast-container') || document.body;
+      container.prepend(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+
+    window.addEventListener('popstate', () => {
+      const hash = window.location.hash || '#cmd-overview';
+      const page = hash.replace(/^#/, '');
+      if (document.getElementById(page)) showPage(page);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize based on hash or default
+      const hash = window.location.hash || '#cmd-overview';
+      const page = hash.replace(/^#/, '');
+      if (document.getElementById(page)) showPage(page);
+      navLinkActive();
+    });
+  </script>
+</body>
+</html>

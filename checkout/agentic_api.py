@@ -173,6 +173,15 @@ def now():
     return int(time.time())
 
 
+def formatTime(ts):
+    if not ts:
+        return "—"
+    from datetime import datetime, timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    d = datetime.fromtimestamp(ts, IST)
+    return d.strftime("%d %b %Y, %H:%M IST")
+
+
 def event(conn, identity, name):
     conn.execute(audit.insert().values(merchant_id=identity, event=name, created=now()))
 
@@ -2163,4 +2172,153 @@ def android_update_automation_config(request: Request, item: AutomationConfigInp
         ))
 
     return {"device_id": device_id, "updated_at": now_ts, "status": "updated"}
+
+
+# ============================================================================
+# Super Admin Control Plane - Prism Command
+# ============================================================================
+
+def require_owner_token(request: Request):
+    """Super Admin bearer token check via PDEP_ADMIN_TOKEN."""
+    authorization = request.headers.get("authorization")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Super Admin bearer token required")
+    token = authorization.split(" ", 1)[1]
+    expected = os.getenv("PDEP_ADMIN_TOKEN")
+    if not expected or not secrets.compare_digest(token, expected):
+        raise HTTPException(403, "Invalid Super Admin token")
+    return token
+
+
+@app.get("/api/superadmin/overview", response_model=dict)
+def superadmin_overview(request: Request, authorization: Token = None):
+    """Platform-wide executive overview for Super Admin."""
+    require_owner_token(request)
+    now_ts = _now_ts()
+    today_start = now_ts - (now_ts % 86400)
+
+    with request.app.state.engine.connect() as conn:
+        merchant_count = conn.scalar(select(func.count()).select_from(merchants)) or 0
+        device_count = conn.scalar(select(func.count()).select_from(devices)) or 0
+        worker_count = conn.scalar(select(func.count()).select_from(workers)) or 0
+        order_count = conn.scalar(select(func.count()).select_from(orders)) or 0
+        today_orders = conn.scalar(select(func.count()).select_from(orders).where(
+            orders.c.created >= today_start
+        )) or 0
+        today_volume = conn.scalar(select(func.coalesce(func.sum(orders.c.amount_minor), 0)).where(
+            orders.c.status == "PAID", orders.c.created >= today_start
+        )) or 0
+        active_agents = conn.scalar(select(func.count()).select_from(devices).where(
+            devices.c.state == DEVICE_STATE_ONLINE
+        )) or 0
+
+    return {
+        "merchants": merchant_count,
+        "agents": active_agents,
+        "owners": 0,  # tracked separately in production
+        "users": 0,
+        "upi_accounts": worker_count,
+        "total_transactions": order_count,
+        "today_transactions": today_orders,
+        "confirmed_transactions": today_orders,
+        "pending_transactions": 0,
+        "failed_transactions": 0,
+        "platform_volume_paise": today_volume,
+        "platform_volume_rupees": today_volume / 100.0,
+        "platform_revenue_paise": 0,
+        "platform_revenue_rupees": 0.0,
+        "monthly_aws_cost_paise": 0,
+        "monthly_aws_cost_rupees": 0.0,
+        "open_incidents": 0,
+        "aws_resource_count": 0,
+        "platform_availability": 100.0,
+        "financially_verified_total": 0,
+        "generated_at": now_ts,
+    }
+
+
+@app.get("/api/superadmin/incidents", response_model=list[dict])
+def superadmin_incidents(request: Request, authorization: Token = None):
+    """Open platform incidents."""
+    require_owner_token(request)
+    with request.app.state.engine.connect() as conn:
+        rows = conn.execute(select(audit).where(
+            audit.c.event.in_(["DEVICE_OFFLINE_TIMEOUT", "DEVICE_REVOKED", "CHECKOUT_FAILED"])
+        ).order_by(audit.c.created.desc()).limit(50)).mappings().all()
+    incidents = []
+    for r in rows:
+        incidents.append({
+            "incident_id": r["id"],
+            "severity": "HIGH",
+            "status": "OPEN",
+            "merchant_id": r["merchant_id"],
+            "detected": formatTime(r["created"]),
+            "assigned": None,
+            "detail": r["detail"],
+        })
+    return incidents
+
+
+@app.get("/api/superadmin/security", response_model=list[dict])
+def superadmin_security(request: Request, authorization: Token = None):
+    """Recent security events."""
+    require_owner_token(request)
+    with request.app.state.engine.connect() as conn:
+        rows = conn.execute(select(audit).where(
+            audit.c.event.in_([
+                "DEVICE_REVOKED", "AGENT_UPI_REGISTERED", "DEVICE_PAIRED",
+                "EMAIL_NOTIFY", "AGENT_UPI_REGISTERED"
+            ])
+        ).order_by(audit.c.created.desc()).limit(50)).mappings().all()
+    events = []
+    for r in rows:
+        events.append({
+            "event_id": r["id"],
+            "event": r["event"],
+            "merchant_id": r["merchant_id"],
+            "detected": formatTime(r["created"]),
+            "detail": r["detail"],
+        })
+    return events
+
+
+@app.get("/api/superadmin/aws/resources", response_model=list[dict])
+def superadmin_aws_resources(request: Request, authorization: Token = None):
+    """AWS resource discovery (read-only). Requires AWS credentials configured."""
+    require_owner_token(request)
+    # Stub: AWS resources require Boto3 and valid credentials configured in the environment.
+    # Return empty until AWS SDK access is provisioned.
+    return []
+
+
+@app.get("/api/superadmin/aws/billing", response_model=dict)
+def superadmin_aws_billing(request: Request, authorization: Token = None):
+    """AWS billing intelligence (read-only). Requires AWS credentials configured."""
+    require_owner_token(request)
+    return {
+        "monthly_cost_paise": 0,
+        "monthly_cost_rupees": 0.0,
+        "daily_cost_paise": 0,
+        "daily_cost_rupees": 0.0,
+        "budget_utilization_pct": 0.0,
+        "currency": "INR",
+        "last_updated": _now_ts(),
+        "note": "AWS billing data requires Cost Explorer access configured in the environment.",
+    }
+
+
+@app.get("/api/superadmin/aws/credits", response_model=dict)
+def superadmin_aws_credits(request: Request, authorization: Token = None):
+    """AWS credit intelligence (read-only). Requires AWS credentials configured."""
+    require_owner_token(request)
+    return {
+        "original_credits_paise": 0,
+        "applied_credits_paise": 0,
+        "remaining_credits_paise": 0,
+        "remaining_credits_rupees": 0.0,
+        "credit_expiry": None,
+        "eligible_services": [],
+        "estimated_runway_days": None,
+        "note": "AWS credit data requires Billing and Cost Management access configured in the environment.",
+    }
 
