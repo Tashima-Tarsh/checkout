@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "shop": "Disha 8.2",
+  "currency": "INR",
+  "daily_collection_limit_minor": 7000000,
+  "timezone": "Asia/Kolkata",
+  "roles": {
+    "boss": [
+      "shop.open",
+      "shop.close",
+      "report.read"
+    ],
+    "shopkeeper": [
+      "checkout.request",
+      "report.read"
+    ],
+    "accountant": [
+      "report.read",
+      "reconciliation.request"
+    ],
+    "auditor": [
+      "report.read"
+    ],
+    "setup": [
+      "device.health",
+      "setup.request"
+    ]
+  },
+  "providers": {
+    "paperclip": {
+      "role": "organization",
+      "env": "PAPERCLIP_ADAPTER_URL"
+    },
+    "openclaw": {
+      "role": "primary",
+      "env": "OPENCLAW_ADAPTER_URL"
+    },
+    "hermes": {
+      "role": "fallback",
+      "env": "HERMES_ADAPTER_URL",
+      "enabled": false
+    },
+    "agency-agents": {
+      "role": "templates",
+      "local": true
+    },
+    "mobilerun": {
+      "role": "device",
+      "env": "MOBILERUN_ADAPTER_URL"
+    },
+    "Open-AutoGLM": {
+      "role": "device-fallback",
+      "env": "AUTOGLM_ADAPTER_URL",
+      "enabled": false
+    },
+    "n8n": {
+      "role": "dispatch",
+      "env": "AGENT_DISPATCH_URL"
+    }
+  },
+  "rules": [
+    "tenant-bound identity required",
+    "no credentials or OTP in agent messages",
+    "no payment initiation or bank-limit bypass",
+    "no financial verification from agent claims",
+    "atomic collection cap enforced by authoritative checkout backend",
+    "no cross-tenant routing",
+    "ambiguous payments remain pending",
+    "manual authentication only",
+    "device automation limited to authorized non-sensitive setup",
+    "no external provider activation before license review and authenticated health check"
+  ]
+}
