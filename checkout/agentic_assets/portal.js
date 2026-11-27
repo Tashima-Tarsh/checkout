@@ -23,7 +23,7 @@ function filtered(){const q=$('order-search').value.toLowerCase(),s=$('order-fil
 function renderOrders(){table('orders',filtered(),r=>[r.id,date(r.created),money(r.amount_minor),r.status==='AWAITING_PAYMENT'&&r.expires<=Date.now()/1000?'EXPIRED':(r.settlement?.state||r.status),orderLink(r)],'No matching orders.',5)}
 function view(name){const root=$(page);if(!root)return;const target=root.querySelector('[id="view-'+name+'"]');if(!target){if(page==='merchant'&&name==='agentmonitor')location.href='/agents';return}root.querySelectorAll('.view').forEach(v=>{v.hidden=v!==target;v.classList.toggle('active',v===target)});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));document.body.dataset.currentView=name;const button=[...$(page+'-nav').querySelectorAll('[data-view]')].find(b=>b.dataset.view===name);if(button)$('heading').textContent=(button.querySelector('span')||button).textContent.trim();$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')}
 async function refresh(){
- if(page==='owner'){const rows=await call('/owner/merchants');table('merchants',rows,r=>[r.name,r.id],'No merchants registered.',2);$('ownerCount').textContent=rows.length;await refreshOwnerTab(document.body.dataset.currentView||'overview')}
+ if(page==='owner'){const rows=await call('/owner/merchants');table('merchants',rows,r=>[r.name,r.id],'No merchants registered.',2);$('ownerCount').textContent=rows.length}
  else if(page==='agents'){const rows=await call('/agents');table('agent-list',rows,r=>[r.agent_id,r.vpa,r.bank,'•••• '+r.last4,r.state,date(r.expires)],'No agents registered.',6);$('agentCount').textContent=rows.length;$('agentAuth').textContent=rows.filter(r=>r.state==='AUTH_REQUIRED').length}
  else {const [accounts,orders]=await Promise.all([call('/accounts'),call('/orders')]);recentOrders=orders;table('accounts',accounts,r=>[r.vpa,r.holder,r.bank,'•••• '+r.last4,r.state],'No receiving accounts registered.',5);renderOrders();$('new-order').elements.account_id.replaceChildren(...accounts.map(r=>new Option(r.vpa,r.id)));$('metricAccounts').textContent=accounts.length;$('metricOrders').textContent=orders.length;$('metricPending').textContent=orders.filter(r=>r.status==='PENDING').length;$('metricVolume').textContent=money(orders.reduce((n,r)=>n+r.amount_minor,0));$('order-summary').textContent=orders.length?'Recent requests: '+orders.filter(r=>r.status==='PENDING').length+' pending · '+orders.filter(r=>r.status==='AWAITING_PAYMENT').length+' awaiting payment.':'No payment requests yet.';$('pending-bar').style.width=(orders.length?orders.filter(r=>r.status==='PENDING').length/orders.length*100:0)+'%';$('intelligence-summary').textContent=orders.length+' recent payment requests. Verification states come from the server ledger.'}
 }
@@ -103,7 +103,7 @@ submit('new-order', async ({amount, account_id}) => {
   await refresh();
 }, 'Checkout link created.');
 
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{view(b.dataset.view);if(page==='owner')refreshOwnerTab(b.dataset.view)}));
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.view)));
 $('sideToggle').onclick=()=>{const open=$('appSide').classList.toggle('open');$('sideBackdrop').hidden=!open;$('sideToggle').setAttribute('aria-expanded',String(open))};
 $('sideBackdrop').onclick=()=>{$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')};
 $('refresh').onclick=async()=>{try{await refresh();$('status').textContent='Workspace refreshed.'}catch(e){$('status').textContent=e.message}};
@@ -113,22 +113,88 @@ $('download-template').onclick=()=>download('agentic-accounts.csv','upi_id,accou
 $('export-orders').onclick=()=>download('agentic-recent-orders.csv','order_id,amount_minor,status,created\n'+filtered().map(r=>[r.id,r.amount_minor,r.status,r.created].join(',')).join('\n'));
 $('check-health').onclick=async()=>{try{const r=await fetch('/healthz');const x=await r.json();$('health-result').textContent=r.ok&&x.ok?'Application healthy. Financial verification: '+x.verification:'Health unavailable.'}catch{$('health-result').textContent='Health unavailable.'}};
 
-async function refreshAndroidRuntime(){
- const el=$('android-runtime-status'); if(!el || page!=='owner') return;
- try { const link=$('android-provider-display');if(link){link.hidden=true;link.removeAttribute('href');} const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Genymotion device online':data.state.replaceAll('_',' ');if(link){link.hidden=!data.connected||!data.display_url;if(!link.hidden)link.href=data.display_url;else link.removeAttribute('href');} } catch {el.textContent='Device status unavailable';}
+async function refreshAndroidDevices(){
+  if(page!=='owner') return;
+  const list=$('android-device-list'); const rows=$('android-device-rows');
+  const empty=$('android-device-empty'); const pill=$('android-state-pill');
+  const connStatus=$('android-conn-status'); const lastHb=$('android-last-hb');
+  const appVer=$('android-app-ver'); const offlineNote=$('android-offline-note');
+  if(!list || !rows) return;
+  try {
+    const res=await fetch('/api/android/devices',{cache:'no-store'});
+    if(!res.ok){list.hidden=true;empty.textContent='Unable to load devices.';return;}
+    const devices=await res.json();
+    rows.replaceChildren();
+    if(!devices.length){list.hidden=true;empty.hidden=false;pill.textContent='Enrollment pending';pill.className='status-pill pending';
+      connStatus.textContent='—';lastHb.textContent='—';appVer.textContent='—';offlineNote.hidden=true;return;}
+    empty.hidden=true;list.hidden=false;
+    let online=false;
+    for(const d of devices){
+      const tr=document.createElement('tr');
+      const stateClass=d.state==='ONLINE'?'online':(d.state==='REVOKED'?'revoked':'pending');
+      if(d.state==='ONLINE') online=true;
+      tr.innerHTML='<td><code>'+d.device_id+'</code></td>'+
+        '<td>'+(d.agent_id||'—')+'</td>'+
+        '<td><span class="status-pill '+stateClass+'">'+d.state+'</span></td>'+
+        '<td>'+date(d.last_heartbeat)+'</td>'+
+        '<td>'+(d.app_version||'—')+'</td>'+
+        '<td><button class="btn ghost" data-revoke="'+d.device_id+'">Revoke</button>'+
+        (d.state==='REVOKED'?' <button class="btn ghost" data-reenroll="'+d.device_id+'">Re-enroll</button>':'')+'</td>';
+      rows.append(tr);
+    }
+    pill.textContent=online?'Device online':'No online devices';
+    pill.className='status-pill '+(online?'':'pending');
+    const latest=devices[0];
+    connStatus.textContent=online?'ONLINE':(latest.state==='REVOKED'?'REVOKED':'OFFLINE');
+    lastHb.textContent=date(latest.last_heartbeat);
+    appVer.textContent=latest.app_version||'—';
+    offlineNote.hidden=online;
+    rows.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{
+      const did=b.getAttribute('data-revoke');
+      const r=await fetch('/api/android/devices/'+encodeURIComponent(did)+'/revoke',{method:'POST'});
+      if(!r.ok){const x=await r.json();$('status').textContent=x.detail||'Revoke failed';return;}
+      $('status').textContent='Device revoked.';
+      await refreshAndroidDevices();
+    });
+    rows.querySelectorAll('[data-reenroll]').forEach(b=>b.onclick=async()=>{
+      const did=b.getAttribute('data-reenroll');
+      $('status').textContent='Re-enrollment: generate a new pairing code below.';
+    });
+  } catch(e){$('status').textContent=e.message;}
 }
-$('android-refresh').addEventListener('click',refreshAndroidRuntime);
 
-async function refreshOwnerTab(name){
- const note=$('owner-note-'+name),body=$('owner-data-'+name),head=$('owner-head-'+name);
- if(name!=='overview'&&!note){if(name==='androidworkspace')await refreshAndroidRuntime();return;}
- try{
-  const result=await call('/owner/dashboard/'+name);
-  if(name==='overview'){const el=$('owner-summary');if(el)el.textContent=result.rows.reduce((n,r)=>n+r.count,0)+' payment requests · '+money(result.rows.reduce((n,r)=>n+(r.requested_minor||0),0))+' requested (not confirmed receipts)';return;}
-  note.textContent=result.note;head.replaceChildren();body.replaceChildren();
-  const keys=Object.keys(result.rows[0]||{});
-  if(!keys.length){const tr=document.createElement('tr'),td=document.createElement('td');td.textContent='No matching records.';tr.append(td);body.append(tr);return;}
-  const tr=document.createElement('tr');for(const key of keys){const th=document.createElement('th');th.textContent=key.replaceAll('_',' ');tr.append(th)}head.append(tr);
-  table('owner-data-'+name,result.rows,r=>keys.map(k=>k.endsWith('_minor')&&r[k]!=null?money(r[k]):['created','updated','expires','retry_at'].includes(k)?date(r[k]):r[k]),'No matching records.',keys.length);
- }catch(e){if(note){note.textContent=e.message;body.replaceChildren();head.replaceChildren();}else if($('owner-summary'))$('owner-summary').textContent=e.message;}
+let pairingTtl=0; let pairingTimer=null;
+function stopPairingTimer(){if(pairingTimer){clearInterval(pairingTimer);pairingTimer=null;}}
+function startPairingCountdown(ttl){
+  pairingTtl=ttl; stopPairingTimer();
+  const el=$('android-pairing-ttl'); el.textContent=ttl;
+  pairingTimer=setInterval(()=>{
+    pairingTtl--; el.textContent=Math.max(0,pairingTtl);
+    if(pairingTtl<=0) stopPairingTimer();
+  },1000);
 }
+
+async function generatePairingCode(){
+  const agentId=$('android-agent-id').value.trim();
+  if(!agentId){$('android-pairing-error').textContent='Enter an agent ID.';return;}
+  const btn=$('android-generate-pairing'); btn.disabled=true;
+  $('android-pairing-error').textContent='';
+  try {
+    const res=await fetch('/api/android/devices/pairing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent_id:agentId})});
+    if(!res.ok){const x=await res.json();$('android-pairing-error').textContent=x.detail||'Pairing code generation failed';return;}
+    const data=await res.json();
+    $('android-pairing-code').textContent=data.code;
+    $('android-pairing-output').hidden=false;
+    startPairingCountdown(data.expires_in_seconds);
+    await refreshAndroidDevices();
+  } catch(e){$('android-pairing-error').textContent=e.message;}
+  finally {btn.disabled=false;}
+}
+
+async function refreshAndroidRuntime(){
+  if(page!=='owner') return;
+  await refreshAndroidDevices();
+}
+
+$('android-generate-pairing').addEventListener('click',generatePairingCode);
+$('android-refresh').addEventListener('click',refreshAndroidRuntime);

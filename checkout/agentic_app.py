@@ -14,10 +14,10 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from checkout.agentic_api import ORDER_ID, digest, now, router
+from checkout.agentic_api import ORDER_ID, digest, now, router, Token, DEVICE_STATE_ONLINE, HEARTBEAT_OFFLINE_TIMEOUT, require_owner
 from checkout.agentic_login import configure, require_session, router as login_router
 from checkout.agentic_live_vision_api import router as live_vision_router
-from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links, ensure_schema
+from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links, ensure_schema, devices, device_heartbeats
 from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
 from checkout.agentic_test_checkout import router as test_checkout_router, auto_enabled, open_test_checkout
@@ -83,8 +83,6 @@ async def lifespan(app):
 app = FastAPI(title="Agentic Pay", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(router)
 app.include_router(login_router)
-from checkout.agentic_owner_dashboard import router as owner_dashboard_router
-app.include_router(owner_dashboard_router)
 app.include_router(vision_router)
 app.include_router(live_vision_router)
 app.include_router(test_checkout_router)
@@ -191,7 +189,33 @@ def android_workspace():
 
 
 @app.get("/api/android/workspace/status")
-def android_workspace_status(request: Request):
-    require_session(request)
-    from checkout.agentic_genymotion import status
-    return status()
+def android_workspace_status(request: Request, authorization: Token = None):
+    require_owner(request, authorization)
+    # Try session-based merchant identity first
+    try:
+        login = require_session(request)
+        identity = login.merchant_id
+    except HTTPException:
+        identity = None
+    now_ts = now()
+    with request.app.state.engine.connect() as conn:
+        if identity is not None:
+            row = conn.execute(
+                select(devices).where(devices.c.merchant_id == identity).order_by(devices.c.created.desc())
+            ).mappings().first()
+        else:
+            row = conn.execute(
+                select(devices).order_by(devices.c.created.desc())
+            ).mappings().first()
+        if row is None:
+            return {"connected": False, "state": "ENROLLMENT_PENDING",
+                    "device_id": "AgenticMobile0001", "financially_verified": False}
+        state = row["state"]
+        if state == DEVICE_STATE_ONLINE:
+            hb = row["last_heartbeat"]
+            if hb is None or now_ts - hb > HEARTBEAT_OFFLINE_TIMEOUT:
+                state = DEVICE_STATE_OFFLINE
+        return {"connected": state == DEVICE_STATE_ONLINE, "state": state,
+                "device_id": row["device_id"], "financially_verified": False,
+                "last_heartbeat": row["last_heartbeat"], "app_version": row["app_version"],
+                "merchant_id": row["merchant_id"], "agent_id": row["agent_id"]}
