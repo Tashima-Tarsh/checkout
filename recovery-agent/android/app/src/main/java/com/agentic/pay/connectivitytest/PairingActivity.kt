@@ -3,8 +3,6 @@ package com.agentic.pay.connectivitytest
 import android.app.Activity
 import android.os.Bundle
 import android.widget.*
-import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.security.KeyPair
 
@@ -18,9 +16,16 @@ class PairingActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        credentialStore = CredentialStore.init(this)
-        keyPair = DeviceKeyStore.getOrCreateKeyPair(this)
+        try {
+            credentialStore = CredentialStore.init(this)
+            keyPair = DeviceKeyStore.getOrCreateKeyPair(this)
+            buildUI()
+        } catch (e: Exception) {
+            showErrorScreen("Initialization failed: ${e.message}")
+        }
+    }
 
+    private fun buildUI() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -66,6 +71,35 @@ class PairingActivity : Activity() {
         backButton.setOnClickListener { finish() }
     }
 
+    private fun showErrorScreen(message: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        val title = TextView(this).apply {
+            text = "Enrollment Error"
+            textSize = 22f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(title)
+
+        val errorText = TextView(this).apply {
+            text = message
+            textSize = 16f
+        }
+        layout.addView(errorText)
+
+        val retryButton = Button(this).apply { text = "Retry" }
+        layout.addView(retryButton)
+
+        setContentView(layout)
+
+        retryButton.setOnClickListener {
+            recreate()
+        }
+    }
+
     private fun attemptPair() {
         val code = codeInput.text.toString().trim()
         if (code.isNotEmpty() && code.length != 8) {
@@ -80,7 +114,7 @@ class PairingActivity : Activity() {
         statusText.text = "Pairing…"
 
         val publicKeyPem = DeviceKeyStore.getPublicKeyPem(keyPair)
-        val appVersion = "2.0"
+        val appVersion = "2.1"
 
         ApiClient.pairDevice(code, DeviceConfig.DEVICE_ID, publicKeyPem, appVersion) { result ->
             runOnUiThread {
@@ -94,7 +128,7 @@ class PairingActivity : Activity() {
                             val expiresAt = (System.currentTimeMillis() / 1000) + expiresIn
                             credentialStore.saveCredential(credential, expiresAt)
                             credentialStore.saveEnrolled(true)
-                            credentialStore.saveAppVersion(appVersion ?: "2.0")
+                            credentialStore.saveAppVersion(appVersion)
                             statusText.text = "Device enrolled successfully."
                             setResult(Activity.RESULT_OK)
                             finish()

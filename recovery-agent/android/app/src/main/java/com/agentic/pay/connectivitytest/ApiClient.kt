@@ -98,6 +98,7 @@ object ApiClient {
         thread {
             val body = mapOf(
                 "order_id" to observation.orderId,
+                "account_id" to observation.accountId,
                 "amount_paise" to observation.amountPaise,
                 "currency" to observation.currency,
                 "transaction_reference" to observation.transactionReference,
@@ -121,6 +122,7 @@ object ApiClient {
 
     data class DeviceObservation(
         val orderId: String,
+        val accountId: String,
         val amountPaise: Int,
         val currency: String = "INR",
         val transactionReference: String? = null,

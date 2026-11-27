@@ -52,6 +52,12 @@ class CredentialStore private constructor(private val prefs: android.content.Sha
 
     fun getAppVersion(): String? = prefs.getString(DeviceConfig.KEY_APP_VERSION, null)
 
+    fun saveAccountId(accountId: String) {
+        prefs.edit().putString(DeviceConfig.KEY_ACCOUNT_ID, accountId).apply()
+    }
+
+    fun getAccountId(): String? = prefs.getString(DeviceConfig.KEY_ACCOUNT_ID, null)
+
     fun clear() {
         prefs.edit().clear().apply()
     }

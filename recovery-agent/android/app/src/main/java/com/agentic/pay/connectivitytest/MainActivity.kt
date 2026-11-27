@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.*
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import java.lang.reflect.Type
 
@@ -20,8 +21,23 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        credentialStore = CredentialStore.init(this)
+        try {
+            credentialStore = CredentialStore.init(this)
+        } catch (e: Exception) {
+            showErrorScreen("Initialization failed: ${e.message}")
+            return
+        }
 
+        try {
+            buildUI()
+            updateButtons()
+            refreshStatus()
+        } catch (e: Exception) {
+            showErrorScreen("UI setup failed: ${e.message}")
+        }
+    }
+
+    private fun buildUI() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -93,15 +109,45 @@ class MainActivity : Activity() {
         }
 
         refreshButton.setOnClickListener { refreshStatus() }
+    }
 
-        updateButtons()
-        refreshStatus()
+    private fun showErrorScreen(message: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        val title = TextView(this).apply {
+            text = "Application Error"
+            textSize = 22f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(title)
+
+        val errorText = TextView(this).apply {
+            text = message
+            textSize = 16f
+        }
+        layout.addView(errorText)
+
+        val retryButton = Button(this).apply { text = "Retry" }
+        layout.addView(retryButton)
+
+        setContentView(layout)
+
+        retryButton.setOnClickListener {
+            recreate()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        updateButtons()
-        refreshStatus()
+        try {
+            updateButtons()
+            refreshStatus()
+        } catch (e: Exception) {
+            showErrorScreen("Resume failed: ${e.message}")
+        }
     }
 
     private fun updateButtons() {

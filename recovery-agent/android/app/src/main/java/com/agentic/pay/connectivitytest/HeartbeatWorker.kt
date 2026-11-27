@@ -52,7 +52,7 @@ class HeartbeatWorker(
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORKER_TAG,
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }

@@ -14,6 +14,7 @@ object DeviceConfig {
     const val KEY_DEVICE_PUBLIC_KEY = "device_public_key_pem"
     const val KEY_ENROLLED = "device_enrolled"
     const val KEY_APP_VERSION = "app_version"
+    const val KEY_ACCOUNT_ID = "device_account_id"
 
     // Heartbeat interval in seconds
     const val HEARTBEAT_INTERVAL_SECONDS = 30
