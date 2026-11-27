@@ -15,6 +15,24 @@ merchants = Table(
     Column("token_hash", String(64), unique=True, nullable=False),
     Column("email", String(254), nullable=True),
 )
+subscriptions = Table(
+    "ap_subscriptions", metadata,
+    Column("merchant_id", ForeignKey("ap_merchants.id"), primary_key=True),
+    Column("subject", String(64), unique=True, nullable=False),
+    Column("slug", String(30), unique=True, nullable=False),
+    Column("gst", String(15), nullable=False),
+    Column("bank_cipher", Text, nullable=False),
+    Column("monthly_volume", BigInteger, nullable=False),
+    Column("period", String(8), nullable=False),
+    Column("trial_until", BigInteger, nullable=False),
+    Column("paid_until", BigInteger),
+)
+daily_issuance = Table(
+    "ap_daily_issuance", metadata,
+    Column("mobile_key", String(64), primary_key=True),
+    Column("day", String(10), primary_key=True),
+    Column("reserved_paise", BigInteger, nullable=False),
+)
 accounts = Table(
     "ap_accounts", metadata,
     Column("id", String(32), primary_key=True),
@@ -270,4 +288,24 @@ def ensure_schema(engine):
         if "email" not in merchant_cols:
             connection.execute(text(
                 "ALTER TABLE ap_merchants ADD COLUMN email VARCHAR(254)"
+            ))
+        # merchant_profiles table (idempotent)
+        merchant_cols = {c["name"] for c in inspector.get_columns("ap_merchant_profiles")}
+        if not merchant_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_merchant_profiles ("
+                "id VARCHAR(32) PRIMARY KEY,"
+                "clerk_user_id VARCHAR(255) UNIQUE NOT NULL,"
+                "email VARCHAR(254) NOT NULL,"
+                "business_name VARCHAR(150) NOT NULL,"
+                "gst_number VARCHAR(15),"
+                "tier VARCHAR(20) DEFAULT 'starter',"
+                "monthly_volume_estimate BIGINT,"
+                "api_key_hash VARCHAR(64),"
+                "api_key_prefix VARCHAR(20),"
+                "subscription_status VARCHAR(20) DEFAULT 'trial',"
+                "trial_ends_at BIGINT,"
+                "created_at BIGINT NOT NULL,"
+                "updated_at BIGINT"
+                ")"
             ))

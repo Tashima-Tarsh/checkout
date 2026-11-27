@@ -22,6 +22,8 @@ from checkout.agentic_worker import N8nProvider, dispatch_next
 from checkout.agentic_vision_api import router as vision_router
 from checkout.agentic_test_checkout import router as test_checkout_router, auto_enabled, open_test_checkout
 from checkout.agentic_owner_dashboard import router as owner_dashboard_router
+from checkout.agentic_onboarding import router as onboarding_router
+from checkout.merchant_auth import router as merchant_auth_router
 
 ASSETS = Path(__file__).parent / "agentic_assets"
 log = logging.getLogger(__name__)
@@ -88,6 +90,8 @@ app.include_router(vision_router)
 app.include_router(live_vision_router)
 app.include_router(test_checkout_router)
 app.include_router(owner_dashboard_router)
+app.include_router(onboarding_router)
+app.include_router(merchant_auth_router)
 app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
 

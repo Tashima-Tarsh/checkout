@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DISHA Merchant Signup</title>
+  <script src="https://cdn.clerk.com/clerk.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 440px; margin: 60px auto; padding: 20px; background: #f8fafc; color: #0f172a; line-height: 1.6; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.025em; }
+    .trial-badge { display: inline-block; background: #f0fdf4; color: #065f46; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 16px; border: 1px solid #bbf7d0; }
+    .clerk-mount { margin-bottom: 24px; }
+    form { margin-top: 20px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: #2563eb; outline: 2px solid rgba(37,99,235,0.2); }
+    button.submit { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+    button.submit:hover { background: #1e293b; }
+    button.submit:disabled { opacity: 0.6; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; display: none; }
+    .status.ok { background: #f0fdf4; color: #065f46; border: 1px solid #bbf7d0; }
+    .status.err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .api-key { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-top: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; display: none; }
+    .api-key .label { color: #1e40af; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
+    .steps { margin-top: 24px; }
+    .steps h4 { font-size: 13px; color: #475569; margin-bottom: 8px; }
+    .steps ol { margin: 0; padding-left: 20px; color: #334155; font-size: 13px; }
+    .steps li { margin-bottom: 6px; }
+    .clerk-sign-in { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="background:#0f172a; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700;">D</span>
+      <div>
+        <h2>DISHA Merchant</h2>
+        <div style="font-size:12px; color:#64748b;">Agentic UPI Payment Verification</div>
+      </div>
+    </div>
+
+    <div class="trial-badge">1-day free trial &bull; ₹70,000 daily collection cap &bull; Up to 15 UPI IDs</div>
+
+    <div class="clerk-sign-in" id="clerk-sign-in"></div>
+
+    <form id="merchantForm" class="form">
+      <div class="form-group">
+        <label for="businessName">Business / Shop Name</label>
+        <input type="text" id="businessName" placeholder="e.g. Disha General Store" required />
+      </div>
+
+      <div class="form-group">
+        <label for="gstNumber">GST Number (optional)</label>
+        <input type="text" id="gstNumber" placeholder="e.g. 27ABCDE1234F1Z5" />
+      </div>
+
+      <div class="form-group">
+        <label for="tier">Subscription Tier</label>
+        <select id="tier">
+          <option value="starter">Starter — up to ₹10 lakh/month — ₹3,000/month</option>
+          <option value="growth">Growth — up to ₹50 lakh/month — ₹7,500/month</option>
+          <option value="business">Business — up to ₹1 crore/month — ₹15,000/month</option>
+          <option value="scale">Scale — up to ₹50 crore/month — ₹35,000/month</option>
+          <option value="enterprise">Enterprise — up to ₹100 crore/month — ₹60,000/month</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="monthlyVolume">Expected Monthly Volume (₹)</label>
+        <input type="number" id="monthlyVolume" placeholder="e.g. 5000000" min="0" step="100000" />
+      </div>
+
+      <button type="submit" class="submit" id="submitBtn">Create Merchant Account</button>
+    </form>
+
+    <div id="status" class="status"></div>
+    <div id="apiKeyBox" class="api-key">
+      <span class="label">Save your API key (shown once):</span>
+      <span id="apiKeyValue"></span>
+    </div>
+
+    <div class="steps">
+      <h4>Next Steps</h4>
+      <ol>
+        <li>Install the DISHA Observer APK on your Android mobile.</li>
+        <li>Pair your device using the Device ID + API key above.</li>
+        <li>Register your UPI ID and mobile number as your receiving account.</li>
+        <li>Create checkout links — customers pay via UPI, DISHA verifies in seconds.</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    // Clerk publishable key — replace with your Clerk dashboard value
+    const CLERK_PUBLISHABLE_KEY = "pk_test_" + "replace_with_your_clerk_publishable_key";
+    const clerk = new Clerk(CLERK_PUBLISHABLE_KEY);
+
+    const API_BASE = "https://api.<your-domain>.com"; // <-- set your production API domain
+
+    async function init() {
+      await clerk.load();
+      const session = await clerk.session;
+      const mountEl = document.getElementById('clerk-sign-in');
+
+      if (!session) {
+        mountEl.innerHTML = '<p style="font-size:13px;color:#64748b;">Sign in with Clerk to create your merchant account.</p>';
+        // Mount Clerk SignIn component
+        clerk.mountSignIn({ element: mountEl, mode: 'modal', appearance: { layout: 'sidebar' } });
+        // After sign-in, reload page
+        clerk.addListener((event) => {
+          if (event.sessionId) location.reload();
+        });
+        return;
+      }
+
+      const user = await clerk.user;
+      mountEl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
+            ${user.firstName?user.firstName[0]:user.emailAddress?.[0]||'U'}
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">${user.firstName || ''} ${user.lastName || ''}</div>
+            <div style="font-size:12px;color:#64748b;">${user.primaryEmailAddress?.emailAddress}</div>
+          </div>
+          <button id="clerkSignOut" style="background:transparent;border:none;color:#ef4444;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px;">Sign out</button>
+        </div>
+      `;
+      document.getElementById('clerkSignOut').addEventListener('click', () => {
+        clerk.signOut();
+        location.reload();
+      });
+    }
+
+    document.getElementById('merchantForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const status = document.getElementById('status');
+      const apiBox = document.getElementById('apiKeyBox');
+      const apiVal = document.getElementById('apiKeyValue');
+
+      btn.disabled = true;
+      status.style.display = 'none';
+      apiBox.style.display = 'none';
+
+      const session = await clerk.session;
+      if (!session) {
+        status.className = 'status err';
+        status.textContent = 'Please sign in with Clerk first.';
+        status.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      const token = await session.getToken();
+      const user = await clerk.user;
+
+      const payload = {
+        clerk_user_id: user.id,
+        email: user.primaryEmailAddress.emailAddress,
+        business_name: document.getElementById('businessName').value.trim(),
+        gst_number: document.getElementById('gstNumber').value.trim() || undefined,
+        tier: document.getElementById('tier').value,
+        monthly_volume_estimate_paise: parseInt(document.getElementById('monthlyVolume').value || '0') * 100 || null,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/merchant/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Signup failed');
+
+        status.className = 'status ok';
+        status.textContent = 'Merchant account created successfully!';
+        status.style.display = 'block';
+
+        apiBox.style.display = 'block';
+        apiVal.textContent = data.api_key;
+
+        document.getElementById('merchantForm').reset();
+      } catch (err) {
+        status.className = 'status err';
+        status.textContent = err.message;
+        status.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
