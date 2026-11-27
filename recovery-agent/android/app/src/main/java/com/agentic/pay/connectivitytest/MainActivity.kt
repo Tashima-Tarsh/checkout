@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.*
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import java.lang.reflect.Type
 
@@ -20,8 +21,23 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        credentialStore = CredentialStore.init(this)
+        try {
+            credentialStore = CredentialStore.init(this)
+        } catch (e: Exception) {
+            showErrorScreen("Initialization failed: ${e.message}")
+            return
+        }
 
+        try {
+            buildUI()
+            updateButtons()
+            refreshStatus()
+        } catch (e: Exception) {
+            showErrorScreen("UI setup failed: ${e.message}")
+        }
+    }
+
+    private fun buildUI() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -75,7 +91,7 @@ class MainActivity : Activity() {
         layout.addView(refreshButton)
 
         val msg = TextView(this).apply {
-            text = "No payment data is collected without explicit user authorization."
+            text = "Connection refreshes while this screen is open. No automatic payment source configured."
             textSize = 12f
         }
         layout.addView(msg)
@@ -93,20 +109,72 @@ class MainActivity : Activity() {
         }
 
         refreshButton.setOnClickListener { refreshStatus() }
+    }
 
-        updateButtons()
-        refreshStatus()
+    private fun showErrorScreen(message: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        val title = TextView(this).apply {
+            text = "Application Error"
+            textSize = 22f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(title)
+
+        val errorText = TextView(this).apply {
+            text = message
+            textSize = 16f
+        }
+        layout.addView(errorText)
+
+        val retryButton = Button(this).apply { text = "Retry" }
+        layout.addView(retryButton)
+
+        setContentView(layout)
+
+        retryButton.setOnClickListener {
+            recreate()
+        }
+    }
+
+    private val heartbeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val heartbeatTick = object : Runnable {
+        override fun run() {
+            if (::credentialStore.isInitialized) {
+                credentialStore.getCredential()?.let { token ->
+                    ApiClient.heartbeat(token) { result ->
+                        if (result is ApiClient.Result.Success) runOnUiThread { if (!isFinishing && !isDestroyed) refreshStatus() }
+                    }
+                }
+            }
+            heartbeatHandler.postDelayed(this, 30000L)
+        }
+    }
+
+    override fun onPause() {
+        heartbeatHandler.removeCallbacks(heartbeatTick)
+        super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        updateButtons()
-        refreshStatus()
+        heartbeatHandler.removeCallbacks(heartbeatTick)
+        heartbeatHandler.post(heartbeatTick)
+        try {
+            updateButtons()
+            refreshStatus()
+        } catch (e: Exception) {
+            showErrorScreen("Resume failed: ${e.message}")
+        }
     }
 
     private fun updateButtons() {
         val enrolled = credentialStore.isEnrolled()
-        observeButton.isEnabled = enrolled
+        observeButton.visibility = View.GONE
+        observeButton.isEnabled = false
         pairButton.text = if (enrolled) "Re-enroll Device" else "Enroll Device (Pairing Code)"
     }
 
@@ -134,8 +202,8 @@ class MainActivity : Activity() {
                             val state = json.get("state").asString
                             val connected = json.get("connected").asBoolean
                             statusText.text = "Status: $state (${if (connected) "ONLINE" else "OFFLINE"})"
-                            heartbeatText.text = "Last heartbeat: ${json.get("last_heartbeat").asString}"
-                            versionText.text = "App version: ${json.get("app_version").asString}"
+                            heartbeatText.text = "Last heartbeat: ${(json.get("last_heartbeat")?.takeUnless { it.isJsonNull }?.asString ?: "—")}"
+                            versionText.text = "App version: ${(json.get("app_version")?.takeUnless { it.isJsonNull }?.asString ?: "—")}"
                         } catch (e: Exception) {
                             statusText.text = "Status: Parse error"
                         }
