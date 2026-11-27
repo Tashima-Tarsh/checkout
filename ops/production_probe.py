@@ -12,7 +12,6 @@ import ssl
 import sys
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 ALLOWED_PATHS = ("/healthz", "/api/appearance", "/")
@@ -33,9 +32,12 @@ def check(path: str) -> dict:
             content_type = resp.headers.get("content-type", "")
             if resp.url != url:
                 result["redirected_to"] = resp.url
+                result["error"] = "Unexpected redirect from checkout endpoint"
+                return result
             if path == "/healthz":
                 data = json.loads(body)
-                result["ok"] = resp.status == 200 and data.get("ok") is True
+                result["ok"] = (resp.status == 200 and data.get("ok") is True
+                                and isinstance(data.get("synthetic_enabled"), bool))
                 result["synthetic_enabled"] = data.get("synthetic_enabled")
             elif path == "/api/appearance":
                 data = json.loads(body)
@@ -46,7 +48,7 @@ def check(path: str) -> dict:
                 )
             else:
                 result["ok"] = resp.status == 200 and (
-                    b'id="form"' in body and b'id="launch"' in body
+                    all(marker in body for marker in (b'id="form"', b'id="create"', b'id="payNow"'))
                 )
             if not result["ok"]:
                 result["error"] = "Unexpected public response shape"
