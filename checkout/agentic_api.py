@@ -760,7 +760,7 @@ def device_pair(request: Request, item: DevicePairInput):
 @router.get("/android/device/status")
 def device_status(request: Request, authorization: Token = None):
     """Return only the authenticated device's own connection status."""
-    identity = device_bearer(request, authorization)
+    identity = device_bearer(request, authorization, allow_offline=True)
     with request.app.state.engine.connect() as conn:
         row = conn.execute(select(devices).where(
             devices.c.device_id == identity["device_id"]
