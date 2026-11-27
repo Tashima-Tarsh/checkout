@@ -10,7 +10,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Agentic Pay Receiver"
+        android:label="G Shop"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false"

@@ -24,6 +24,8 @@ launch() {
   adb shell uiautomator dump /sdcard/agentic-ui.xml
   adb pull /sdcard/agentic-ui.xml /tmp/agentic-ui.xml
   grep -qi 'Enroll Device' /tmp/agentic-ui.xml
+grep -q 'G Shop App' /tmp/agentic-ui.xml
+grep -q 'Disha' /tmp/agentic-ui.xml
   ! grep -qi 'Application Error' /tmp/agentic-ui.xml
 }
 launch

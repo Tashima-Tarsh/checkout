@@ -114,7 +114,7 @@ class PairingActivity : Activity() {
         statusText.text = "Pairing…"
 
         val publicKeyPem = DeviceKeyStore.getPublicKeyPem(keyPair)
-        val appVersion = "2.2"
+        val appVersion = "2.3"
 
         ApiClient.pairDevice(code, DeviceConfig.DEVICE_ID, publicKeyPem, appVersion) { result ->
             runOnUiThread {
