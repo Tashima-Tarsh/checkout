@@ -193,5 +193,5 @@ def android_workspace():
 @app.get("/api/android/workspace/status")
 def android_workspace_status(request: Request):
     require_session(request)
-    return {"connected": False, "state": "CLOUD_RUNTIME_NOT_CONNECTED",
-            "device_id": "AgenticMobile0001", "financially_verified": False}
+    from checkout.agentic_genymotion import status
+    return status()
