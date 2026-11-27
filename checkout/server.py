@@ -26,6 +26,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
 
 from checkout.storage import creation_limits, debit_evidence, events, make_engine, metadata, receipts, sessions, vpa_routes
+from checkout.agentic_storage import merchants
 from checkout.vpa_admin import router as admin_router, enforce_optional_session_allowlist
 from checkout.saas import router as saas_router
 from checkout.recovery_integration import recovery_router
@@ -475,9 +476,26 @@ _viewer_ws: WebSocket | None = None
 
 # WebSocket authentication helper for Android Workspace
 async def _auth_websocket(websocket: WebSocket) -> str | None:
-    """Disabled until the SaaS owner and device authentication are integrated."""
-    await websocket.close(code=4001, reason="Android Workspace authentication not configured")
-    return None
+    """Authenticate WebSocket connection using Bearer token from query params.
+    Token must match a valid merchant API token.
+    Returns the merchant_id on success.
+    """
+    auth_header = websocket.query_params.get("authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        await websocket.close(code=4001, reason="Authentication required")
+        return None
+
+    token = auth_header.split(" ", 1)[1]
+
+    with websocket.app.state.engine.connect() as conn:
+        identity = conn.scalar(
+            select(merchants.c.id).where(merchants.c.token_hash == digest(token))
+        )
+    if identity is None:
+        await websocket.close(code=4001, reason="Invalid token")
+        return None
+
+    return identity
 
 
 @app.get("/api/android/workspace/status")

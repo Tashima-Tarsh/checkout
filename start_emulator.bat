@@ -1,0 +1,1 @@
+D:\Android\Sdk\emulator\emulator.exe -avd AgenticMobile0001 -no-snapshot -no-window -gpu host -no-accel 2>&1
