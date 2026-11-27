@@ -164,7 +164,10 @@ def build_observation_message(payload_dict):
 
 def sign_observation(device_private_key_pem, payload_dict, timestamp=None):
     if timestamp is None:
-        timestamp = int(time.time() * 1000)
+        timestamp = payload_dict.get("observation_timestamp")
+        if timestamp is None:
+            timestamp = int(time.time() * 1000)
+    payload_dict["observation_timestamp"] = timestamp
     message = build_observation_message(payload_dict)
     private_key = serialization.load_pem_private_key(
         device_private_key_pem.encode(), password=None

@@ -705,7 +705,7 @@ def device_pair(request: Request, item: DevicePairInput):
     ts = now()
     with request.app.state.engine.begin() as conn:
         code_row = conn.execute(
-            select(pairing_codes).where(pairing_codes.c.code_hash == digest(item.code))
+            select(pairing_codes).where(pairing_codes.c.code_hash == digest(item.code)).with_for_update()
         ).mappings().first()
         if code_row is None:
             raise HTTPException(401, "Invalid pairing code")
@@ -722,7 +722,7 @@ def device_pair(request: Request, item: DevicePairInput):
             .values(used=ts, device_id=item.device_id)
         )
         existing = conn.execute(
-            select(devices).where(devices.c.device_id == item.device_id)
+            select(devices).where(devices.c.device_id == item.device_id).with_for_update()
         ).mappings().first()
         if existing is None:
             conn.execute(devices.insert().values(
@@ -732,6 +732,8 @@ def device_pair(request: Request, item: DevicePairInput):
                 app_version=item.app_version,
             ))
         else:
+            if existing["merchant_id"] != code_row["merchant_id"]:
+                raise HTTPException(403, "Device belongs to another merchant")
             conn.execute(
                 devices.update().where(devices.c.device_id == item.device_id)
                 .values(merchant_id=code_row["merchant_id"], agent_id=code_row["agent_id"],
@@ -739,15 +741,38 @@ def device_pair(request: Request, item: DevicePairInput):
                         last_heartbeat=ts, app_version=item.app_version,
                         revoked_at=None, revoked_reason=None)
             )
-        conn.execute(device_credentials.insert().values(
-            device_id=item.device_id, credential_hash=credential_hash,
-            created=ts, expires=credential_expires, revoked=None,
-        ))
+        credential_values = dict(credential_hash=credential_hash, created=ts,
+                                 expires=credential_expires, revoked=None)
+        updated = conn.execute(device_credentials.update().where(
+            device_credentials.c.device_id == item.device_id
+        ).values(**credential_values))
+        if updated.rowcount == 0:
+            conn.execute(device_credentials.insert().values(
+                device_id=item.device_id, **credential_values
+            ))
         conn.execute(device_heartbeats.insert().values(
             device_id=item.device_id, received_at=ts, created=ts,
         ))
         event(conn, code_row["merchant_id"], "DEVICE_PAIRED")
     return {"credential": credential, "expires_in_seconds": CREDENTIAL_TTL_SECONDS}
+
+
+@router.get("/android/device/status")
+def device_status(request: Request, authorization: Token = None):
+    """Return only the authenticated device's own connection status."""
+    identity = device_bearer(request, authorization)
+    with request.app.state.engine.connect() as conn:
+        row = conn.execute(select(devices).where(
+            devices.c.device_id == identity["device_id"]
+        )).mappings().one()
+    state = row["state"]
+    hb = row["last_heartbeat"]
+    if state == DEVICE_STATE_ONLINE and (hb is None or now() - hb > HEARTBEAT_OFFLINE_TIMEOUT):
+        state = DEVICE_STATE_OFFLINE
+    return {"device_id": row["device_id"], "state": state,
+            "connected": state == DEVICE_STATE_ONLINE,
+            "last_heartbeat": hb, "app_version": row["app_version"],
+            "financially_verified": False}
 
 
 @router.post("/android/heartbeat", status_code=204)

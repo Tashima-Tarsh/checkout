@@ -30,9 +30,9 @@ class HeartbeatWorker(
             conn.doOutput = true
             conn.outputStream.write("{}".toByteArray())
             val responseCode = conn.responseCode
-            conn.inputStream.bufferedReader().use { it.readText() }
+            if (responseCode in 200..299) conn.inputStream.close() else conn.errorStream?.close()
             conn.disconnect()
-            if (responseCode in 200..299) Result.success() else Result.failure()
+            if (responseCode in 200..299) Result.success() else if (responseCode == 401) Result.failure() else Result.retry()
         } catch (e: Exception) {
             Result.retry()
         }
@@ -40,7 +40,7 @@ class HeartbeatWorker(
 
     companion object {
         const val WORKER_TAG = "agentic_pay_heartbeat"
-        const val INTERVAL_SECONDS = 30L
+        const val INTERVAL_SECONDS = 900L
 
         fun schedule(context: Context) {
             val credentialStore = CredentialStore.init(context)

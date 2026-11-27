@@ -33,12 +33,12 @@ object ApiClient {
             val json = gson.toJson(body)
             OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { it.write(json) }
             val responseCode = conn.responseCode
-            val responseBody = conn.inputStream.bufferedReader().use { it.readText() }
+            val responseBody = (if (responseCode in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
             conn.disconnect()
             if (responseCode in 200..299) {
                 Result.Success(responseBody)
             } else {
-                Result.Error("HTTP $responseCode: $responseBody")
+                Result.Error("HTTP $responseCode")
             }
         } catch (e: Exception) {
             Result.Error("Connection failed: ${e.javaClass.simpleName} - ${e.message}")
@@ -56,12 +56,12 @@ object ApiClient {
             conn.instanceFollowRedirects = false
             authToken?.let { conn.setRequestProperty(DeviceConfig.AUTH_HEADER, DeviceConfig.BEARER_PREFIX + it) }
             val responseCode = conn.responseCode
-            val responseBody = conn.inputStream.bufferedReader().use { it.readText() }
+            val responseBody = (if (responseCode in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
             conn.disconnect()
             if (responseCode in 200..299) {
                 Result.Success(responseBody)
             } else {
-                Result.Error("HTTP $responseCode: $responseBody")
+                Result.Error("HTTP $responseCode")
             }
         } catch (e: Exception) {
             Result.Error("Connection failed: ${e.javaClass.simpleName} - ${e.message}")
@@ -116,7 +116,7 @@ object ApiClient {
 
     fun fetchDeviceStatus(credential: String, callback: (Result<String>) -> Unit) {
         thread {
-            val result = httpGet("/api/android/workspace/status", credential)
+            val result = httpGet("/api/android/device/status", credential)
             callback(result)
         }
     }
