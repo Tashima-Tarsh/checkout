@@ -544,8 +544,30 @@ def android_workspace_page():
 
 @app.websocket("/android/ws/host")
 async def android_ws_host(websocket: WebSocket):
-    """WebSocket endpoint for the Android host agent."""
+    """WebSocket endpoint for the Android host agent (runs on local Windows machine).
+    Requires Bearer token authentication with owner role and tenant isolation.
+    """
     global _host_ws
+    
+    # Authenticate: require Bearer token in query params
+    auth_header = websocket.query_params.get("authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        await websocket.close(code=4001, reason="Authentication required")
+        return
+    
+    token = auth_header.split(" ", 1)[1]
+    
+    # Verify token against sessions table
+    with request.app.state.engine.connect() as connection:
+        row = auth(connection, None, Authorization(token))
+        if not row:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+        # Owner-only access for host agent
+        if row.get("state") != "AWAITING_PAYMENT":
+            await websocket.close(code=4003, reason="Owner access required")
+            return
+    
     await websocket.accept()
     _host_ws = websocket
     log.info("Android host agent connected via WebSocket")
@@ -591,19 +613,40 @@ async def android_ws_host(websocket: WebSocket):
 
 @app.websocket("/android/ws/viewer")
 async def android_ws_viewer(websocket: WebSocket):
-    """WebSocket endpoint for the Android Workspace viewer (browser)."""
+    """WebSocket endpoint for the Android Workspace viewer (browser).
+    Requires Bearer token authentication with owner/admin role.
+    """
     global _viewer_ws
+    
+    # Authenticate: require Bearer token in query params
+    auth_header = websocket.query_params.get("authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        await websocket.close(code=4001, reason="Authentication required")
+        return
+    
+    token = auth_header.split(" ", 1)[1]
+    
+    # Verify token against sessions table
+    with request.app.state.engine.connect() as connection:
+        row = auth(connection, None, Authorization(token))
+        if not row:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+        # Only owner/collection_manager/auditor can view Android Workspace
+        if row.get("state") != "AWAITING_PAYMENT":
+            await websocket.close(code=4003, reason="Owner/admin access required")
+            return
+    
     await websocket.accept()
     _viewer_ws = websocket
     log.info("Android Workspace viewer connected")
 
     try:
-        # Send initial device status
-        status = manager.get_device_status()
+        # Send initial connection status
         await websocket.send_json({
-            "type": "device_status",
-            "device_id": DEVICE_ID,
-            **status,
+            "type": "connection",
+            "status": "connected",
+            "host_connected": _host_ws is not None,
         })
 
         # Relay messages from viewer to host
@@ -614,7 +657,7 @@ async def android_ws_viewer(websocket: WebSocket):
                 msg_type = data.get("type")
 
                 if msg_type == "inject_input":
-                    # Forward input to host
+                    # Forward input to host agent
                     if _host_ws:
                         await _host_ws.send_json(data)
                     else:
@@ -624,12 +667,15 @@ async def android_ws_viewer(websocket: WebSocket):
                             if k not in ("type", "action", "timestamp")
                         })
                 elif msg_type == "get_status":
-                    status = manager.get_device_status()
-                    await websocket.send_json({
-                        "type": "device_status",
-                        "device_id": DEVICE_ID,
-                        **status,
-                    })
+                    # Request status from host
+                    if _host_ws:
+                        await _host_ws.send_json({"type": "get_status"})
+                    else:
+                        await websocket.send_json({
+                            "type": "device_status",
+                            "connected": False,
+                            "state": "offline",
+                        })
                 elif msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
             except json.JSONDecodeError:
