@@ -1,88 +1,106 @@
 # DISHA — Agentic UPI Payment Verification Platform
 
-**Autonomous agents that verify UPI payments in real time — zero PSP, zero money held, zero fraud.**
+**Enterprise-grade, agentic UPI debit verification. Zero PSP dependency. Zero money held. Zero fraud exposure.**
 
-DISHA is not a payment gateway. It is an agentic verification layer: a swarm of autonomous agents (Credit Observer, Debit Observer, Verification Agent, and Android Receiver Agent) that watch, correlate, and certify that a UPI debit actually completed — before the merchant fulfills the order.
+DISHA is an autonomous agent network that verifies UPI payments in real time before a merchant fulfills an order. It treats the payer device as hostile — no screenshot, UTR entry, browser resume, or synthetic local signing may set `financially_verified = true`. DISHA never holds, moves, or settles customer funds. It only observes and certifies that a debit actually completed.
 
-Treat the payer device as hostile. No screenshot, UTR entry, browser resume, or synthetic local signing may set `financially_verified = true`. DISHA never holds customer money. Funds move directly between payer and payee on the UPI rail. DISHA only observes and certifies.
+Built for a 1,000-crore firm: Super Admin → Merchant → Agent → UPI hierarchy, per-merchant dashboards, audit trails, GST/tax/compliance reporting, and a ₹70,000 daily collection cap per agent mobile.
 
 ---
 
-## The Agentic Workforce
+## Enterprise Hierarchy (Product Model)
+
+```
+Super Admin (Owner)
+   │ assigns
+   ▼
+Merchant (firm / shop)
+   │ owns
+   ▼
+Agent Mobile (1 per merchant device)
+   │ manages up to 15 UPIs
+   ▼
+UPI Accounts (VPA) → Orders → Verification → Settlement
+```
+
+### Super Admin (Owner)
+The platform owner. Holds the admin token (`PDEP_ADMIN_TOKEN`) and IP allowlist (`PDEP_ADMIN_IP_ALLOWLIST`). Assigns merchants, configures allowlists, and audits all activity across the platform.
+
+### Merchant
+A registered business/firm on the platform (`ap_merchants`). Each merchant:
+- Owns one or more UPI accounts (`ap_accounts`)
+- Has a dedicated merchant dashboard
+- Is bound to agent mobile(s) via device enrollment
+- Sees only their own orders, verification jobs, and audit log
+
+### Agent Mobile
+A registered Android device (`ap_devices`) bound to one merchant and one agent ID (`ap_agent_sessions`). The agent:
+- Registers the merchant's UPI ID + mobile number as the receiving account
+- Creates checkout links and initiates 120-second verification windows
+- Collects up to **₹70,000 per day** per device, then the shop closes automatically
+- Runs under `FLAG_SECURE` (screenshot prevention), root detection, and encrypted credential storage
+
+### UPI Account (per agent, up to 15 per mobile)
+Each agent mobile can manage multiple UPI accounts (designed for up to 15 concurrent VPAs). Each account is encrypted at rest (`account_cipher`, `mobile_cipher`) and bound to a specific merchant. The platform never stores raw UTRs, VPAs, balances, or PINs — only SHA-256 digests.
+
+---
+
+## What Is Implemented (Verified in Code)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| **Super Admin authentication** | ✅ Implemented | `checkout/vpa_admin.py:require_admin` — `PDEP_ADMIN_TOKEN` + IP allowlist |
+| **Merchant registry** | ✅ Implemented | `checkout/agentic_storage.py:merchants` — `ap_merchants` (id, name, token_hash, email) |
+| **UPI Account registry** | ✅ Implemented | `checkout/agentic_storage.py:accounts` — `ap_accounts` (vpa, bank, holder, encrypted account/mobile) |
+| **Agent device enrollment** | ✅ Implemented | `checkout/agentic_storage.py:devices` + `checkout/agentic_api.py` pairing |
+| **Agent session binding** | ✅ Implemented | `checkout/agentic_storage.py:agent_sessions` — 1 agent_id per account |
+| **Orders & verification jobs** | ✅ Implemented | `checkout/agentic_storage.py:orders`, `ap_verification_jobs` |
+| **Audit log** | ✅ Implemented | `checkout/agentic_storage.py:audit` — `ap_audit` (merchant_id, order_id, event, detail, created) |
+| **Android Receiver App** | ✅ Implemented | `recovery-agent/android/` — Kotlin, notification listener, camera OCR, audio chime |
+| **UPI registration (agent → merchant)** | ✅ Implemented | `checkout/agentic_api.py:POST /api/android/register-upi` |
+| **Daily ₹70,000 collection limit** | ✅ Implemented | `checkout/agentic_api.py:GET /api/android/daily-limit` |
+| **Per-tab health verification** | ✅ Implemented | `checkout/saas.py:GET /api/admin/health` |
+| **Android heartbeat + re-auth** | ✅ Implemented | `checkout/agentic_api.py:device_heartbeat` with `allow_offline` |
+
+### Designed Enterprise Features (Product Roadmap)
+
+| Feature | Design | Implementation Status |
+|---------|--------|----------------------|
+| Super Admin → Merchant assignment | Merchant rows exist; admin token gates writes | Merchant assignment UI pending |
+| Per-merchant dashboard | `ap_merchants` + order scoping by merchant_id | Dashboard routes pending |
+| 1 agent = 15 UPIs max | `ap_accounts` supports many-per-merchant; agent binding is 1:1 per session | 15-UPI cap not yet enforced in code |
+| GST / tax reports | `ap_audit` + `ap_orders` provide raw data | Report endpoints pending |
+| Compliance reports | Audit log captures all events | Compliance report endpoints pending |
+| Bank participation licensing | Architecture supports it (no funds held) | Licensing in progress (not yet active) |
+
+---
+
+## Core Agents
 
 DISHA runs four autonomous agents. Each has a single duty. Together they form an evidence chain no single channel can fake.
 
 ### Credit Observer — "Did the money arrive?"
-Watches the merchant's registered VPA for incoming UPI credits. Confirms the payee VPA, amount, and transaction reference match the live checkout session. Emits a `CREDIT_OBSERVED` event only when all three match server-side — never from client-submitted proof.
+Watches the merchant's registered VPA for incoming UPI credits. Confirms payee VPA, amount, and transaction reference match the live checkout session. Emits `CREDIT_OBSERVED` only when all three match server-side.
 
 ### Debit Observer — "Did the payer actually pay?"
-Watches the payer-side confirmation flow. Validates that a debit was initiated on the payer's UPI app, correlates it to a live checkout session, and binds it to a 120-second time-bound window. Rejects any debit claim lacking cross-channel corroboration.
+Watches the payer-side confirmation flow. Validates that a debit was initiated on the payer's UPI app, correlates it to a live checkout session, and binds it to a 120-second time-bound window.
 
 ### Verification Agent — "Is the evidence complete?"
-Fuses evidence from Credit Observer, Debit Observer, and the Android Receiver Agent. Applies stage-grammar sequencing, frame-anchor cryptographic binding, and anti-replay deduplication. Sets `financially_verified = true` only when the full evidence chain is intact — never from a single channel, never from a screenshot.
+Fuses evidence from Credit Observer, Debit Observer, and the Android Receiver Agent. Applies stage-grammar sequencing, frame-anchor cryptographic binding, and anti-replay deduplication. Sets `financially_verified = true` only when the full chain is intact — never from a single channel, never from a screenshot.
 
 ### Android Receiver Agent — "The merchant's eyes and ears"
-A native Android companion that runs on the merchant device. Observes UPI notifications, camera frames (OCR), and audio success-chimes. Runs under `FLAG_SECURE` (screenshot prevention), root detection, and encrypted credential storage (EncryptedSharedPreferences + AndroidKeyStore). Enrolls per-merchant via secure pairing code. Each agent mobile registers its own UPI ID and mobile number as the receiving account.
+Native Android companion on the merchant device. Observes UPI notifications, camera frames (OCR), and audio success-chimes. Runs under `FLAG_SECURE`, root detection, and `EncryptedSharedPreferences` + `AndroidKeyStore`.
 
 ---
 
-## Why DISHA Is Zero Fraud
-
-| Fraud Vector | Traditional Checkout | DISHA Agentic Platform |
-|--------------|---------------------|------------------------|
-| Forged screenshot | Accepted as proof | Rejected — payer device treated as hostile |
-| Manual UTR entry | Error-prone, fakeable | Zero manual entry — agents observe directly |
-| Browser resume after payment | Blind spot | Stage-grammar + frame-anchor binding |
-| Single-channel spoofing | Possible | Multi-agent fusion required |
-| Funds held by platform | Common | Never — DISHA touches no money |
-| Replay attack | Works | Frame-anchor + SHA-256 dedup kills it |
-
-**`financially_verified = false` by default.** It flips to `true` only when all agents agree the debit is real, time-correlated, and amount-matched.
-
----
-
-## End-to-End Flow: Customer Pays, Merchant Fulfills
-
-```mermaid
-journey
-    title DISHA Agentic Payment Journey
-    section Merchant Setup
-      Merchant registers UPI ID + mobile: 5 min
-      Device enrolls via pairing code: Instant
-    section Checkout
-      Customer initiates UPI pay: 10 sec
-      Merchant creates checkout link: 120s window opens
-    section Agentic Observation
-      Credit Observer watches VPA credit: 2-5 sec
-      Debit Observer watches payer debit: 2-5 sec
-      Verification Agent fuses all evidence: <3 sec
-    section Verdict
-      financially_verified = true: Instant
-      Merchant fulfills order: No delay
-```
-
-### Step-by-Step
-
-1. **Merchant registers** their UPI ID and mobile number as a receiving account.
-2. **Merchant device enrolls** with DISHA via encrypted pairing code — unique device ID, AES-256 encrypted credentials.
-3. **Customer initiates checkout** — merchant creates a payment link with a 120-second verification window.
-4. **Customer pays** via any UPI app (GPay, PhonePe, Paytm, BHIM, etc.).
-5. **Credit Observer** detects the incoming credit to the merchant VPA.
-6. **Debit Observer** detects the payer-side debit and binds it to the session.
-7. **Verification Agent** fuses evidence across protocol handler, camera OCR, sound chime, color-pattern HMAC, stage grammar, and passive dwell.
-8. **Verdict issued** — `financially_verified = true` only when all agents agree.
-9. **Merchant fulfills** — instant, zero chargeback risk, no PSP webhook wait.
-
----
-
-## Architecture: Four Agents, One Evidence Chain
+## Evidence Fusion & Zero-Fraud Model
 
 ```mermaid
 flowchart TD
     C[Customer<br/>Any UPI App]
     M[Merchant<br/>Android / iOS / Web / Windows]
     
-    subgraph DISHA["DISHA 8.2 Agentic Platform"]
+    subgraph DISHA["DISHA Agentic Platform"]
         CO[Credit Observer<br/>Incoming credit match]
         DO[Debit Observer<br/>Payer-side debit match]
         VA[Verification Agent<br/>Evidence fusion & verdict]
@@ -104,39 +122,57 @@ flowchart TD
     style EL fill:#16213e,color:#fff
 ```
 
-### Evidence Fusion (inside the Verification Agent)
+### Why Zero Fraud
+
+| Fraud Vector | Traditional Checkout | DISHA Agentic Platform |
+|--------------|---------------------|------------------------|
+| Forged screenshot | Accepted as proof | Rejected — payer device treated as hostile |
+| Manual UTR entry | Error-prone, fakeable | Zero manual entry — agents observe directly |
+| Single-channel spoofing | Possible | Multi-agent fusion required |
+| Funds held by platform | Common | Never — DISHA touches no money |
+| Replay attack | Works | Frame-anchor + SHA-256 dedup kills it |
+| Agent exceeds daily limit | No cap | ₹70,000/day hard stop per device |
+
+**`financially_verified = false` by default.** It flips to `true` only when all agents agree the debit is real, time-correlated, and amount-matched.
+
+---
+
+## End-to-End Flow
 
 ```mermaid
-sequenceDiagram
-    participant CO as Credit Observer
-    participant DO as Debit Observer
-    participant AR as Android Receiver
-    participant VA as Verification Agent
-    participant EL as Evidence Ledger
-    
-    CO->>VA: Credit observed (VPA + amount + ref)
-    DO->>VA: Debit observed (session-bound, timed)
-    AR->>VA: Device corroboration (notification + chime + OCR)
-    VA->>VA: Stage-grammar + frame-anchor bind
-    VA->>VA: Anti-replay dedup
-    VA->>EL: SHA-256 digest stored
-    VA->>VA: financially_verified = true
+journey
+    title DISHA Agentic Payment Journey
+    section Super Admin
+      Owner assigns merchant: 1 step
+      Merchant dashboard provisioned: Instant
+    section Agent Setup
+      Agent mobile enrolls via pairing code: Instant
+      Agent registers merchant UPI + mobile: <1 min
+    section Checkout
+      Customer initiates UPI pay: 10 sec
+      Agent creates checkout link: 120s window opens
+    section Agentic Observation
+      Credit Observer watches VPA credit: 2-5 sec
+      Debit Observer watches payer debit: 2-5 sec
+      Verification Agent fuses all evidence: <3 sec
+    section Verdict & Fulfillment
+      financially_verified = true: Instant
+      Agent fulfills order: No delay
+      Daily cap ₹70,000 enforced: Automatic
 ```
 
 ---
 
-## Self-Hosted: How It Works
+## Self-Hosted Deployment (Railway)
 
-DISHA is designed to be self-hosted on Railway (or any Docker host). Two services run independently:
+DISHA is production-configured for Railway. Two services run independently:
 
 | Service | Role | Dockerfile |
 |---------|------|------------|
 | `checkout-api` | Public checkout + verification API | `Dockerfile` |
 | `agentic-pay` | Merchant dashboard + agentic backend | `Dockerfile.agentic` |
 
-Each merchant gets their own virtual Android device (or web/iOS/Windows client) configured in their merchant tent. The agent mobile collects up to ₹70,000 daily per shop, then closes — no money ever touches DISHA.
-
-### Deploy to Railway
+### Deploy
 
 ```bash
 railway login
@@ -144,44 +180,23 @@ railway link
 railway up
 ```
 
-**Required environment variables** (set in Railway dashboard):
-- `DATABASE_URL` — Checkout PostgreSQL connection string
-- `AGENTIC_DATABASE_URL` — Agentic Pay PostgreSQL connection string
-- `AGENTIC_OWNER_TOKEN` — Secure random secret (43–128 chars)
-- `AGENTIC_ACCOUNT_KEY` — Fernet encryption key
-- `PORT` — Set automatically by Railway
+### Required Environment Variables (Railway dashboard)
 
-### Health check
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Checkout PostgreSQL connection string |
+| `AGENTIC_DATABASE_URL` | Agentic Pay PostgreSQL connection string |
+| `AGENTIC_OWNER_TOKEN` | Super Admin secret (43–128 chars, `[A-Za-z0-9_-]`) |
+| `AGENTIC_ACCOUNT_KEY` | Fernet encryption key for account/mobile data |
+| `PDEP_ADMIN_IP_ALLOWLIST` | CIDR allowlist for Super Admin IP |
+| `PORT` | Set automatically by Railway |
+
+### Health Check
 
 ```bash
 curl https://<service>.up.railway.app/healthz
 # {"ok": true, "verification": "PENDING"}
 ```
-
----
-
-## Platform Support
-
-| Platform | Status | What Runs |
-|----------|--------|-----------|
-| **Android** | Live | Native receiver app with notification listener, camera OCR, audio chime detection |
-| **iOS** | Upcoming | Safari protocol handler, Shortcuts integration |
-| **Web** | Live | Browser-native verification, zero install |
-| **Windows** | Upcoming | Native UPI deep-link handling |
-
-**Bank participation licensing is in progress.** DISHA is architected as a verification observability layer — it does not hold, move, or settle customer funds — so it operates without a bank partnership today.
-
----
-
-## Compliance & Trust
-
-- **No money held** — DISHA never escrows, settles, or touches customer funds
-- **No PSP required** — works with any UPI app, no bank integration needed
-- **No sensitive data captured** — no PIN, OTP, balance, or full account numbers
-- **SHA-256 digest only** — evidence ledger stores hashes, never raw UTRs or VPAs
-- **120-second hard timeout** — sessions auto-expire; clock pauses during UPI app switch
-- **Hostile device model** — no client-submitted proof alone sets verification
-- **Financially verified stays false** until the full agent evidence chain is intact
 
 ---
 
@@ -191,9 +206,10 @@ curl https://<service>.up.railway.app/healthz
 checkout/
 ├── server.py              # Public checkout + verification API
 ├── agentic_app.py         # Agentic Pay merchant platform entry point
-├── agentic_api.py         # Agentic Pay REST API (daily limit, UPI register, email notify)
-├── agentic_storage.py     # Isolated Agentic Pay database schema (merchants, accounts, orders, devices)
+├── agentic_api.py         # Agentic Pay REST API (daily limit, UPI register, email notify, heartbeat)
+├── agentic_storage.py     # Isolated Agentic Pay database schema (merchants, accounts, orders, devices, audit)
 ├── saas.py                # Super Admin control center + per-tab health verification
+├── vpa_admin.py           # VPA inventory import + admin authentication (require_admin)
 ├── static/                # Admin dashboard, merchant portal, checkout UI
 ├── agentic_assets/        # Agentic Pay frontend assets
 └── Dockerfile             # Checkout API container
@@ -217,13 +233,26 @@ LICENSE                    # Proprietary Commercial License (PCL-1.0)
 
 ---
 
+## Compliance & Trust
+
+- **No money held** — DISHA never escrows, settles, or touches customer funds
+- **No PSP required** — works with any UPI app, no bank integration needed
+- **No sensitive data captured** — no PIN, OTP, balance, or full account numbers
+- **SHA-256 digest only** — evidence ledger stores hashes, never raw UTRs or VPAs
+- **120-second hard timeout** — sessions auto-expire; clock pauses during UPI app switch
+- **Hostile device model** — no client-submitted proof alone sets verification
+- **₹70,000 daily cap per agent mobile** — automatic shop close at limit
+- **Bank participation licensing** is in progress; DISHA operates as a verification observability layer without holding funds
+
+---
+
 ## Roadmap
 
 | Version | Focus |
 |---------|-------|
-| **DISHA 8.2** (Current) | Four-agent verification, Android receiver, daily collection limit, Railway deploy |
-| **DISHA 9.0** | iOS + Windows clients, bank participation licensing |
-| **DISHA 10.0** | Multi-merchant federation, webhook exports, PSA-level audit |
+| **DISHA 8.2** (Current) | Four-agent verification, Android receiver, daily collection limit, Railway deploy, Super Admin/Merchant/Agent schema |
+| **DISHA 9.0** | iOS + Windows clients, per-merchant dashboards, 15-UPI-per-agent enforcement, GST/tax/compliance reports |
+| **DISHA 10.0** | Multi-merchant federation, webhook exports, bank participation licensing, PSA-level audit |
 
 ---
 
