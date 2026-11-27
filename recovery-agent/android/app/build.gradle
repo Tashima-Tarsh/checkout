@@ -11,8 +11,8 @@ android {
         applicationId 'com.agentic.pay.connectivitytest'
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName '2.0'
+        versionCode 4
+        versionName '2.2'
     }
 
     signingConfigs {
@@ -46,10 +46,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.exclude '**/UpiPaymentObserver.kt'
     }
 }
 
