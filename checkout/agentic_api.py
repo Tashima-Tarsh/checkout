@@ -20,6 +20,7 @@ from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
+    credit_events,
 )
 
 router = APIRouter(prefix="/api")
@@ -40,6 +41,9 @@ OBS_STATE_RECEIVED = "OBSERVATION_RECEIVED"
 OBS_STATE_MATCHED = "OBSERVATION_MATCHED"
 OBS_STATE_AMBIGUOUS = "AMBIGUOUS_OBSERVATION"
 OBS_STATE_REJECTED = "OBSERVATION_REJECTED"
+OBS_STATE_EXPIRED = "EXPIRED"
+OBS_STATE_SETTLED = "SETTLED"
+OBS_STATE_AWAITING = "AWAITING_PAYMENT"
 HEARTBEAT_OFFLINE_TIMEOUT = 90
 CREDENTIAL_TTL_SECONDS = 30 * 24 * 60 * 60
 DEVICE_RECONNECT_BASE = 2
@@ -549,6 +553,25 @@ class DeviceObservationOutput(BaseModel):
     reason: str | None
 
 
+class CreditEventInput(BaseModel):
+    event_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    amount_paise: int = Field(strict=True, ge=100, le=100000000)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    observation_direction: str = Field(pattern=r"^(incoming|outgoing)$")
+    receiving_account_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    transaction_reference: str | None = Field(default=None, pattern=r"^[0-9]{12}$")
+    observation_timestamp: int = Field(strict=True, ge=0)
+    source_app_id: str | None = Field(default=None, max_length=256)
+
+
+class CreditEventOutput(BaseModel):
+    event_id: str
+    state: str
+    decision: str | None
+    reason: str | None
+    matched_order_id: str | None
+
+
 def _pairing_rate_check(conn, merchant_id, now):
     window_start = now - PAIRING_RATE_WINDOW
     attempts = conn.scalar(select(func.count()).select_from(pairing_codes).where(
@@ -806,6 +829,167 @@ def device_observation(request: Request, item: DeviceObservationInput, authoriza
                     ts, decision)
         event(conn, merchant_id, "DEVICE_OBSERVATION_RECEIVED")
     return {"observation_id": obs_id, "state": state, "decision": decision, "reason": reason}
+
+
+@router.post("/android/credit-event", status_code=202, response_model=CreditEventOutput)
+def credit_event(request: Request, item: CreditEventInput, authorization: Token = None):
+    """Authenticated incoming UPI credit event ingestion.
+
+    Resolves the active checkout from the merchant's authorized receiving
+    account, exact amount, transaction reference and event time. Does not
+    require a checkout ID and never consumes the financial settlement ledger.
+    """
+    row = device_bearer(request, authorization)
+    ts = now()
+    device_id = row["device_id"]
+    merchant_id = row["merchant_id"]
+
+    with request.app.state.engine.begin() as conn:
+        # Basic validation: currency and direction.
+        if item.currency != "INR" or item.observation_direction != "incoming":
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_REJECTED, None, ts, "INVALID_EVENT",
+                           "Only incoming INR credit events are observed.")
+            event(conn, merchant_id, "CREDIT_EVENT_REJECTED")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                reason="Only incoming INR credit events are observed.",
+                matched_order_id=None)
+
+        # Idempotent duplicate delivery: preserve previous state.
+        existing = conn.execute(
+            select(credit_events).where(credit_events.c.event_id == item.event_id)
+        ).mappings().first()
+        if existing is not None:
+            event(conn, merchant_id, "CREDIT_EVENT_DUPLICATE")
+            return CreditEventOutput(
+                event_id=item.event_id, state=existing["state"],
+                decision="MATCHED" if existing["matched_order_id"] is not None else "RECEIVED",
+                reason="Duplicate event delivery; previous state preserved.",
+                matched_order_id=existing["matched_order_id"])
+
+        # Verify the receiving account belongs to this merchant.
+        account = conn.scalar(select(accounts.c.id).where(
+            accounts.c.id == item.receiving_account_id,
+            accounts.c.merchant_id == merchant_id,
+        ))
+        if account is None:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_REJECTED, None, ts, "UNKNOWN_ACCOUNT",
+                           "Receiving account is not authorized for this merchant.")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                reason="Receiving account is not authorized for this merchant.",
+                matched_order_id=None)
+
+        # Transaction reference uniqueness: reject if already used.
+        if item.transaction_reference is not None:
+            used = conn.scalar(select(credit_events.c.event_id).where(
+                credit_events.c.merchant_id == merchant_id,
+                credit_events.c.transaction_reference == item.transaction_reference,
+                credit_events.c.state == OBS_STATE_MATCHED,
+            ))
+            if used is not None:
+                event(conn, merchant_id, "CREDIT_EVENT_REJECTED")
+                return CreditEventOutput(
+                    event_id=item.event_id, state=OBS_STATE_REJECTED, decision="REJECTED",
+                    reason="Transaction reference already used.", matched_order_id=None)
+
+        # Resolve eligible checkouts for this account and amount.
+        eligible = conn.execute(
+            select(orders.c.id, orders.c.amount_minor, orders.c.created, orders.c.expires,
+                   orders.c.status)
+            .where(
+                orders.c.account_id == item.receiving_account_id,
+                orders.c.merchant_id == merchant_id,
+                orders.c.amount_minor == item.amount_paise,
+                orders.c.status.in_(("AWAITING_PAYMENT", "PENDING")),
+                orders.c.expires > ts,
+            )
+            .order_by(orders.c.created.desc())
+        ).mappings().all()
+
+        if len(eligible) == 0:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_RECEIVED, None, ts, "UNMATCHED",
+                           "No eligible checkout found for this credit.")
+            event(conn, merchant_id, "CREDIT_EVENT_UNMATCHED")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_RECEIVED, decision="RECEIVED",
+                reason="No eligible checkout found for this credit.",
+                matched_order_id=None)
+
+        if len(eligible) > 1:
+            _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                           OBS_STATE_AMBIGUOUS, None, ts, "AMBIGUOUS",
+                           "Multiple eligible checkouts; no arbitrary selection.")
+            event(conn, merchant_id, "CREDIT_EVENT_AMBIGUOUS")
+            return CreditEventOutput(
+                event_id=item.event_id, state=OBS_STATE_AMBIGUOUS, decision="AMBIGUOUS",
+                reason="Multiple eligible checkouts; no arbitrary selection.",
+                matched_order_id=None)
+
+        # Exactly one eligible checkout: match it.
+        order = eligible[0]
+        _credit_insert(conn, item.event_id, device_id, merchant_id, item,
+                       OBS_STATE_MATCHED, order["id"], ts, "MATCHED",
+                       "Credit matched to checkout.")
+        event(conn, merchant_id, "CREDIT_EVENT_MATCHED")
+        return CreditEventOutput(
+            event_id=item.event_id, state=OBS_STATE_MATCHED, decision="MATCHED",
+            reason="Credit matched to checkout.",
+            matched_order_id=order["id"])
+
+
+def _credit_insert(conn, event_id, device_id, merchant_id, item, state, matched_order_id,
+                   ts, decision, reason):
+    """Insert a credit event record and reflect the state in settlement_states."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    values = dict(
+        event_id=event_id, device_id=device_id, merchant_id=merchant_id,
+        amount_paise=item.amount_paise, currency=item.currency,
+        observation_direction=item.observation_direction,
+        receiving_account_id=item.receiving_account_id,
+        transaction_reference=item.transaction_reference,
+        observation_timestamp=item.observation_timestamp,
+        source_app_id=item.source_app_id,
+        state=state, matched_order_id=matched_order_id,
+        created=ts, updated=ts,
+    )
+    if conn.dialect.name == "postgresql":
+        stmt = pg_insert(credit_events).values(**values).on_conflict_do_nothing(
+            index_elements=[credit_events.c.event_id],
+        )
+    elif conn.dialect.name == "sqlite":
+        stmt = sqlite_insert(credit_events).values(**values).on_conflict_do_nothing(
+            index_elements=[credit_events.c.event_id],
+        )
+    else:
+        raise RuntimeError("Unsupported ledger database")
+    conn.execute(stmt)
+    # Reflect observation state in settlement_states so the checkout UI sees it.
+    if matched_order_id is not None:
+        settle_values = dict(order_id=matched_order_id, state=state,
+                             observed_minor=item.amount_paise if state == OBS_STATE_MATCHED else None,
+                             updated=ts)
+        if conn.dialect.name == "postgresql":
+            s_stmt = pg_insert(settlement_states).values(**settle_values).on_conflict_do_update(
+                index_elements=[settlement_states.c.order_id],
+                set_=dict(state=state, observed_minor=settle_values["observed_minor"], updated=ts),
+            )
+        elif conn.dialect.name == "sqlite":
+            s_stmt = sqlite_insert(settlement_states).values(**settle_values).on_conflict_do_update(
+                index_elements=[settlement_states.c.order_id],
+                set_=dict(state=state, observed_minor=settle_values["observed_minor"], updated=ts),
+            )
+        else:
+            raise RuntimeError("Unsupported ledger database")
+        conn.execute(s_stmt)
+    conn.execute(audit.insert().values(
+        merchant_id=merchant_id, event="CREDIT_EVENT_" + state,
+        detail=decision + ": " + reason, created=ts,
+    ))
 
 
 def _device_settle_state(conn, order_id, state, observed_minor, ts, decision):

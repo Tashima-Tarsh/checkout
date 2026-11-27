@@ -1,13 +1,14 @@
 package com.agentic.pay.connectivitytest
 
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.*
-import com.google.gson.Gson
 import com.google.gson.JsonParser
-import com.google.gson.reflect.TypeToken
-import java.lang.reflect.Type
 
 class MainActivity : Activity() {
 
@@ -15,8 +16,10 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var heartbeatText: TextView
     private lateinit var versionText: TextView
+    private lateinit var permissionText: TextView
+    private lateinit var eventText: TextView
     private lateinit var pairButton: Button
-    private lateinit var observeButton: Button
+    private lateinit var permissionButton: Button
     private lateinit var refreshButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,17 +47,29 @@ class MainActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Agentic Pay Receiver"
-            textSize = 22f
+            text = "G Shop App"
+            textSize = 24f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
         layout.addView(title)
+
+        val workspace = TextView(this).apply {
+            text = "Workspace: ${DeviceConfig.MERCHANT}"
+            textSize = 16f
+        }
+        layout.addView(workspace)
 
         val deviceId = TextView(this).apply {
             text = "Device ID: ${DeviceConfig.DEVICE_ID}"
             textSize = 16f
         }
         layout.addView(deviceId)
+
+        val version = TextView(this).apply {
+            text = "Version: ${DeviceConfig.APP_VERSION_NAME} (${DeviceConfig.APP_VERSION_CODE})"
+            textSize = 14f
+        }
+        layout.addView(version)
 
         statusText = TextView(this).apply {
             text = "Status: Checking…"
@@ -64,28 +79,44 @@ class MainActivity : Activity() {
 
         heartbeatText = TextView(this).apply {
             text = "Last heartbeat: —"
-            textSize = 16f
+            textSize = 14f
         }
         layout.addView(heartbeatText)
 
-        versionText = TextView(this).apply {
-            text = "App version: —"
+        val divider1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 2); setBackgroundColor(0xFF283344.toInt()) }
+        layout.addView(divider1)
+
+        permissionText = TextView(this).apply {
+            text = "Credit observation permission: Checking…"
             textSize = 16f
         }
-        layout.addView(versionText)
+        layout.addView(permissionText)
 
-        val divider = View(this).apply { layoutParams = LinearLayout.LayoutParams(
+        permissionButton = Button(this).apply {
+            text = "Enable Notification Access"
+            isEnabled = false
+        }
+        layout.addView(permissionButton)
+
+        eventText = TextView(this).apply {
+            text = "Pending events: —  |  Last observation: —"
+            textSize = 14f
+        }
+        layout.addView(eventText)
+
+        val checkoutWindow = TextView(this).apply {
+            text = "Checkout window: ${DeviceConfig.CHECKOUT_WINDOW_SECONDS} seconds"
+            textSize = 14f
+        }
+        layout.addView(checkoutWindow)
+
+        val divider2 = View(this).apply { layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 2); setBackgroundColor(0xFF283344.toInt()) }
-        layout.addView(divider)
+        layout.addView(divider2)
 
         pairButton = Button(this).apply { text = "Enroll Device (Pairing Code)" }
         layout.addView(pairButton)
-
-        observeButton = Button(this).apply {
-            text = "Submit Payment Evidence"
-            isEnabled = false
-        }
-        layout.addView(observeButton)
 
         refreshButton = Button(this).apply { text = "Refresh Status" }
         layout.addView(refreshButton)
@@ -103,12 +134,16 @@ class MainActivity : Activity() {
             startActivity(intent)
         }
 
-        observeButton.setOnClickListener {
-            val intent = android.content.Intent(this, ObservationActivity::class.java)
-            startActivity(intent)
+        permissionButton.setOnClickListener {
+            openNotificationSettings()
         }
 
         refreshButton.setOnClickListener { refreshStatus() }
+    }
+
+    private fun openNotificationSettings() {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        startActivity(intent)
     }
 
     private fun showErrorScreen(message: String) {
@@ -145,6 +180,7 @@ class MainActivity : Activity() {
         try {
             updateButtons()
             refreshStatus()
+            checkNotificationPermission()
         } catch (e: Exception) {
             showErrorScreen("Resume failed: ${e.message}")
         }
@@ -152,8 +188,31 @@ class MainActivity : Activity() {
 
     private fun updateButtons() {
         val enrolled = credentialStore.isEnrolled()
-        observeButton.isEnabled = enrolled
+        observeButtonState(enrolled)
         pairButton.text = if (enrolled) "Re-enroll Device" else "Enroll Device (Pairing Code)"
+    }
+
+    private fun observeButtonState(enrolled: Boolean) {
+        // The manual observation button is removed — observation is automatic.
+        // Enrollment state is reflected in the UI text only.
+    }
+
+    private fun checkNotificationPermission() {
+        val granted = isNotificationListenerGranted()
+        permissionText.text = if (granted) {
+            "Credit observation permission: GRANTED"
+        } else {
+            "Credit observation permission: NOT GRANTED"
+        }
+        permissionButton.isEnabled = !granted
+    }
+
+    private fun isNotificationListenerGranted(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        if (flat == null) return false
+        val pkg = packageName
+        val service = "$pkg/.UpiPaymentObserver"
+        return flat.split(":").any { it.contains(service) }
     }
 
     private fun refreshStatus() {
@@ -162,6 +221,7 @@ class MainActivity : Activity() {
             statusText.text = "Status: Not enrolled"
             heartbeatText.text = "Last heartbeat: —"
             versionText.text = "App version: ${credentialStore.getAppVersion() ?: "—"}"
+            eventText.text = "Pending events: —  |  Last observation: —"
             return
         }
         val expiresAt = credentialStore.getCredentialExpiresAt()
@@ -176,7 +236,7 @@ class MainActivity : Activity() {
                 is ApiClient.Result.Success -> {
                     runOnUiThread {
                         try {
-                            val json = com.google.gson.JsonParser.parseString(result.value).asJsonObject
+                            val json = JsonParser.parseString(result.value).asJsonObject
                             val state = json.get("state").asString
                             val connected = json.get("connected").asBoolean
                             statusText.text = "Status: $state (${if (connected) "ONLINE" else "OFFLINE"})"

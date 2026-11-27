@@ -4,8 +4,11 @@ object DeviceConfig {
     // Backend base URL (Railway production). No credentials are embedded here.
     const val BACKEND_URL = "https://agenticpay.thenitishkr.in"
     const val DEVICE_ID = "AgenticMobile0001"
-    const val MERCHANT = "Disha 8.2"
+    const val MERCHANT = "Disha"
     const val SHOP_ID = "SHOP-0001"
+    const val APP_LABEL = "G Shop"
+    const val APP_VERSION_NAME = "2.4"
+    const val APP_VERSION_CODE = 4
 
     // Shared preferences keys (credential values are encrypted)
     const val PREFS_NAME = "agentic_pay_receiver"
@@ -21,6 +24,9 @@ object DeviceConfig {
     // Offline timeout on server (seconds)
     const val OFFLINE_TIMEOUT_SECONDS = 90
 
+    // Checkout window in seconds (matches backend CHECKOUT_TTL_SECONDS = 120)
+    const val CHECKOUT_WINDOW_SECONDS = 120
+
     const val AUTH_HEADER = "Authorization"
     const val BEARER_PREFIX = "Bearer "
 
@@ -29,4 +35,7 @@ object DeviceConfig {
     const val OBS_STATE_MATCHED = "OBSERVATION_MATCHED"
     const val OBS_STATE_AMBIGUOUS = "AMBIGUOUS_OBSERVATION"
     const val OBS_STATE_REJECTED = "OBSERVATION_REJECTED"
+    const val OBS_STATE_EXPIRED = "EXPIRED"
+    const val OBS_STATE_SETTLED = "SETTLED"
+    const val OBS_STATE_AWAITING = "AWAITING_PAYMENT"
 }
