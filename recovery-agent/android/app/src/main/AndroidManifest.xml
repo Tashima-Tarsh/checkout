@@ -69,8 +69,21 @@
             android:name=".DailyReportActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".WorkerActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".UPIAppActivity"
+            android:exported="false" />
+
         <service
             android:name=".HeartbeatService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".WorkerService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

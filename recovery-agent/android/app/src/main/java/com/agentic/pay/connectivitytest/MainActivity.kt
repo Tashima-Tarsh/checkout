@@ -27,6 +27,9 @@ class MainActivity : Activity() {
     private lateinit var refundButton: Button
     private lateinit var upiPoolButton: Button
     private lateinit var dailyReportButton: Button
+    private lateinit var workerFleetButton: Button
+    private lateinit var upiAppButton: Button
+    private lateinit var superAdminButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -163,6 +166,24 @@ class MainActivity : Activity() {
         }
         layout.addView(dailyReportButton)
 
+        workerFleetButton = Button(this).apply {
+            text = "Worker Fleet (15 Workers)"
+            isEnabled = false
+        }
+        layout.addView(workerFleetButton)
+
+        upiAppButton = Button(this).apply {
+            text = "UPI App Switcher (11 Apps)"
+            isEnabled = false
+        }
+        layout.addView(upiAppButton)
+
+        superAdminButton = Button(this).apply {
+            text = "Super Admin Console"
+            isEnabled = false
+        }
+        layout.addView(superAdminButton)
+
         refreshButton = Button(this).apply { text = "Refresh Status" }
         layout.addView(refreshButton)
 
@@ -201,6 +222,22 @@ class MainActivity : Activity() {
 
         dailyReportButton.setOnClickListener {
             val intent = Intent(this, DailyReportActivity::class.java)
+            startActivity(intent)
+        }
+
+        workerFleetButton.setOnClickListener {
+            val intent = Intent(this, WorkerActivity::class.java)
+            startActivity(intent)
+        }
+
+        upiAppButton.setOnClickListener {
+            val intent = Intent(this, UPIAppActivity::class.java)
+            startActivity(intent)
+        }
+
+        superAdminButton.setOnClickListener {
+            // Super Admin console - shows fleet management
+            val intent = Intent(this, WorkerActivity::class.java)
             startActivity(intent)
         }
 
@@ -275,6 +312,9 @@ class MainActivity : Activity() {
         refundButton.isEnabled = enrolled && upiRegistered
         upiPoolButton.isEnabled = enrolled && upiRegistered
         dailyReportButton.isEnabled = enrolled && upiRegistered
+        workerFleetButton.isEnabled = enrolled && upiRegistered
+        upiAppButton.isEnabled = enrolled && upiRegistered
+        superAdminButton.isEnabled = enrolled
     }
 
     private fun observeButtonState(enrolled: Boolean) {

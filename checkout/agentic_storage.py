@@ -385,3 +385,84 @@ def ensure_schema(engine):
                 "CONSTRAINT fk_upi_rotation_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
                 ")"
             ))
+        # Workers table: 15 workers per agent device (1 per UPI ID)
+        workers_cols = {c["name"] for c in inspector.get_columns("ap_workers")}
+        if not workers_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_workers ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "device_id VARCHAR(48) NOT NULL,"
+                "worker_index INT NOT NULL,"
+                "upi_id VARCHAR(321),"
+                "upi_app TEXT NOT NULL,"
+                "status TEXT NOT NULL DEFAULT 'IDLE',"
+                "current_order_id VARCHAR(48),"
+                "last_heartbeat BIGINT DEFAULT 0,"
+                "auto_mode BOOLEAN DEFAULT TRUE,"
+                "daily_txns INT DEFAULT 0,"
+                "daily_volume BIGINT DEFAULT 0,"
+                "created_at BIGINT NOT NULL,"
+                "updated_at BIGINT NOT NULL,"
+                "CONSTRAINT fk_workers_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))
+        # Device UPI apps inventory (pre-installed apps on merchant Android)
+        device_upi_apps_cols = {c["name"] for c in inspector.get_columns("ap_device_upi_apps")}
+        if not device_upi_apps_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_device_upi_apps ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "device_id VARCHAR(48) NOT NULL,"
+                "app_name TEXT NOT NULL,"
+                "app_package TEXT NOT NULL,"
+                "is_installed BOOLEAN DEFAULT TRUE,"
+                "is_enabled BOOLEAN DEFAULT TRUE,"
+                "last_checked BIGINT DEFAULT 0,"
+                "created_at BIGINT NOT NULL,"
+                "CONSTRAINT fk_device_upi_apps_device FOREIGN KEY (device_id) REFERENCES ap_devices(id)"
+                ")"
+            ))
+        # Automation config per merchant/device
+        automation_cols = {c["name"] for c in inspector.get_columns("ap_automation_config")}
+        if not automation_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_automation_config ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "device_id VARCHAR(48) NOT NULL,"
+                "auto_checkout BOOLEAN DEFAULT TRUE,"
+                "auto_verify BOOLEAN DEFAULT TRUE,"
+                "auto_refund BOOLEAN DEFAULT TRUE,"
+                "auto_rotate_upi BOOLEAN DEFAULT TRUE,"
+                "daily_txn_target INT DEFAULT 100,"
+                "min_amount_paise INT DEFAULT 100,"
+                "max_amount_paise INT DEFAULT 100000000,"
+                "p2p_daily_cap_paise INT DEFAULT 7000000,"
+                "created_at BIGINT NOT NULL,"
+                "updated_at BIGINT NOT NULL,"
+                "CONSTRAINT fk_automation_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))
+        # Auto checkout queue
+        auto_checkout_cols = {c["name"] for c in inspector.get_columns("ap_auto_checkout")}
+        if not auto_checkout_cols:
+            connection.execute(text(
+                "CREATE TABLE ap_auto_checkout ("
+                "id VARCHAR(48) PRIMARY KEY,"
+                "merchant_id VARCHAR(32) NOT NULL,"
+                "device_id VARCHAR(48) NOT NULL,"
+                "worker_id VARCHAR(48),"
+                "upi_id VARCHAR(321),"
+                "amount_minor BIGINT NOT NULL,"
+                "mode TEXT NOT NULL DEFAULT 'P2P',"
+                "status TEXT NOT NULL DEFAULT 'PENDING',"
+                "order_id VARCHAR(48),"
+                "checkout_path VARCHAR(255),"
+                "expires_at BIGINT NOT NULL,"
+                "created_at BIGINT NOT NULL,"
+                "processed_at BIGINT,"
+                "error TEXT,"
+                "CONSTRAINT fk_auto_checkout_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
+                ")"
+            ))

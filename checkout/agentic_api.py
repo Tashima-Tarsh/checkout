@@ -24,6 +24,7 @@ from checkout.agentic_storage import (
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
     credit_events, daily_issuance, subscriptions, upi_health, upi_ledger,
+    workers, device_upi_apps, automation_config, auto_checkout,
 )
 
 router = APIRouter(prefix="/api")
@@ -1754,4 +1755,412 @@ def android_upi_master_ledger(request: Request, authorization: Token = None):
         "ledger": ledger,
         "generated_at": now_ts,
     }
+
+
+# ============================================================================
+# Adaptive P2P Automation Engine - Full Automation
+# ============================================================================
+
+class AutoCheckoutInput(BaseModel):
+    amount_minor: int = Field(strict=True, ge=100, le=100000000)
+    mode: Literal["P2P", "P2M"] = "P2P"
+    worker_index: int = Field(ge=0, le=14)
+
+
+class WorkerResultInput(BaseModel):
+    worker_index: int = Field(ge=0, le=14)
+    upi_id: str
+    order_id: str
+    success: bool
+    amount_minor: int
+
+
+class AutomationConfigInput(BaseModel):
+    auto_checkout: bool = True
+    auto_verify: bool = True
+    auto_refund: bool = True
+    auto_rotate_upi: bool = True
+    daily_txn_target: int = Field(default=100, ge=1, le=1000)
+    min_amount_paise: int = Field(default=100, ge=100)
+    max_amount_paise: int = Field(default=100000000, ge=1000)
+    p2p_daily_cap_paise: int = Field(default=7000000, ge=100000)
+
+
+class ProvisionDeviceInput(BaseModel):
+    merchant_id: str
+    device_id: str
+    email: str
+    business_name: str
+
+
+@app.post("/android/auto-checkout", response_model=dict)
+def android_auto_checkout(request: Request, item: AutoCheckoutInput, authorization: Token = None):
+    """Auto-create a checkout via worker. Worker specifies which UPI index to use."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.begin() as conn:
+        # Verify worker exists for this device
+        worker = conn.execute(select(workers).where(
+            workers.c.device_id == device_id,
+            workers.c.worker_index == item.worker_index,
+        )).mappings().first()
+        if not worker:
+            raise HTTPException(404, f"Worker index {item.worker_index} not found on this device")
+
+        # Get the UPI ID assigned to this worker
+        upi_id = worker["upi_id"]
+        if not upi_id:
+            raise HTTPException(409, f"Worker {item.worker_index} has no UPI ID assigned")
+
+        # Check automation config
+        config = conn.execute(select(automation_config).where(
+            automation_config.c.device_id == device_id
+        )).mappings().first()
+        if not config or not config["auto_checkout"]:
+            raise HTTPException(409, "Auto-checkout not enabled for this device")
+
+        # Create the order
+        order_id = secrets.token_hex(24)
+        expires_at = now_ts + CHECKOUT_TTL_SECONDS
+
+        # Record auto-checkout entry
+        conn.execute(auto_checkout.insert().values(
+            id=order_id,
+            merchant_id=merchant_id,
+            device_id=device_id,
+            worker_id=worker["id"],
+            upi_id=upi_id,
+            amount_minor=item.amount_minor,
+            mode=item.mode,
+            status="CREATED",
+            expires_at=expires_at,
+            created_at=now_ts,
+        ))
+
+        # Create actual order
+        conn.execute(orders.insert().values(
+            id=order_id,
+            merchant_id=merchant_id,
+            account_id=worker["id"],  # use worker id as account reference
+            amount_minor=item.amount_minor,
+            created=now_ts,
+            expires=expires_at,
+            status="AWAITING_PAYMENT",
+            mode=item.mode,
+            upi_id=upi_id,
+        ))
+        event(conn, merchant_id, "AUTO_CHECKOUT_CREATED")
+
+    return {
+        "order_id": order_id,
+        "upi_id": upi_id,
+        "worker_index": item.worker_index,
+        "amount_minor": item.amount_minor,
+        "mode": item.mode,
+        "checkout_path": f"/checkout/{order_id}",
+        "expires_at": expires_at,
+        "seconds_remaining": CHECKOUT_TTL_SECONDS,
+    }
+
+
+@app.get("/android/worker-dispatch", response_model=dict)
+def android_worker_dispatch(request: Request, authorization: Token = None,
+                             worker_index: int = None):
+    """Dispatch work to a worker: returns pending auto-checkouts or idle status."""
+    row = device_bearer(request, authorization)
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.connect() as conn:
+        # Get workers for this device
+        workers_rows = conn.execute(select(workers).where(
+            workers.c.device_id == device_id
+        )).mappings().all()
+
+        if worker_index is not None:
+            workers_rows = [w for w in workers_rows if w["worker_index"] == worker_index]
+
+        # Get pending auto-checkouts for this device
+        pending = conn.execute(select(auto_checkout).where(
+            auto_checkout.c.device_id == device_id,
+            auto_checkout.c.status == "CREATED",
+        )).mappings().all()
+
+        # Map worker_index -> worker
+        worker_map = {w["worker_index"]: w for w in workers_rows}
+
+        dispatch = []
+        for ac in pending:
+            wi = None
+            # Find which worker this checkout belongs to
+            for w in workers_rows:
+                if w["id"] == ac["worker_id"]:
+                    wi = w["worker_index"]
+                    break
+            dispatch.append({
+                "order_id": ac["id"],
+                "worker_index": wi,
+                "upi_id": ac["upi_id"],
+                "amount_minor": ac["amount_minor"],
+                "mode": ac["mode"],
+                "checkout_path": f"/checkout/{ac['id']}",
+                "expires_at": ac["expires_at"],
+                "seconds_remaining": max(0, ac["expires_at"] - now_ts),
+            })
+
+    return {
+        "device_id": device_id,
+        "worker_count": len(workers_rows),
+        "pending_checkouts": dispatch,
+        "now_ts": now_ts,
+    }
+
+
+@app.post("/android/worker-result", response_model=dict)
+def android_worker_result(request: Request, item: WorkerResultInput, authorization: Token = None):
+    """Worker reports transaction result: success or failure."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.begin() as conn:
+        # Verify worker
+        worker = conn.execute(select(workers).where(
+            workers.c.device_id == device_id,
+            workers.c.worker_index == item.worker_index,
+            workers.c.upi_id == item.upi_id,
+        )).mappings().first()
+        if not worker:
+            raise HTTPException(404, "Worker not found or UPI mismatch")
+
+        # Update worker stats
+        conn.execute(workers.update().where(workers.c.id == worker["id"]).values(
+            status="IDLE" if item.success else "ERROR",
+            current_order_id=None,
+            last_heartbeat=now_ts,
+            daily_txns=workers.c.daily_txns + 1,
+            daily_volume=workers.c.daily_volume + item.amount_minor,
+            updated_at=now_ts,
+        ))
+
+        # Update order status
+        order = conn.execute(select(orders).where(
+            orders.c.id == item.order_id,
+            orders.c.merchant_id == merchant_id,
+        )).mappings().first()
+        if order:
+            new_status = "PAID" if item.success else "FAILED"
+            conn.execute(orders.update().where(orders.c.id == item.order_id).values(
+                status=new_status,
+            ))
+            # If failed and auto_refund enabled, trigger refund
+            config = conn.execute(select(automation_config).where(
+                automation_config.c.device_id == device_id
+            )).mappings().first()
+            if not item.success and config and config["auto_refund"]:
+                conn.execute(audit.insert().values(
+                    merchant_id=merchant_id, order_id=item.order_id, event="AUTO_REFUND",
+                    detail=f"Worker {item.worker_index} reported failure on {item.upi_id}", created=now_ts,
+                ))
+
+        # Report UPI result to routing engine
+        _update_upi_health_after_result(conn, item.upi_id, item.success, now_ts)
+
+        event(conn, merchant_id, "WORKER_RESULT")
+
+    return {
+        "worker_index": item.worker_index,
+        "upi_id": item.upi_id,
+        "order_id": item.order_id,
+        "success": item.success,
+        "recorded_at": now_ts,
+    }
+
+
+@app.get("/api/super-admin/device-fleet", response_model=dict)
+def super_admin_device_fleet(request: Request, authorization: Token = None):
+    """Super Admin: view all merchant devices across the platform."""
+    # Super admin check
+    token = authorization or ""
+    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(401, "Super Admin token required")
+    token_val = token.split(" ", 1)[1]
+    if token_val != admin_token:
+        raise HTTPException(403, "Invalid Super Admin token")
+
+    now_ts = _now_ts()
+
+    with request.app.state.engine.connect() as conn:
+        devices_rows = conn.execute(select(devices)).mappings().all()
+        fleet = []
+        for d in devices_rows:
+            merchant = conn.execute(select(merchants).where(
+                merchants.c.id == d["merchant_id"]
+            )).mappings().first()
+            worker_count = conn.execute(select(func.count(workers.c.id)).where(
+                workers.c.device_id == d["id"]
+            )).scalar() or 0
+            fleet.append({
+                "device_id": d["id"],
+                "merchant_id": d["merchant_id"],
+                "merchant_name": merchant.get("name") if merchant else None,
+                "merchant_email": merchant.get("email") if merchant else None,
+                "device_type": d.get("device_type", "ANDROID_MOBILE"),
+                "status": d.get("state", "UNKNOWN"),
+                "last_heartbeat": d.get("last_heartbeat", 0),
+                "worker_count": worker_count,
+                "upi_registered": bool(d.get("upi_registered")),
+            })
+
+    return {
+        "total_devices": len(fleet),
+        "fleet": fleet,
+        "generated_at": now_ts,
+    }
+
+
+@app.post("/api/super-admin/provision-device", response_model=dict)
+def super_admin_provision_device(request: Request, item: ProvisionDeviceInput, authorization: Token = None):
+    """Super Admin: provision a new merchant Android device with 15 workers."""
+    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
+    token = authorization or ""
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(401, "Super Admin token required")
+    token_val = token.split(" ", 1)[1]
+    if token_val != admin_token:
+        raise HTTPException(403, "Invalid Super Admin token")
+
+    now_ts = _now_ts()
+    device_id = f"device_{secrets.token_hex(12)}"
+
+    with request.app.state.engine.begin() as conn:
+        # Create device
+        conn.execute(devices.insert().values(
+            id=device_id,
+            merchant_id=item.merchant_id,
+            device_type="ANDROID_MOBILE",
+            state="PROVISIONED",
+            last_heartbeat=now_ts,
+            upi_registered=False,
+        ))
+
+        # Create 15 workers (1 per UPI ID)
+        upi_apps = [
+            "GPay", "PhonePe", "BHIM", "WhatsApp Pay", "Cred",
+            "Mi Pay", "Paytm", "Amazon Pay", "Airtel Pay", "JioPay",
+            "BharatPe", "Slice", "LazyPay", "PostPe", "Simpl",
+        ]
+
+        for i in range(15):
+            worker_id = f"worker_{device_id}_{i}"
+            conn.execute(workers.insert().values(
+                id=worker_id,
+                merchant_id=item.merchant_id,
+                device_id=device_id,
+                worker_index=i,
+                upi_id=None,  # assigned when UPI registered
+                upi_app=upi_apps[i] if i < len(upi_apps) else f"UPI App {i+1}",
+                status="IDLE",
+                auto_mode=True,
+                daily_txns=0,
+                daily_volume=0,
+                created_at=now_ts,
+                updated_at=now_ts,
+            ))
+
+        # Pre-install UPI apps inventory
+        for i, app_name in enumerate(upi_apps):
+            conn.execute(device_upi_apps.insert().values(
+                id=f"app_{device_id}_{i}",
+                device_id=device_id,
+                app_name=app_name,
+                app_package=f"com.upi.{app_name.lower().replace(' ', '')}",
+                is_installed=True,
+                is_enabled=True,
+                last_checked=now_ts,
+                created_at=now_ts,
+            ))
+
+        # Default automation config
+        conn.execute(automation_config.insert().values(
+            id=f"cfg_{device_id}",
+            merchant_id=item.merchant_id,
+            device_id=device_id,
+            auto_checkout=True,
+            auto_verify=True,
+            auto_refund=True,
+            auto_rotate_upi=True,
+            daily_txn_target=100,
+            min_amount_paise=100,
+            max_amount_paise=100000000,
+            p2p_daily_cap_paise=7000000,
+            created_at=now_ts,
+            updated_at=now_ts,
+        ))
+
+        event(conn, item.merchant_id, "DEVICE_PROVISIONED")
+
+    return {
+        "device_id": device_id,
+        "merchant_id": item.merchant_id,
+        "worker_count": 15,
+        "upi_apps_installed": len(upi_apps),
+        "status": "PROVISIONED",
+        "provisioned_at": now_ts,
+        "message": "Device provisioned with 15 workers and 11+ UPI apps. Agent can now register UPIs and start collecting.",
+    }
+
+
+@app.get("/android/automation-config", response_model=dict)
+def android_automation_config(request: Request, authorization: Token = None):
+    """Get automation config for this device."""
+    row = device_bearer(request, authorization)
+    device_id = row["device_id"]
+
+    with request.app.state.engine.connect() as conn:
+        config = conn.execute(select(automation_config).where(
+            automation_config.c.device_id == device_id
+        )).mappings().first()
+        if not config:
+            raise HTTPException(404, "Automation config not found")
+
+    return {
+        "device_id": device_id,
+        "auto_checkout": bool(config["auto_checkout"]),
+        "auto_verify": bool(config["auto_verify"]),
+        "auto_refund": bool(config["auto_refund"]),
+        "auto_rotate_upi": bool(config["auto_rotate_upi"]),
+        "daily_txn_target": config["daily_txn_target"],
+        "min_amount_paise": config["min_amount_paise"],
+        "max_amount_paise": config["max_amount_paise"],
+        "p2p_daily_cap_paise": config["p2p_daily_cap_paise"],
+    }
+
+
+@app.put("/android/automation-config", response_model=dict)
+def android_update_automation_config(request: Request, item: AutomationConfigInput, authorization: Token = None):
+    """Update automation config for this device."""
+    row = device_bearer(request, authorization)
+    device_id = row["device_id"]
+    now_ts = _now_ts()
+
+    with request.app.state.engine.begin() as conn:
+        conn.execute(automation_config.update().where(automation_config.c.device_id == device_id).values(
+            auto_checkout=item.auto_checkout,
+            auto_verify=item.auto_verify,
+            auto_refund=item.auto_refund,
+            auto_rotate_upi=item.auto_rotate_upi,
+            daily_txn_target=item.daily_txn_target,
+            min_amount_paise=item.min_amount_paise,
+            max_amount_paise=item.max_amount_paise,
+            p2p_daily_cap_paise=item.p2p_daily_cap_paise,
+            updated_at=now_ts,
+        ))
+
+    return {"device_id": device_id, "updated_at": now_ts, "status": "updated"}
 

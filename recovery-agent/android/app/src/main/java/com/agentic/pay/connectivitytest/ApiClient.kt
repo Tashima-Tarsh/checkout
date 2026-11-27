@@ -220,6 +220,14 @@ object ApiClient {
         }
     }
 
+    /** Worker dispatch: get pending auto-checkouts for a worker on this device. */
+    fun workerDispatch(credential: String, workerIndex: Int, callback: (Result<String>) -> Unit) {
+        thread {
+            val result = httpGet("/android/worker-dispatch?worker_index=$workerIndex", credential)
+            callback(result)
+        }
+    }
+
     /** Return all registered UPI IDs with their current health status. */
     fun upiPool(credential: String, callback: (Result<String>) -> Unit) {
         thread {
