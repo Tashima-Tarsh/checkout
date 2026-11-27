@@ -9,19 +9,47 @@ import time
 from typing import Annotated, Literal
 
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from checkout.agentic_login import require_session
 from checkout.agentic_settle import get_settlement, public_settlement, _save_state
-from checkout.agentic_storage import accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations, evidence_consumption, receipt_observations, settlement_states, shared_test_orders
+from checkout.agentic_storage import (
+    accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
+    evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
+    devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
+)
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
 ORDER_ID = re.compile(r"[0-9a-f]{48}")
 CHECKOUT_TTL_SECONDS = 120
+
+DEVICE_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+PAIRING_CODE = re.compile(r"[A-Z0-9]{8}")
+PAIRING_TTL_SECONDS = 600
+PAIRING_RATE_WINDOW = 300
+PAIRING_MAX_ATTEMPTS = 5
+DEVICE_STATE_ONLINE = "ONLINE"
+DEVICE_STATE_OFFLINE = "OFFLINE"
+DEVICE_STATE_REVOKED = "REVOKED"
+DEVICE_STATE_PENDING = "ENROLLMENT_PENDING"
+OBS_STATE_RECEIVED = "OBSERVATION_RECEIVED"
+OBS_STATE_MATCHED = "OBSERVATION_MATCHED"
+OBS_STATE_AMBIGUOUS = "AMBIGUOUS_OBSERVATION"
+OBS_STATE_REJECTED = "OBSERVATION_REJECTED"
+HEARTBEAT_OFFLINE_TIMEOUT = 90
+CREDENTIAL_TTL_SECONDS = 30 * 24 * 60 * 60
+DEVICE_RECONNECT_BASE = 2
+DEVICE_RECONNECT_MAX = 60
+
+DEVICE_OBSERVATION_FIELDS = (
+    "order_id", "merchant_id", "account_id", "amount_paise", "currency",
+    "transaction_reference", "observation_direction", "evidence_provenance",
+    "observation_timestamp", "checkout_created", "checkout_expires",
+)
 
 
 def digest(value):
@@ -33,6 +61,31 @@ def bearer(authorization):
     if scheme.lower() != "bearer" or not token or not token.isascii():
         raise HTTPException(401, "Bearer token required")
     return token
+
+
+def device_bearer(request: Request, authorization: Token = None):
+    """Authenticate an enrolled device using its stored credential."""
+    if authorization is None:
+        raise HTTPException(401, "Device credentials required")
+    token = bearer(authorization)
+    now = int(time.time())
+    with request.app.state.engine.connect() as conn:
+        row = conn.execute(
+            select(device_credentials.c.device_id, device_credentials.c.credential_hash,
+                   device_credentials.c.expires, device_credentials.c.revoked,
+                   devices.c.state, devices.c.merchant_id, devices.c.agent_id)
+            .join(devices, devices.c.device_id == device_credentials.c.device_id)
+            .where(device_credentials.c.credential_hash == digest(token))
+        ).mappings().first()
+    if row is None:
+        raise HTTPException(401, "Invalid device credentials")
+    if row["revoked"] is not None:
+        raise HTTPException(401, "Device revoked")
+    if row["expires"] is not None and row["expires"] <= now:
+        raise HTTPException(401, "Device credential expired")
+    if row["state"] != DEVICE_STATE_ONLINE:
+        raise HTTPException(401, "Device not enrolled")
+    return row
 
 
 def require_owner(request: Request, authorization: Token = None):
@@ -436,3 +489,346 @@ def txn_event(order_id: str, b: TxnEvent, request: Request):
         ))
         event(conn, order["merchant_id"], "TXN_" + b.event.upper())
     return {"recorded": True, "order_id": order_id, "event": b.event}
+
+
+# ============================================================================
+# Android device enrollment and authentication
+# ============================================================================
+
+class PairingCodeInput(BaseModel):
+    merchant_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    agent_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,32}$")
+
+
+class PairingCodeOutput(BaseModel):
+    code: str
+    expires_in_seconds: int
+
+
+class DeviceListItem(BaseModel):
+    device_id: str
+    state: str
+    last_heartbeat: int | None
+    app_version: str | None
+    revoked_at: int | None
+
+
+class DevicePairInput(BaseModel):
+    code: str = Field(pattern=r"^[A-Z0-9]{8}$")
+    device_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,64}$")
+    public_key_pem: str = Field(min_length=100, max_length=4096)
+    app_version: str | None = Field(default=None, max_length=32)
+
+
+class DeviceCredentialOutput(BaseModel):
+    credential: str
+    expires_in_seconds: int
+
+
+class DeviceHeartbeatInput(BaseModel):
+    pass
+
+
+class DeviceObservationInput(BaseModel):
+    order_id: str = Field(pattern=r"^[0-9a-f]{48}$")
+    amount_paise: int = Field(strict=True, ge=100, le=100000000)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    account_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    transaction_reference: str | None = Field(default=None, pattern=r"^[0-9]{12}$")
+    observation_direction: str = Field(pattern=r"^(incoming|outgoing)$")
+    evidence_provenance: str = Field(pattern=r"^(user_authorized|system_observed)$")
+    observation_timestamp: int = Field(strict=True, ge=0)
+    checkout_created: int = Field(strict=True, ge=0)
+    checkout_expires: int = Field(strict=True, ge=0)
+
+
+class DeviceObservationOutput(BaseModel):
+    observation_id: str
+    state: str
+    decision: str | None
+    reason: str | None
+
+
+def _pairing_rate_check(conn, merchant_id, now):
+    window_start = now - PAIRING_RATE_WINDOW
+    attempts = conn.scalar(select(func.count()).select_from(pairing_codes).where(
+        pairing_codes.c.merchant_id == merchant_id,
+        pairing_codes.c.created >= window_start,
+    ))
+    if attempts is not None and attempts >= PAIRING_MAX_ATTEMPTS:
+        raise HTTPException(429, "Pairing code rate limit exceeded. Try again shortly.")
+
+
+def _make_pairing_code() -> str:
+    return "".join(secrets.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") for _ in range(8))
+
+
+@router.post("/android/devices/pairing", status_code=201, response_model=PairingCodeOutput)
+def generate_pairing_code(request: Request, item: PairingCodeInput, authorization: Token = None):
+    """Owner generates a short-lived, single-use pairing code bound to a merchant and agent."""
+    require_owner(request, authorization)
+    # Derive merchant identity: session (cookie auth) or explicit merchant_id (bearer token auth)
+    if authorization is None:
+        login = require_session(request)
+        identity = login.merchant_id
+    else:
+        if item.merchant_id is None:
+            raise HTTPException(400, "merchant_id is required when using bearer token auth")
+        identity = item.merchant_id
+    with request.app.state.engine.begin() as conn:
+        merchant = conn.scalar(select(merchants.c.id).where(merchants.c.id == identity))
+        if merchant is None:
+            raise HTTPException(404, "Merchant not found")
+        _pairing_rate_check(conn, identity, now())
+        code = _make_pairing_code()
+        code_hash = digest(code)
+        expires = now() + PAIRING_TTL_SECONDS
+        conn.execute(pairing_codes.insert().values(
+            code_hash=code_hash, merchant_id=identity, agent_id=item.agent_id,
+            device_id=None, expires=expires, used=None, created=now(),
+        ))
+        event(conn, identity, "PAIRING_CODE_GENERATED")
+    return {"code": code, "expires_in_seconds": PAIRING_TTL_SECONDS}
+
+
+@router.get("/android/devices", response_model=list[DeviceListItem])
+def list_devices(request: Request, authorization: Token = None, merchant_id_param: str | None = Query(default=None, alias="merchant_id")):
+    """List registered devices for the authenticated merchant."""
+    # Support both owner bearer token and merchant bearer token / session
+    if authorization is not None:
+        try:
+            require_owner(request, authorization)
+        except HTTPException:
+            identity = merchant_id(request, authorization)
+        else:
+            identity = None
+    else:
+        require_owner(request, authorization)
+        login = require_session(request)
+        identity = login.merchant_id
+
+    if identity is None and merchant_id_param is not None:
+        identity = merchant_id_param
+    if identity is None:
+        raise HTTPException(400, "merchant_id is required")
+
+    now_ts = now()
+    with request.app.state.engine.begin() as conn:
+        rows = conn.execute(
+            select(devices).where(devices.c.merchant_id == identity).order_by(devices.c.created.desc())
+        ).mappings().all()
+        results = []
+        for row in rows:
+            state = row["state"]
+            if state == DEVICE_STATE_ONLINE:
+                hb = row["last_heartbeat"]
+                if hb is None or now_ts - hb > HEARTBEAT_OFFLINE_TIMEOUT:
+                    state = DEVICE_STATE_OFFLINE
+                    conn.execute(
+                        devices.update().where(devices.c.device_id == row["device_id"])
+                        .values(state=DEVICE_STATE_OFFLINE)
+                    )
+                    event(conn, row["merchant_id"], "DEVICE_OFFLINE_TIMEOUT")
+            results.append(DeviceListItem(
+                device_id=row["device_id"], state=state,
+                last_heartbeat=row["last_heartbeat"], app_version=row["app_version"],
+                revoked_at=row["revoked_at"],
+            ))
+    return results
+
+
+@router.post("/android/devices/{device_id}/revoke", status_code=204)
+def revoke_device(request: Request, device_id: str, authorization: Token = None, merchant_id_param: str | None = Query(default=None, alias="merchant_id")):
+    """Revoke a registered device and its credentials."""
+    if not DEVICE_ID.fullmatch(device_id):
+        raise HTTPException(404, "Device not found")
+    require_owner(request, authorization)
+    if authorization is None:
+        login = require_session(request)
+        identity = login.merchant_id
+    elif merchant_id_param is not None:
+        identity = merchant_id_param
+    else:
+        raise HTTPException(400, "merchant_id is required when using bearer token auth")
+    with request.app.state.engine.begin() as conn:
+        row = conn.execute(
+            select(devices).where(devices.c.device_id == device_id, devices.c.merchant_id == identity)
+        ).mappings().first()
+        if row is None:
+            raise HTTPException(404, "Device not found")
+        ts = now()
+        conn.execute(
+            devices.update().where(devices.c.device_id == device_id)
+            .values(state=DEVICE_STATE_REVOKED, revoked_at=ts, revoked_reason="OWNER_REVOKED")
+        )
+        conn.execute(
+            device_credentials.update().where(device_credentials.c.device_id == device_id)
+            .values(revoked=ts)
+        )
+        event(conn, identity, "DEVICE_REVOKED")
+
+
+@router.post("/android/pair", status_code=201, response_model=DeviceCredentialOutput)
+def device_pair(request: Request, item: DevicePairInput):
+    """Device redeems a pairing code to obtain authentication credentials."""
+    if not DEVICE_ID.fullmatch(item.device_id):
+        raise HTTPException(404, "Invalid device identifier")
+    ts = now()
+    with request.app.state.engine.begin() as conn:
+        code_row = conn.execute(
+            select(pairing_codes).where(pairing_codes.c.code_hash == digest(item.code))
+        ).mappings().first()
+        if code_row is None:
+            raise HTTPException(401, "Invalid pairing code")
+        if code_row["used"] is not None:
+            raise HTTPException(401, "Pairing code already used")
+        if code_row["expires"] <= ts:
+            raise HTTPException(401, "Pairing code expired")
+        # Bind to the code's merchant and agent; the device_id is the caller's.
+        credential = secrets.token_urlsafe(48)
+        credential_hash = digest(credential)
+        credential_expires = ts + CREDENTIAL_TTL_SECONDS
+        conn.execute(
+            pairing_codes.update().where(pairing_codes.c.code_hash == digest(item.code))
+            .values(used=ts, device_id=item.device_id)
+        )
+        existing = conn.execute(
+            select(devices).where(devices.c.device_id == item.device_id)
+        ).mappings().first()
+        if existing is None:
+            conn.execute(devices.insert().values(
+                device_id=item.device_id, merchant_id=code_row["merchant_id"],
+                agent_id=code_row["agent_id"], public_key_pem=item.public_key_pem,
+                state=DEVICE_STATE_ONLINE, created=ts, last_heartbeat=ts,
+                app_version=item.app_version,
+            ))
+        else:
+            conn.execute(
+                devices.update().where(devices.c.device_id == item.device_id)
+                .values(merchant_id=code_row["merchant_id"], agent_id=code_row["agent_id"],
+                        public_key_pem=item.public_key_pem, state=DEVICE_STATE_ONLINE,
+                        last_heartbeat=ts, app_version=item.app_version,
+                        revoked_at=None, revoked_reason=None)
+            )
+        conn.execute(device_credentials.insert().values(
+            device_id=item.device_id, credential_hash=credential_hash,
+            created=ts, expires=credential_expires, revoked=None,
+        ))
+        conn.execute(device_heartbeats.insert().values(
+            device_id=item.device_id, received_at=ts, created=ts,
+        ))
+        event(conn, code_row["merchant_id"], "DEVICE_PAIRED")
+    return {"credential": credential, "expires_in_seconds": CREDENTIAL_TTL_SECONDS}
+
+
+@router.post("/android/heartbeat", status_code=204)
+def device_heartbeat(request: Request, authorization: Token = None):
+    """Authenticated device heartbeat. Updates last-seen timestamp."""
+    row = device_bearer(request, authorization)
+    ts = now()
+    with request.app.state.engine.begin() as conn:
+        conn.execute(
+            devices.update().where(devices.c.device_id == row["device_id"])
+            .values(state=DEVICE_STATE_ONLINE, last_heartbeat=ts)
+        )
+        conn.execute(device_heartbeats.insert().values(
+            device_id=row["device_id"], received_at=ts, created=ts,
+        ))
+        event(conn, row["merchant_id"], "DEVICE_HEARTBEAT")
+
+
+@router.post("/android/observations", status_code=202, response_model=DeviceObservationOutput)
+def device_observation(request: Request, item: DeviceObservationInput, authorization: Token = None):
+    """Receiver device submits explicitly authorized, transaction-scoped evidence.
+
+    The server correlates the observation against an existing checkout record.
+    A match is observational only and does not set financially_verified.
+    """
+    row = device_bearer(request, authorization)
+    ts = now()
+    device_id = row["device_id"]
+    merchant_id = row["merchant_id"]
+
+    with request.app.state.engine.begin() as conn:
+        order = checkout_order(conn, item.order_id, lock=True)
+        if order["merchant_id"] != merchant_id:
+            raise HTTPException(403, "Cross-merchant observation rejected")
+        if order["account_id"] != item.account_id:
+            raise HTTPException(403, "Observation account mismatch")
+        if order["expires"] <= ts:
+            _device_settle_state(conn, item.order_id, OBS_STATE_REJECTED,
+                        item.amount_paise, ts, "EXPIRED_CHECKOUT")
+            raise HTTPException(410, "Checkout expired")
+        if order["status"] not in {"AWAITING_PAYMENT", "PENDING"}:
+            _device_settle_state(conn, item.order_id, OBS_STATE_REJECTED,
+                        item.amount_paise, ts, "CHECKOUT_CLOSED")
+            raise HTTPException(410, "Checkout closed")
+
+        amount_match = item.amount_paise == order["amount_minor"]
+        # Check for duplicate observation
+        existing_obs = conn.execute(
+            select(device_observations).where(
+                device_observations.c.order_id == item.order_id,
+                device_observations.c.device_id == device_id,
+            )
+        ).mappings().first()
+        if existing_obs is not None:
+            _device_settle_state(conn, item.order_id, OBS_STATE_REJECTED,
+                        item.amount_paise, ts, "DUPLICATE_OBSERVATION")
+            event(conn, merchant_id, "DEVICE_OBSERVATION_DUPLICATE")
+            return {"observation_id": existing_obs["observation_id"], "state": OBS_STATE_REJECTED,
+                    "decision": "REJECTED", "reason": "Duplicate observation for this device and order"}
+
+        # Count matching observations for this order across all devices
+        matching_count = conn.scalar(select(func.count()).select_from(device_observations).where(
+            device_observations.c.order_id == item.order_id,
+            device_observations.c.state.in_({OBS_STATE_RECEIVED, OBS_STATE_MATCHED}),
+        ))
+        is_ambiguous = matching_count >= 1
+
+        obs_id = "obs_" + secrets.token_hex(24)
+        state = OBS_STATE_AMBIGUOUS if is_ambiguous else OBS_STATE_RECEIVED
+        decision = "AMBIGUOUS" if is_ambiguous else "RECEIVED"
+        reason = ("Multiple observations received for this checkout; verification requires review."
+                  if is_ambiguous else "Observation received and awaiting correlation.")
+        conn.execute(device_observations.insert().values(
+            observation_id=obs_id, device_id=device_id, order_id=item.order_id,
+            merchant_id=merchant_id, account_id=item.account_id,
+            amount_paise=item.amount_paise, currency=item.currency,
+            transaction_reference=item.transaction_reference,
+            observation_direction=item.observation_direction,
+            evidence_provenance=item.evidence_provenance,
+            observation_timestamp=item.observation_timestamp,
+            checkout_created=order["created"], checkout_expires=order["expires"],
+            state=state, created=ts, decision=decision,
+        ))
+        _device_settle_state(conn, item.order_id, state, item.amount_paise if amount_match else None,
+                    ts, decision)
+        event(conn, merchant_id, "DEVICE_OBSERVATION_RECEIVED")
+    return {"observation_id": obs_id, "state": state, "decision": decision, "reason": reason}
+
+
+def _device_settle_state(conn, order_id, state, observed_minor, ts, decision):
+    """Record or update the settlement state for an order from a device observation."""
+    merchant_id = conn.execute(select(orders.c.merchant_id).where(
+        orders.c.id == order_id)).scalar()
+    values = dict(order_id=order_id, state=state, observed_minor=observed_minor, updated=ts)
+    if conn.dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        stmt = pg_insert(settlement_states).values(**values).on_conflict_do_update(
+            index_elements=[settlement_states.c.order_id],
+            set_=dict(state=state, observed_minor=observed_minor, updated=ts),
+        )
+    elif conn.dialect.name == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+        stmt = sqlite_insert(settlement_states).values(**values).on_conflict_do_update(
+            index_elements=[settlement_states.c.order_id],
+            set_=dict(state=state, observed_minor=observed_minor, updated=ts),
+        )
+    else:
+        raise RuntimeError("Unsupported ledger database")
+    conn.execute(stmt)
+    conn.execute(audit.insert().values(
+        merchant_id=merchant_id, order_id=order_id, event="DEVICE_OBS_" + state,
+        detail=decision, created=ts,
+    ))

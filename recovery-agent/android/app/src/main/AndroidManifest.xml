@@ -1,34 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.agentic.recovery.observer">
+    package="com.agentic.pay.connectivitytest">
 
-    <!-- Required to observe UPI payment notifications from authorized apps -->
-    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
-        android:label="Agentic Recovery Observer"
+        android:label="Agentic Pay Receiver"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:usesCleartextTraffic="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
 
-        <!-- Notification Listener Service - observes UPI payment notifications -->
-        <service
-            android:name=".observer.UpiPaymentObserver"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true"
-            android:enabled="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </service>
+        </activity>
 
-        <!-- Boot receiver to restart observation after device restart -->
+        <activity
+            android:name=".PairingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ObservationActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".HeartbeatService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
-            android:name=".observer.BootReceiver"
+            android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

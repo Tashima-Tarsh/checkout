@@ -113,8 +113,88 @@ $('download-template').onclick=()=>download('agentic-accounts.csv','upi_id,accou
 $('export-orders').onclick=()=>download('agentic-recent-orders.csv','order_id,amount_minor,status,created\n'+filtered().map(r=>[r.id,r.amount_minor,r.status,r.created].join(',')).join('\n'));
 $('check-health').onclick=async()=>{try{const r=await fetch('/healthz');const x=await r.json();$('health-result').textContent=r.ok&&x.ok?'Application healthy. Financial verification: '+x.verification:'Health unavailable.'}catch{$('health-result').textContent='Health unavailable.'}};
 
-async function refreshAndroidRuntime(){
- const el=$('android-runtime-status'); if(!el || page!=='owner') return;
- try { const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Device connected':'Cloud Android runtime not connected'; } catch {el.textContent='Device status unavailable';}
+async function refreshAndroidDevices(){
+  if(page!=='owner') return;
+  const list=$('android-device-list'); const rows=$('android-device-rows');
+  const empty=$('android-device-empty'); const pill=$('android-state-pill');
+  const connStatus=$('android-conn-status'); const lastHb=$('android-last-hb');
+  const appVer=$('android-app-ver'); const offlineNote=$('android-offline-note');
+  if(!list || !rows) return;
+  try {
+    const res=await fetch('/api/android/devices',{cache:'no-store'});
+    if(!res.ok){list.hidden=true;empty.textContent='Unable to load devices.';return;}
+    const devices=await res.json();
+    rows.replaceChildren();
+    if(!devices.length){list.hidden=true;empty.hidden=false;pill.textContent='Enrollment pending';pill.className='status-pill pending';
+      connStatus.textContent='—';lastHb.textContent='—';appVer.textContent='—';offlineNote.hidden=true;return;}
+    empty.hidden=true;list.hidden=false;
+    let online=false;
+    for(const d of devices){
+      const tr=document.createElement('tr');
+      const stateClass=d.state==='ONLINE'?'online':(d.state==='REVOKED'?'revoked':'pending');
+      if(d.state==='ONLINE') online=true;
+      tr.innerHTML='<td><code>'+d.device_id+'</code></td>'+
+        '<td>'+(d.agent_id||'—')+'</td>'+
+        '<td><span class="status-pill '+stateClass+'">'+d.state+'</span></td>'+
+        '<td>'+date(d.last_heartbeat)+'</td>'+
+        '<td>'+(d.app_version||'—')+'</td>'+
+        '<td><button class="btn ghost" data-revoke="'+d.device_id+'">Revoke</button>'+
+        (d.state==='REVOKED'?' <button class="btn ghost" data-reenroll="'+d.device_id+'">Re-enroll</button>':'')+'</td>';
+      rows.append(tr);
+    }
+    pill.textContent=online?'Device online':'No online devices';
+    pill.className='status-pill '+(online?'':'pending');
+    const latest=devices[0];
+    connStatus.textContent=online?'ONLINE':(latest.state==='REVOKED'?'REVOKED':'OFFLINE');
+    lastHb.textContent=date(latest.last_heartbeat);
+    appVer.textContent=latest.app_version||'—';
+    offlineNote.hidden=online;
+    rows.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{
+      const did=b.getAttribute('data-revoke');
+      const r=await fetch('/api/android/devices/'+encodeURIComponent(did)+'/revoke',{method:'POST'});
+      if(!r.ok){const x=await r.json();$('status').textContent=x.detail||'Revoke failed';return;}
+      $('status').textContent='Device revoked.';
+      await refreshAndroidDevices();
+    });
+    rows.querySelectorAll('[data-reenroll]').forEach(b=>b.onclick=async()=>{
+      const did=b.getAttribute('data-reenroll');
+      $('status').textContent='Re-enrollment: generate a new pairing code below.';
+    });
+  } catch(e){$('status').textContent=e.message;}
 }
+
+let pairingTtl=0; let pairingTimer=null;
+function stopPairingTimer(){if(pairingTimer){clearInterval(pairingTimer);pairingTimer=null;}}
+function startPairingCountdown(ttl){
+  pairingTtl=ttl; stopPairingTimer();
+  const el=$('android-pairing-ttl'); el.textContent=ttl;
+  pairingTimer=setInterval(()=>{
+    pairingTtl--; el.textContent=Math.max(0,pairingTtl);
+    if(pairingTtl<=0) stopPairingTimer();
+  },1000);
+}
+
+async function generatePairingCode(){
+  const agentId=$('android-agent-id').value.trim();
+  if(!agentId){$('android-pairing-error').textContent='Enter an agent ID.';return;}
+  const btn=$('android-generate-pairing'); btn.disabled=true;
+  $('android-pairing-error').textContent='';
+  try {
+    const res=await fetch('/api/android/devices/pairing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent_id:agentId})});
+    if(!res.ok){const x=await res.json();$('android-pairing-error').textContent=x.detail||'Pairing code generation failed';return;}
+    const data=await res.json();
+    $('android-pairing-code').textContent=data.code;
+    $('android-pairing-output').hidden=false;
+    startPairingCountdown(data.expires_in_seconds);
+    await refreshAndroidDevices();
+  } catch(e){$('android-pairing-error').textContent=e.message;}
+  finally {btn.disabled=false;}
+}
+
+async function refreshAndroidRuntime(){
+  if(page!=='owner') return;
+  await refreshAndroidDevices();
+}
+
+$('android-generate-pairing').addEventListener('click',generatePairingCode);
 $('android-refresh').addEventListener('click',refreshAndroidRuntime);
