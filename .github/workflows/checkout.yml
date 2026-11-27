@@ -32,7 +32,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
       - run: python -m pip install -r requirements-dev.txt
       - run: alembic upgrade head
       - name: Assert legacy migration does not create Agentic Pay tables
