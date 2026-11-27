@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF8F4">
+  <title>Payment Cost Calculator | DISHA 8.2</title>
+  <meta name="description" content="Compare your current payment expenses against a proposed DISHA 8.2 commercial arrangement. Calculate your payment costs and potential savings.">
+  <meta property="og:title" content="Payment Cost Calculator | DISHA 8.2">
+  <meta property="og:description" content="Compare your current payment expenses against a proposed DISHA 8.2 commercial arrangement.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://disha82.com/payment-cost-calculator/">
+  <link rel="canonical" href="https://disha82.com/payment-cost-calculator/">
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="/static/disha.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <script src="/static/prism.js?v=1.1" defer></script>
+</head>
+<body class="prism-body disha-body">
+  <div id="toast-container"></div>
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand disha-brand" onclick="location.href='/'">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+        <span class="brand-sub">Payment Software</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="btn-secondary">Home</a>
+      <button class="btn-primary" onclick="showSection('inquiry')">Business Inquiry</button>
+    </div>
+  </header>
+  <main class="prism-main" style="padding: 4rem 1rem;">
+    <section class="prism-glass-strong" style="max-width: 900px; margin: 0 auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Payment cost calculator</div>
+      <h1 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Compare your payment expenses</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:700px;margin-bottom:1.5rem;">
+        A small difference in payment charges can make a considerable difference over an entire year. Enter the details of
+        your existing payment arrangement to understand what it costs your business and explore potential savings.
+      </p>
+      <form id="calc-form" class="field-group">
+        <div class="field">
+          <label>Monthly eligible payment volume (₹)</label>
+          <input type="number" id="calc-volume" min="0" step="100000" placeholder="e.g. 1000000" required class="field input">
+        </div>
+        <div class="field">
+          <label>Current payment provider</label>
+          <select id="calc-provider" class="field input">
+            <option value="razorpay">Razorpay</option>
+            <option value="cashfree">Cashfree Payments</option>
+            <option value="payu">PayU</option>
+            <option value="phonepe">PhonePe</option>
+            <option value="paytm">Paytm</option>
+            <option value="ccavenue">CCAvenue</option>
+            <option value="billdesk">BillDesk</option>
+            <option value="easebuzz">Easebuzz</option>
+            <option value="instamojo">Instamojo</option>
+            <option value="custom">Custom / Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Current percentage-based fee (%)</label>
+          <input type="number" id="calc-fee" min="0" step="0.01" placeholder="e.g. 2.0" class="field input">
+        </div>
+        <div class="field">
+          <label>Fixed monthly charges (₹)</label>
+          <input type="number" id="calc-fixed-monthly" min="0" step="100" placeholder="0" class="field input">
+        </div>
+        <div class="field">
+          <label>Number of monthly transactions</label>
+          <input type="number" id="calc-txns" min="0" step="1" placeholder="e.g. 500" class="field input">
+        </div>
+        <div class="field">
+          <label>Fixed charge per transaction (₹)</label>
+          <input type="number" id="calc-txn-fee" min="0" step="1" placeholder="0" class="field input">
+        </div>
+        <div class="field">
+          <label>Annual maintenance charges (₹)</label>
+          <input type="number" id="calc-amc" min="0" step="1000" placeholder="0" class="field input">
+        </div>
+        <div class="field">
+          <label>Other recurring expenses (₹/month)</label>
+          <input type="number" id="calc-other" min="0" step="100" placeholder="0" class="field input">
+        </div>
+        <div class="field">
+          <label>Proposed DISHA 8.2 arrangement cost (₹/month)</label>
+          <input type="number" id="calc-disha" min="0" step="100" placeholder="0" class="field input">
+        </div>
+        <div class="field">
+          <label>One-time implementation cost (₹)</label>
+          <input type="number" id="calc-setup" min="0" step="1000" placeholder="0" class="field input">
+        </div>
+        <button class="btn-primary" type="button" onclick="calcSavings()">Calculate savings</button>
+      </form>
+      <div id="calc-results" style="display:none;margin-top:2rem;">
+        <div class="stat-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">Current monthly cost</div>
+            <div class="stat-value" id="res-current-monthly">₹0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Current annual cost</div>
+            <div class="stat-value" id="res-current-annual">₹0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Effective payment-cost %</div>
+            <div class="stat-value" id="res-effective-pct">0.00%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Proposed annual cost</div>
+            <div class="stat-value" id="res-proposed-annual">₹0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Estimated annual savings</div>
+            <div class="stat-value" id="res-savings">₹0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Break-even software budget</div>
+            <div class="stat-value" id="res-breakeven">₹0.00</div>
+          </div>
+        </div>
+        <div class="field-group" style="margin-top: 1.5rem;">
+          <label>Calculation assumptions</label>
+          <div id="calc-assumptions" style="font-size:0.875rem;color:var(--prism-text-muted);background:var(--prism-pearl);padding:1rem;border-radius:12px;"></div>
+        </div>
+        <button class="btn-primary" style="margin-top:1.5rem;" onclick="showSection('inquiry')">Request a commercial proposal</button>
+      </div>
+    </section>
+  </main>
+  <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
+    <div style="padding: 2rem 1rem; max-width: 1000px; margin: 0 auto; display:flex;flex-direction:column;gap:1rem;">
+      <div class="prism-brand" style="align-items:flex-start;">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+      </div>
+      <p style="font-size:0.875rem;color:var(--prism-text-muted);">Payment software for Indian businesses. DISHA 8.2 is a non-custodial software service that does not take custody of merchant funds.</p>
+      <div style="display:flex;gap:2rem;">
+        <a href="/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Home</a>
+        <a href="/compare-and-save/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Compare</a>
+        <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
+      </div>
+      <div style="margin-top:1rem;font-size:0.75rem;color:var(--prism-text-muted);">
+        © 2026 DISHA 8.2. All rights reserved.
+      </div>
+    </div>
+  </footer>
+  <script src="/static/prism.js?v=1.1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const volume = $('#calc-volume');
+      const fee = $('#calc-fee');
+      const fixedMonthly = $('#calc-fixed-monthly');
+      const txns = $('#calc-txns');
+      const txnFee = $('#calc-txn-fee');
+      const amc = $('#calc-amc');
+      const other = $('#calc-other');
+      const disha = $('#calc-disha');
+      const setup = $('#calc-setup');
+
+      function toNum(el) {
+        return parseFloat(el.value) || 0;
+      }
+
+      function calcSavings() {
+        const vol = toNum(volume);
+        const feePct = toNum(fee);
+        const fixedMonthly = toNum($('#calc-fixed-monthly'));
+        const txnsNum = toNum(txns);
+        const txnFeeNum = toNum(txnFee);
+        const amcNum = toNum(amc);
+        const otherNum = toNum(other);
+        const dishaNum = toNum(disha);
+        const setupNum = toNum(setup);
+
+        const variableExpense = vol * (feePct / 100);
+        const transactionExpense = txnsNum * txnFeeNum;
+        const currentRecurring = variableExpense + transactionExpense + fixedMonthly + amcNum + otherNum;
+        const currentAnnual = currentRecurring * 12;
+        const proposedRecurring = dishaNum + otherNum; // disha cost + other recurring
+        const proposedAnnual = proposedRecurring * 12;
+        const effectivePct = vol > 0 ? (currentRecurring / vol) * 100 : 0;
+        const annualSavings = currentAnnual - proposedAnnual;
+        const breakEven = currentAnnual > 0 ? (setupNum / (currentAnnual - proposedAnnual)) * 12 : 0;
+
+        $('#calc-current').textContent = '₹' + currentRecurring.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        $('#calc-annual').textContent = '₹' + currentAnnual.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        $('#calc-effective-pct').textContent = effectivePct.toFixed(2) + '%';
+        $('#calc-proposed-annual').textContent = '₹' + proposedAnnual.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        $('#calc-savings').textContent = '₹' + annualSavings.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        $('#calc-breakeven').textContent = '₹' + breakEven.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+        const assumptions = `Eligible volume = ₹${vol.toLocaleString('en-IN')} × ${feePct}% = ₹${variableExpense.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Transaction expense = ${txnsNum} transactions × ₹${txnFeeNum} = ₹${transactionExpense.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Monthly fixed charges = ₹${fixedMonthly.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Annual maintenance = ₹${amcNum.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Other recurring = ₹${otherNum.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Current annual expense = ₹${currentAnnual.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}<br>
+        Proposed DISHA 8.2 cost = ₹${dishaNum.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}/month<br>
+        One-time implementation cost = ₹${setupNum.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        $('#calc-assumptions').innerHTML = assumptions;
+
+        $('#calc-results').style.display = 'block';
+        $('#calc-results').scrollIntoView({ behavior: 'smooth' });
+      }
+      window.calcSavings = calcSavings;
+    });
+  </script>
+</body>
+</html>

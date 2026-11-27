@@ -1,87 +1,511 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en-IN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0c1425">
-  <meta name="description" content="P2P/P2M browser-based UPI checkout initiation">
-  <title>PDEP · Premium UPI Checkout</title>
-  <link rel="stylesheet" href="/static/style.css?v=pdep-v07">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF8F4">
+  <title>DISHA 8.2 | Payment Software for Indian Businesses</title>
+  <meta name="description" content="Discover DISHA 8.2, a non-custodial payment software product developed for Indian businesses. Compare payment costs, explore merchant services and request a commercial proposal.">
+  <meta property="og:title" content="DISHA 8.2 — A New Direction for Indian Commerce">
+  <meta property="og:description" content="A software-led approach to managing business payments without DISHA 8.2 taking custody of merchant funds.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://disha82.com/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://disha82.com/">
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="/static/disha.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <script src="/static/prism.js?v=1.1" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js" defer></script>
 </head>
-<body class="checkout-page">
-<main class="shell">
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="PDEP home"><span id="brandIcon" class="brandmark">P</span><span><span id="brandName">PDEP</span> <small>CHECKOUT</small></span></a>
-    <span class="environment"><span class="dot"></span> UPI CHECKOUT</span>
-  </header>
-  <section class="hero" aria-label="Checkout introduction">
-    <div><span class="eyebrow">DIRECT UPI / 01</span><h2>Payments, simplified.</h2><p>Copy your receiving UPI ID, pay from your UPI app, then return here. Observation is recorded only — verification is confirmed when the server matches it.</p></div>
-    <div class="flowline" aria-hidden="true"><span>01 · Copy UPI ID</span><i></i><span>02 · Pay in your UPI app</span><i></i><span>03 · Return and verify</span></div>
-  </section>
-  <div class="workspace">
-    <section class="config panel" aria-label="Payment configuration">
-      <div class="sectionheading"><span class="step">01</span><div><h1 id="checkoutHeadline">Make a payment</h1><p>Direct UPI · Personal or business</p></div></div>
-      <form id="form">
-        <div class="field">
-          <label for="mode">Payment type</label>
-          <select id="mode"><option value="P2P">Personal → Personal</option><option value="P2M">Personal → Merchant</option></select>
-        </div>
-        <div class="field" id="destinationRow" hidden>
-          <label for="destinationType">Payee selection</label>
-          <select id="destinationType"><option value="direct">Direct UPI ID</option><option value="route">Configured VPA route</option></select>
-        </div>
-        <div class="field" id="vpaRow">
-          <label for="vpa">Recipient UPI ID</label>
-          <input id="vpa" autocomplete="off" inputmode="email" placeholder="person@upi" required>
-        </div>
-        <div class="field" id="routeRow" hidden>
-          <label for="routeKey">Approved routing group</label>
-          <input id="routeKey" autocomplete="off" pattern="[a-z0-9][a-z0-9_-]{0,63}" placeholder="my-recipient-group">
-        </div>
-        <div class="field">
-          <label for="name">Recipient display name</label>
-          <input id="name" maxlength="80" placeholder="Payee name" required>
-        </div>
-        <div class="twofields">
-          <div class="field">
-            <label for="amount">Amount (₹)</label>
-            <input id="amount" type="number" min="1" max="1000000" step=".01" placeholder="499.00" required>
-          </div>
-          <div class="field" id="mccRow" hidden>
-            <label for="mcc">Merchant MCC <span class="optional">optional</span></label>
-            <input id="mcc" inputmode="numeric" pattern="[0-9]{4}" placeholder="5411">
-          </div>
-        </div>
-        <button id="create" type="submit" class="primary">Create checkout <span aria-hidden="true">→</span></button>
-      </form>
-    </section>
-    <section id="paypanel" class="payment panel" aria-label="Payment status">
-      <div class="sectionheading"><span class="step">02</span><div><h2>Pay with any UPI app</h2><p>Copy the UPI ID, pay from your UPI app, then return here.</p></div></div>
-      <div id="empty" class="empty">
-        <strong>Your payment details appear here</strong>
-        <p>Enter the payment details to begin.</p>
-      </div>
-      <div id="pay" hidden><button id="edit" type="button" class="secondary editbutton">← Edit payment</button>
-        <div class="total" id="info"></div>
-        <div class="actions">
-          <button id="payNow" type="button" class="secondary">Pay now (UPI app)</button>
-          <button id="copyUpid" type="button" class="secondary">Copy UPI ID</button>
-          <button id="claim" type="button" class="secondary">I completed payment</button>
-          <button id="refresh" type="button" class="secondary">Refresh status</button>
-          <button id="demo" type="button" class="secondary" hidden>Synthetic proof test</button>
-        </div>
-        <p class="scanhelp">Payment initiation only · Observation is recorded when you return. Verification is confirmed only when the server matches it.</p>
-        <div class="statebar" role="status" aria-live="polite"><span class="state-dot"></span><span id="state">AWAITING_PAYMENT · Debit unverified</span></div>
-        <p id="timer" class="timer"></p>
-      </div>
-    </section>
+<body class="prism-body disha-body homepage">
+  <div id="toast-container"></div>
+
+  <!-- Loader -->
+  <div id="disha-loader" class="loader">
+    <div class="logo">DISHA 8.2</div>
+    <div class="spinner"></div>
   </div>
-  <footer class="footer">
-    <span>Payment initiation only · Observation is not proof of debit.</span>
-    <span><a href="/admin">Manage VPA inventory</a></span>
-  </footer>
-  <div class="sr-only" id="log" aria-live="polite">Ready to create a payment session.</div>
-</main>
-<script src="/static/app.js?v=pdep-v08"></script>
+
+  <!-- Header -->
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand disha-brand" onclick="location.href='/'">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+        <span class="brand-sub">Payment Software for Business</span>
+      </div>
+      <div class="topbar-search">
+        <input type="text" class="search-input" placeholder="Search payment solutions…">
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="/in/" class="btn-ghost">India</a>
+      <a href="/ae/" class="btn-ghost">Dubai & UAE</a>
+      <a href="/bh/" class="btn-ghost">Bahrain</a>
+      <button class="btn-primary" onclick="showSection('inquiry')">Business Inquiry</button>
+      <button class="btn-icon" aria-label="Menu" onclick="toggleMenu()">☰</button>
+    </div>
+  </header>
+
+  <!-- Mobile menu -->
+  <nav id="mobile-menu" class="mobile-nav hidden">
+    <a href="/" class="nav-link">Home</a>
+    <a href="/about/" class="nav-link">About DISHA</a>
+    <a href="/why-disha/" class="nav-link">Why DISHA</a>
+    <a href="/how-it-works/" class="nav-link">How it works</a>
+    <a href="/payment-safety/" class="nav-link">Payment Safety</a>
+    <a href="/compare-and-save/" class="nav-link">Compare & Save</a>
+    <a href="/in/" class="nav-link">India</a>
+    <a href="/ae/" class="nav-link">Dubai & UAE</a>
+    <a href="/bh/" class="nav-link">Bahrain</a>
+    <a href="/contact/" class="nav-link">Contact</a>
+    <button class="btn-primary" style="width:100%;margin-top:1rem;" onclick="showSection('inquiry')">Business Inquiry</button>
+  </nav>
+
+  <main role="main">
+    <!-- ===== CINEMATIC HERO ===== -->
+    <section id="hero" class="hero-section">
+      <div class="hero-canvas" id="hero-canvas"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow">Introducing a new direction for Indian commerce</div>
+        <h1 class="hero-h1" id="hero-title">DISHA 8.2</h1>
+        <p class="hero-p" id="hero-sub">
+          DISHA 8.2 brings a software-led approach to payments, helping businesses manage their payment
+          operations without DISHA 8.2 holding their money.
+        </p>
+        <div class="hero-actions">
+          <button class="btn-primary" id="hero-cta-primary">Discover DISHA 8.2</button>
+          <button class="btn-secondary" id="hero-cta-secondary">Calculate your payment costs</button>
+        </div>
+        <div class="rupee-badge" id="rupee-badge">
+          <span class="rupee-symbol">₹</span>
+          <span class="rupee-label">Verified payment software</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SECTION: A growing business ===== -->
+    <section class="prism-glass-soft" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto; border-radius: 32px;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">A growing business deserves a better way to manage its payments.</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Behind every payment is a business working to serve customers.</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        India's digital payment journey has changed how businesses serve their customers, but the challenges of managing
+        those payments have not disappeared. Businesses still need to understand their payment expenses, manage settlement
+        arrangements, maintain transaction records and find solutions that fit their commercial requirements.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 was developed with these realities in mind. It brings together the software businesses need to manage
+        supported payment activities while keeping the actual movement of money within the applicable banking and payment
+        system.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Our purpose is to give businesses greater flexibility over their payment operations without DISHA 8.2 becoming
+        another custodian of their funds.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Why DISHA ===== -->
+    <section class="prism-glass" style="padding: 4rem 2rem; background: linear-gradient(135deg,#7851D8 0%,#B978E6 35%,#73DDE6 75%,#32B891 100%); color:#fff; border-radius: 32px; margin: 2rem auto; max-width: 1200px;">
+      <div class="section-eyebrow" style="color:#DCCAF7;">Why DISHA 8.2 exists</div>
+      <h2 style="color:#fff;font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;">Because accepting payments should not become an unnecessary burden on business</h2>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        Every business works with its own margins, expenses and cash-flow requirements. A payment service charge that
+        appears small on an individual transaction can become a significant annual expense when the business processes
+        thousands of payments.
+      </p>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        Beyond charges, businesses also need to account for settlement schedules, payment records and the time spent
+        managing their commercial operations. These challenges become more noticeable as the business grows.
+      </p>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        DISHA 8.2 was created to offer a different approach, one that focuses on the software surrounding payments rather
+        than taking possession of the money being transferred.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: What makes DISHA different ===== -->
+    <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">A commercial relationship built around software, not the custody of your money</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">What makes DISHA 8.2 different</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 provides a software service designed to help businesses manage their payment experience. The platform
+        does not operate by collecting merchant funds into a DISHA 8.2 settlement account or retaining those funds before
+        releasing them to the business.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        This distinction allows us to focus on the needs of merchants, including payment management, transaction
+        visibility and a more organised customer experience.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Commercial terms are discussed directly with each business, taking into consideration its requirements,
+        operational scale and the services it needs.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Payment cost calculator preview ===== -->
+    <section class="prism-glass" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Understand the cost behind every transaction</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Payment expenses</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Payment costs are not always limited to a single processing percentage. Depending on the payment arrangement,
+        businesses may encounter service charges, platform fees, applicable taxes and additional costs associated with
+        particular payment methods or settlement services.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Understanding these expenses is an important part of choosing the right payment arrangement. Our payment-cost
+        calculator helps businesses examine what they currently spend and evaluate a proposed DISHA 8.2 commercial
+        arrangement against their own numbers.
+      </p>
+      <div class="field-group two" style="margin-top: 1.5rem;">
+        <div class="field">
+          <label>Monthly payment volume (₹)</label>
+          <input type="number" id="calc-volume" placeholder="e.g. 1000000" min="0" step="100000" class="field input">
+        </div>
+        <div class="field">
+          <label>Current fee %</label>
+          <input type="number" id="calc-fee" placeholder="e.g. 2" min="0" step="0.1" class="field input">
+        </div>
+      </div>
+      <div class="stat-grid" style="margin-top: 1.5rem;">
+        <div class="stat-card">
+          <div class="stat-label">Current monthly cost</div>
+          <div class="stat-value" id="calc-current">₹0.00</div>
+        </div>
+        <div class="stat-card primary">
+          <div class="stat-label">Estimated annual cost</div>
+          <div class="stat-value" id="calc-annual">₹0.00</div>
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top:1rem;" onclick="showSection('calculator')">Open full calculator</button>
+    </section>
+
+    <!-- ===== SECTION: Merchant control ===== -->
+    <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">More flexibility for the business you have worked to build</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Merchant control</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Businesses should be able to evaluate the services they use and make informed commercial decisions as their
+        requirements change.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 is intended for businesses that want a clearer understanding of their payment activities, greater
+        control over their supported workflows and a software arrangement suited to their operations.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Whether a business is just beginning its digital payment journey or reviewing an existing commercial
+        arrangement, the discussion starts with what that business actually needs.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Customer experience ===== -->
+    <section class="prism-glass-soft" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">A payment experience that keeps customers focused on their purchase</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Customer experience</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Customers expect a straightforward experience when they make a payment. They should be able to understand the
+        amount, follow the available payment instructions and receive clear information about the transaction.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 focuses on keeping this process simple while providing businesses with the relevant information needed
+        to manage their payment activities.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Transaction confidence / Zero Fraud ===== -->
+    <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Zero fraud objective</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Transaction confidence</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Businesses depend on accurate payment information. An unclear transaction status can create uncertainty for the
+        customer, delay fulfilment and increase the amount of work required to resolve a payment.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 is designed around a Zero Fraud objective, with an emphasis on responsible transaction checks and
+        clearly communicated payment outcomes.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        We believe that an unconfirmed payment should never be presented as a confirmed financial event.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Transaction receipts ===== -->
+    <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Clear transaction information</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Business receipts</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        A payment does not end when a customer completes the available payment steps. Businesses and customers also need
+        dependable information about the transaction.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 aims to provide a clear record of the available payment information, including transaction references
+        and receipts where the necessary confirmation has been established.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Use actual verified transaction fields. Never show a successful financial receipt solely because a browser
+        callback or customer claim has been received.
+      </p>
+    </section>
+
+    <!-- ===== SECTION: Commercial approach ===== -->
+    <section class="prism-glass" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="color:#DCCAF7;">A commercial approach suited to your business</div>
+      <h2 style="color:#fff;font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;">No two businesses are the same</h2>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        No two businesses have exactly the same payment requirements. Transaction volumes, business models, operational
+        needs and the level of support required can differ considerably.
+      </p>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        Rather than publishing a standard price that may not reflect those differences, DISHA 8.2 follows a
+        consultation-based commercial approach.
+      </p>
+      <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
+        Our team will review your requirements and provide the relevant service details and commercial proposal,
+        allowing your business to make an informed decision.
+      </p>
+      <button class="btn-primary" style="margin-top:1.5rem;" onclick="showSection('inquiry')">Request a commercial proposal</button>
+    </section>
+
+    <!-- ===== SECTION: International outlook ===== -->
+    <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">International outlook</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Developed with an Indian perspective and an international outlook</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 has been developed around the commercial realities of Indian businesses, with a broader vision for
+        markets where businesses are increasingly connected through digital commerce.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        We welcome business inquiries from India, Dubai, the wider United Arab Emirates and Bahrain. Our discussions
+        focus on the specific requirements of each business and the payment arrangements available within its market.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        Country-specific services depend on actual product availability, applicable requirements and supported financial
+        infrastructure.
+      </p>
+      <div class="field-group three" style="margin-top: 1.5rem;">
+        <div class="field">
+          <button class="btn-primary" style="width:100%;" onclick="location.href='/in/'">India</button>
+        </div>
+        <div class="field">
+          <button class="btn-secondary" style="width:100%;" onclick="location.href='/ae/'">Dubai & UAE</button>
+        </div>
+        <div class="field">
+          <button class="btn-secondary" style="width:100%;" onclick="location.href='/bh/'">Bahrain</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SECTION: Final inquiry ===== -->
+    <section id="inquiry" class="prism-glass-strong" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Let's discuss a better payment arrangement for your business</div>
+      <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Tell us about your business</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        If you are reviewing your payment expenses, considering alternatives to your current provider or looking for a
+        clearer way to manage your payment activities, we would welcome a conversation.
+      </p>
+      <form id="inquiry-form" class="field-group" style="margin-top: 1.5rem;">
+        <div class="field-group two">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="inq-name" placeholder="Your name" required class="field input">
+          </div>
+          <div class="field">
+            <label>Company name</label>
+            <input type="text" id="inq-company" placeholder="Your company" required class="field input">
+          </div>
+        </div>
+        <div class="field-group two">
+          <div class="field">
+            <label>Business email</label>
+            <input type="email" id="inq-email" placeholder="you@company.com" required class="field input">
+          </div>
+          <div class="field">
+            <label>Country</label>
+            <select id="inq-country" class="field input">
+              <option value="IN">India</option>
+              <option value="AE">Dubai & UAE</option>
+              <option value="BH">Bahrain</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Approximate monthly payment volume (₹)</label>
+          <input type="number" id="inq-volume" placeholder="e.g. 1000000" min="0" step="100000" class="field input">
+        </div>
+        <div class="field">
+          <label>Existing payment provider (optional)</label>
+          <input type="text" id="inq-provider" placeholder="e.g. Razorpay, PhonePe" class="field input">
+        </div>
+        <div class="field">
+          <label>Business requirements</label>
+          <textarea id="inq-message" rows="4" placeholder="Tell us about your payment needs…" class="field input"></textarea>
+        </div>
+        <div class="field" style="display:flex;align-items:center;gap:0.5rem;">
+          <input type="checkbox" id="inq-consent" required class="field input" style="width:auto;">
+          <label style="font-size:0.875rem;color:var(--prism-text-secondary);">I consent to DISHA 8.2 contacting me about payment services.</label>
+        </div>
+        <button class="btn-primary" type="submit">Submit inquiry</button>
+      </form>
+      <div id="inq-success" style="display:none;margin-top:1rem;color:var(--prism-success);font-weight:600;">
+        Thank you! Our team will review your inquiry and get in touch soon.
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
+      <div style="padding: 2rem 1rem; max-width: 1200px; margin: 0 auto;">
+        <div style="display:flex;flex-direction:column;gap:1.5rem;align-items:flex-start;">
+          <div class="prism-brand" style="flex-direction:row;align-items:center;">
+            <span class="brandmark">D</span>
+            <span class="brand-name">DISHA 8.2</span>
+          </div>
+          <p style="font-size:0.875rem;color:var(--prism-text-muted);max-width:400px;">
+            Payment software for Indian businesses. DISHA 8.2 is a non-custodial software service that does not take
+            custody of merchant funds.
+          </p>
+          <div style="display:flex;gap:1.5rem;">
+            <a href="/in/" class="btn-ghost" style="padding:0.5rem 1rem;">India</a>
+            <a href="/ae/" class="btn-ghost" style="padding:0.5rem 1rem;">Dubai & UAE</a>
+            <a href="/bh/" class="btn-ghost" style="padding:0.5rem 1rem;">Bahrain</a>
+          </div>
+        </div>
+        <div style="display:flex;gap:2rem;">
+          <a href="/about/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">About</a>
+          <a href="/why-disha/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Why DISHA</a>
+          <a href="/compare-and-save/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Compare</a>
+          <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
+          <a href="/privacy/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Privacy</a>
+          <a href="/terms/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Terms</a>
+        </div>
+        <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--prism-text-muted);">
+          © 2026 DISHA 8.2. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const $$ = sel => document.querySelectorAll(sel);
+
+    // Hide loader after animation
+    window.addEventListener('load', () => {
+      const loader = $('#disha-loader');
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        setTimeout(() => loader.remove(), 600);
+      }, 1500);
+    });
+
+    // Mobile menu toggle
+    function toggleMenu() {
+      const menu = $('#mobile-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Smooth section reveal
+    function showSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      toggleMenu();
+    }
+
+    // Calculator quick math
+    const volumeInput = $('#calc-volume');
+    const feeInput = $('#calc-fee');
+    const currentEl = $('#calc-current');
+    const annualEl = $('#calc-annual');
+    function calc() {
+      const vol = parseFloat(volumeInput.value) || 0;
+      const fee = parseFloat(feeInput.value) || 0;
+      const monthly = (vol * fee / 100);
+      const annual = monthly * 12;
+      currentEl.textContent = '₹' + monthly.toLocaleString('en-IN', {minimumFractionDigits:2,maximumFractionDigits:2});
+      annualEl.textContent = '₹' + annual.toLocaleString('en-IN', {minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    if (volumeInput) volumeInput.addEventListener('input', calc);
+    if (feeInput) feeInput.addEventListener('input', calc);
+
+    // Inquiry form
+    const form = $('#inquiry-form');
+    const success = $('#inq-success');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const orig = btn.textContent;
+        btn.textContent = 'Submitting…';
+        btn.disabled = true;
+        try {
+          const payload = {
+            name: $('#inq-name').value,
+            company: $('#inq-company').value,
+            email: $('#inq-email').value,
+            country: $('#inq-country').value,
+            volume: $('#inq-volume').value,
+            provider: $('#inq-provider').value,
+            message: $('#inq-message').value
+          };
+          const res = await fetch('/api/merchant/inquiry', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            form.reset();
+            form.style.display = 'none';
+            success.style.display = 'block';
+          } else {
+            throw new Error('Submission failed');
+          }
+        } catch (err) {
+          toast('Submission failed. Please try again.', 'error');
+        } finally {
+          btn.textContent = orig;
+          btn.disabled = false;
+        }
+      });
+    }
+
+    // Reveal sections on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+    $$('.prism-glass, .prism-glass-soft, .stat-card').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+
+    // Simple train animation placeholder using CSS transforms
+    const train = document.createElement('div');
+    train.innerHTML = 'DISHA 8.2';
+    train.style.cssText = 'position:fixed;bottom:60px;left:-200px;font-weight:800;letter-spacing:-0.055em;font-size:2rem;color:var(--disha-ink);z-index:5;white-space:no
+wrap;filter:drop-shadow(0 4px 12px rgba(61,37,107,0.2));';
+    document.body.appendChild(train);
+    let trainX = -200;
+    function animateTrain() {
+      trainX += 2;
+      if (trainX > window.innerWidth + 200) trainX = -200;
+      train.style.transform = `translateX(${trainX}px)`;
+      requestAnimationFrame(animateTrain);
+    }
+    // Only animate train if not reduced motion
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      animateTrain();
+    }
+  </script>
 </body>
 </html>

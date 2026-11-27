@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF8F4">
+  <title>Payment Safety | DISHA 8.2</title>
+  <meta name="description" content="Payment safety with DISHA 8.2 — a non-custodial payment software product for Indian businesses. Zero fraud objective with server-confirmed payment verification.">
+  <meta property="og:title" content="Payment Safety | DISHA 8.2">
+  <meta property="og:description" content="Payment safety with DISHA 8.2 — a non-custodial payment software product for Indian businesses.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://disha82.com/payment-safety/">
+  <link rel="canonical" href="https://disha82.com/payment-safety/">
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="/static/disha.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <script src="/static/prism.js?v=1.1" defer></script>
+</head>
+<body class="prism-body disha-body">
+  <div id="toast-container"></div>
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand disha-brand" onclick="location.href='/'">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+        <span class="brand-sub">Payment Software</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="btn-secondary">Home</a>
+      <button class="btn-primary" onclick="showSection('inquiry')">Business Inquiry</button>
+    </div>
+  </header>
+  <main class="prism-main" style="padding: 4rem 1rem;">
+    <section class="prism-glass-strong" style="max-width: 900px; margin: 0 auto;">
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Payment safety</div>
+      <h1 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Zero fraud objective</h2>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:700px;margin-bottom:1.5rem;">
+        Businesses depend on accurate payment information. An unclear transaction status can create uncertainty for the customer, delay fulfilment and increase the amount of work required to resolve a payment.
+      </p>
+      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
+        DISHA 8.2 is designed around a Zero Fraud objective, with an emphasis on responsible transaction checks and clearly communicated payment outcomes.
+      </p>
+      <div class="field-group two" style="margin-top: 2rem;">
+        <div class="field">
+          <label>Server-confirmed verification</label>
+          <div class="card" style="padding:1rem;">
+            <p style="font-size:0.9375rem;color:var(--prism-text-secondary);margin:0;">
+              Financially verified remains false until server-confirmed debit match. An unconfirmed payment should never be presented as a confirmed financial event.
+            </p>
+          </div>
+        </div>
+        <div class="field">
+          <label>Payer device treated as hostile</label>
+          <div class="card" style="padding:1rem;">
+            <p style="font-size:0.9375rem;color:var(--prism-text-secondary);margin:0;">
+              No screenshot, UTR, browser resume or synthetic local signing may set financially_verified=true. All verification is server-side.
+            </p>
+          </div>
+        </div>
+        <div class="field">
+          <label>MCC is not debit evidence</label>
+          <div class="card" style="padding:1rem;">
+            <p style="font-size:0.9375rem;color:var(--prism-text-secondary);margin:0;">
+              MCC (Merchant Category Code) is optional P2M metadata, not debit evidence. DISHA 8.2 does not rely on MCC for payment verification.
+            </p>
+          </div>
+        </div>
+        <div class="field">
+          <label>Transparent transaction records</label>
+          <div class="card" style="padding:1rem;">
+            <p style="font-size:0.9375rem;color:var(--prism-text-secondary);margin:0;">
+              Transaction receipts include UTR/RRN and SHA-256 audit trail where available. Businesses receive clear transaction information for their records.
+            </p>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top: 1.5rem;" onclick="showSection('inquiry')">Request a commercial proposal</button>
+    </section>
+  </main>
+  <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
+    <div style="padding: 2rem 1rem; max-width: 1000px; margin: 0 auto; display:flex;flex-direction:column;gap:1rem;">
+      <div class="prism-brand" style="align-items:flex-start;">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+      </div>
+      <p style="font-size:0.875rem;color:var(--prism-text-muted);">Payment software for Indian businesses. DISHA 8.2 is a non-custodial software service that does not take custody of merchant funds.</p>
+      <div style="display:flex;gap:2rem;">
+        <a href="/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Home</a>
+        <a href="/about/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Why DISHA</a>
+        <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
+      </div>
+      <div style="margin-top:1rem;font-size:0.75rem;color:var(--prism-text-muted);">
+        © 2026 DISHA 8.2. All rights reserved.
+      </div>
+    </div>
+  </footer>
+  <script src="/static/prism.js?v=1.1"></script>
+</body>
+</html>

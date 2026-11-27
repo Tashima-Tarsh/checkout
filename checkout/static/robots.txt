@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://disha82.com/sitemap.xml
+
+# Disallow private checkout sessions and administrative areas
+Disallow: /api/
+Disallow: /static/admin.html
+Disallow: /static/merchant-portal.html
+Disallow: /static/agent-portal.html
+Disallow: /static/owner-dashboard.html
+Disallow: /static/prism-command.html
