@@ -24,10 +24,6 @@ android {
         }
     }
 
-    sourceSets {
-        main.java
-    }
-
     buildTypes {
         release {
             minifyEnabled false
