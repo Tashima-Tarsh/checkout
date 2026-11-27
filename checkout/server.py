@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import os
+import ipaddress
 import re
 import secrets
 import time
@@ -475,9 +476,40 @@ _viewer_ws: WebSocket | None = None
 
 # WebSocket authentication helper for Android Workspace
 async def _auth_websocket(websocket: WebSocket) -> str | None:
-    """Disabled until the SaaS owner and device authentication are integrated."""
-    await websocket.close(code=4001, reason="Android Workspace authentication not configured")
-    return None
+    """Authenticate WebSocket connection using Bearer token from query params.
+    Token must match the PDEP_ADMIN_TOKEN environment variable.
+    Returns the tenant_id on success.
+    """
+    auth_header = websocket.query_params.get("authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        await websocket.close(code=4001, reason="Authentication required")
+        return None
+
+    token = auth_header.split(" ", 1)[1]
+
+    admin_token = os.environ.get("PDEP_ADMIN_TOKEN", "")
+    if len(admin_token) < 32:
+        await websocket.close(code=4001, reason="Admin access is disabled until explicitly configured")
+        return None
+
+    admin_ip = os.environ.get("PDEP_ADMIN_IP_ALLOWLIST", "")
+    try:
+        allowed = [ipaddress.ip_network(x.strip(), strict=False) for x in admin_ip.split(",") if x.strip()]
+    except ValueError:
+        await websocket.close(code=4001, reason="Admin access is disabled until explicitly configured")
+        return None
+
+    peer = ipaddress.ip_address("127.0.0.1")
+    if not any(peer in net for net in allowed):
+        await websocket.close(code=403, reason="IP is not allowlisted")
+        return None
+
+    if not secrets.compare_digest(token, admin_token):
+        await websocket.close(code=4001, reason="Invalid token")
+        return None
+
+    tenant_id = os.getenv("ANDROID_TENANT_ID", "shop-0001")
+    return tenant_id
 
 
 @app.get("/api/android/workspace/status")
