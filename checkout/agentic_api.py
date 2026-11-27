@@ -1026,3 +1026,131 @@ def _device_settle_state(conn, order_id, state, observed_minor, ts, decision):
         merchant_id=merchant_id, order_id=order_id, event="DEVICE_OBS_" + state,
         detail=decision, created=ts,
     ))
+
+
+# ============================================================================
+# Merchant agent daily collection limit and UPI registration
+# ============================================================================
+
+class UpiRegisterInput(BaseModel):
+    upi_id: str = Field(pattern=r"^[a-zA-Z0-9_.-]{2,256}@[a-zA-Z0-9_.-]{2,64}$")
+    mobile_number: str = Field(pattern=r"^[0-9]{10}$")
+    account_holder: str = Field(min_length=2, max_length=100)
+    bank_name: str = Field(min_length=1, max_length=100)
+    account_number: str = Field(pattern=r"^[0-9]{6,34}$")
+
+
+@router.get("/android/daily-limit", response_model=dict)
+def android_daily_limit(request: Request, authorization: Token = None):
+    """Return today's collected amount and the daily limit for the device's merchant."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    today_start = now() - (now() % 86400)
+    with request.app.state.engine.connect() as conn:
+        collected = conn.scalar(
+            select(func.coalesce(func.sum(orders.c.amount_minor), 0)).where(
+                orders.c.merchant_id == merchant_id,
+                orders.c.status == "PAID",
+                orders.c.created >= today_start,
+            )
+        ) or 0
+    return {
+        "merchant_id": merchant_id,
+        "collected_today_paise": int(collected),
+        "collected_today_rupees": int(collected) / 100.0,
+        "daily_limit_paise": DAILY_COLLECTION_LIMIT_PAISE,
+        "daily_limit_rupees": DAILY_COLLECTION_LIMIT_PAISE / 100.0,
+        "remaining_paise": max(0, DAILY_COLLECTION_LIMIT_PAISE - int(collected)),
+        "can_collect": int(collected) < DAILY_COLLECTION_LIMIT_PAISE,
+    }
+
+
+@router.post("/android/register-upi", status_code=201, response_model=dict)
+def android_register_upi(request: Request, item: UpiRegisterInput, authorization: Token = None):
+    """Register the agent's own UPI ID + mobile number as a receiving account.
+
+    Bound to the device's paired merchant. Each agent mobile registers its
+    own UPI and mobile number once; thereafter it can create checkouts and
+    collect incoming UPI credits against that account.
+    """
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    device_id = row["device_id"]
+
+    with request.app.state.engine.begin() as conn:
+        # Check if this merchant already has an account with this UPI.
+        existing = conn.scalar(select(accounts.c.id).where(
+            accounts.c.merchant_id == merchant_id,
+            accounts.c.vpa == item.upi_id.lower(),
+        ))
+        if existing is not None:
+            # Link this device to the existing account (idempotent).
+            try:
+                conn.execute(agent_sessions.insert().values(
+                    account_id=existing, agent_id=device_id, state="AUTH_REQUIRED", expires=0,
+                ))
+            except IntegrityError:
+                pass  # Agent session already exists for this device
+            return {"registered": False, "account_id": existing, "upi_id": item.upi_id.lower(),
+                    "note": "UPI already registered for this merchant."}
+
+        cipher = request.app.state.account_cipher
+        account_id = secrets.token_hex(16)
+        try:
+            conn.execute(select(merchants.c.id).where(merchants.c.id == merchant_id).with_for_update())
+            current = conn.scalar(select(func.count()).select_from(accounts).where(accounts.c.merchant_id == merchant_id))
+            if current >= 1000:
+                raise HTTPException(409, "Merchant account limit exceeded")
+            conn.execute(accounts.insert().values(
+                id=account_id, merchant_id=merchant_id, vpa=item.upi_id.lower(),
+                bank=item.bank_name, holder=item.account_holder, last4=item.account_number[-4:],
+                account_cipher=cipher.encrypt(item.account_number.encode()).decode(),
+                mobile_cipher=cipher.encrypt(item.mobile_number.encode()).decode(),
+                account_type="MERCHANT", mcc=None,
+            ))
+            conn.execute(agent_sessions.insert().values(
+                account_id=account_id, agent_id=device_id, state="AUTH_REQUIRED", expires=0,
+            ))
+            event(conn, merchant_id, "AGENT_UPI_REGISTERED")
+        except IntegrityError:
+            raise HTTPException(409, "UPI already registered") from None
+    return {"registered": True, "account_id": account_id, "upi_id": item.upi_id.lower(),
+            "mobile_number": item.mobile_number}
+
+
+DAILY_COLLECTION_LIMIT_PAISE = 7000000
+
+
+class MerchantEmailInput(BaseModel):
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@router.post("/admin/merchant-email", dependencies=[Depends(require_owner)])
+def admin_set_merchant_email(request: Request, merchant_id: str, item: MerchantEmailInput):
+    """Set the notification email for a merchant (owner only)."""
+    with request.app.state.engine.begin() as conn:
+        exists = conn.scalar(select(merchants.c.id).where(merchants.c.id == merchant_id))
+        if exists is None:
+            raise HTTPException(404, "Merchant not found")
+        conn.execute(merchants.update().where(merchants.c.id == merchant_id).values(email=item.email))
+    return {"merchant_id": merchant_id, "email": item.email}
+
+
+class EmailNotifyInput(BaseModel):
+    order_id: str
+    status: str
+
+
+@router.post("/android/email-notify")
+def android_email_notify(request: Request, item: EmailNotifyInput, authorization: Token = None):
+    """Queue a payment email notification for the device's merchant."""
+    row = device_bearer(request, authorization)
+    merchant_id = row["merchant_id"]
+    with request.app.state.engine.begin() as conn:
+        email = conn.scalar(select(merchants.c.email).where(merchants.c.id == merchant_id))
+        event(conn, merchant_id, "EMAIL_NOTIFY")
+    if email is None:
+        raise HTTPException(400, "Merchant email not configured")
+    return {"merchant_id": merchant_id, "order_id": item.order_id, "status": item.status,
+            "email": email, "queued": True}
+

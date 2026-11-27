@@ -11,6 +11,7 @@ class ObservationActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
             credentialStore = CredentialStore.init(this)
             buildUI()

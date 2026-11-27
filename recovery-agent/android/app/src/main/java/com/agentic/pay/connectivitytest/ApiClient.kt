@@ -2,6 +2,7 @@ package com.agentic.pay.connectivitytest
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,7 +20,7 @@ object ApiClient {
 
     private fun httpPost(path: String, body: Map<String, Any?>, authToken: String? = null): Result<String> {
         return try {
-            val url = URL(DeviceConfig.BACKEND_URL + path)
+            val url = URL(DeviceConfig.backendUrl + path)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
@@ -46,7 +47,7 @@ object ApiClient {
 
     private fun httpGet(path: String, authToken: String? = null): Result<String> {
         return try {
-            val url = URL(DeviceConfig.BACKEND_URL + path)
+            val url = URL(DeviceConfig.backendUrl + path)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("Accept", "application/json")
@@ -120,6 +121,65 @@ object ApiClient {
         }
     }
 
+    /** Register the agent's UPI + mobile number as a receiving account. */
+    fun registerUpi(credential: String, upiId: String, mobileNumber: String,
+                    accountHolder: String, bankName: String, accountNumber: String,
+                    callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mapOf(
+                "upi_id" to upiId,
+                "mobile_number" to mobileNumber,
+                "account_holder" to accountHolder,
+                "bank_name" to bankName,
+                "account_number" to accountNumber,
+            )
+            val result = httpPost("/api/android/register-upi", body, credential)
+            callback(result)
+        }
+    }
+
+    /** Fetch daily collection limit status for the device's merchant. */
+    fun dailyLimit(credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val result = httpGet("/api/android/daily-limit", credential)
+            callback(result)
+        }
+    }
+
+    /** Create a checkout order. Returns order id and checkout path. */
+    fun createOrder(credential: String, amountPaise: Long, accountId: String,
+                    callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mapOf(
+                "account_id" to accountId,
+                "amount_minor" to amountPaise,
+                "shared_amount" to false,
+            )
+            val result = httpPost("/api/orders", body, credential)
+            callback(result)
+        }
+    }
+
+    /** Fetch checkout / order status by order id. */
+    fun getCheckout(orderId: String, credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val result = httpGet("/api/checkout/$orderId", credential)
+            callback(result)
+        }
+    }
+
+    /** Queue a payment email notification for the device's merchant. */
+    fun emailNotify(orderId: String, status: String, credential: String, callback: (Result<String>) -> Unit) {
+        thread {
+            val body = mapOf(
+                "order_id" to orderId,
+                "status" to status,
+            )
+            val result = httpPost("/api/android/email-notify", body, credential)
+            callback(result)
+        }
+    }
+
     data class DeviceObservation(
         val orderId: String,
         val accountId: String,
@@ -131,5 +191,21 @@ object ApiClient {
         val observationTimestamp: Long = System.currentTimeMillis() / 1000,
         val checkoutCreated: Long = 0,
         val checkoutExpires: Long = 0,
+    )
+
+    data class OrderResult(
+        val id: String,
+        val checkoutPath: String,
+        val payableMinor: Long,
+    )
+
+    data class DailyLimit(
+        val merchantId: String,
+        val collectedTodayPaise: Long,
+        val collectedTodayRupees: Double,
+        val dailyLimitPaise: Long,
+        val dailyLimitRupees: Double,
+        val remainingPaise: Long,
+        val canCollect: Boolean,
     )
 }

@@ -13,6 +13,7 @@ merchants = Table(
     Column("id", String(32), primary_key=True),
     Column("name", String(150), nullable=False),
     Column("token_hash", String(64), unique=True, nullable=False),
+    Column("email", String(254), nullable=True),
 )
 accounts = Table(
     "ap_accounts", metadata,
@@ -264,4 +265,9 @@ def ensure_schema(engine):
         if "detail" not in columns:
             connection.execute(text(
                 "ALTER TABLE ap_audit ADD COLUMN detail TEXT"
+            ))
+        merchant_cols = {c["name"] for c in inspector.get_columns("ap_merchants")}
+        if "email" not in merchant_cols:
+            connection.execute(text(
+                "ALTER TABLE ap_merchants ADD COLUMN email VARCHAR(254)"
             ))

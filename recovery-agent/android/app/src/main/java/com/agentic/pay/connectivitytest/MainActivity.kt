@@ -18,25 +18,31 @@ class MainActivity : Activity() {
     private lateinit var versionText: TextView
     private lateinit var permissionText: TextView
     private lateinit var eventText: TextView
+    private lateinit var dailyLimitText: TextView
     private lateinit var pairButton: Button
     private lateinit var permissionButton: Button
     private lateinit var refreshButton: Button
+    private lateinit var upiButton: Button
+    private lateinit var checkoutButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
+            // Security: refuse to run on rooted devices
+            if (RootUtil.isRooted(this)) {
+                showErrorScreen("Security: Rooted devices are not allowed.")
+                return
+            }
             credentialStore = CredentialStore.init(this)
-        } catch (e: Exception) {
-            showErrorScreen("Initialization failed: ${e.message}")
-            return
-        }
-
-        try {
+            DeviceConfig.init(this)
             buildUI()
             updateButtons()
             refreshStatus()
+            loadDailyLimit()
         } catch (e: Exception) {
-            showErrorScreen("UI setup failed: ${e.message}")
+            showErrorScreen("Initialization failed: ${e.message}")
+            return
         }
     }
 
@@ -54,14 +60,14 @@ class MainActivity : Activity() {
         layout.addView(title)
 
         val workspace = TextView(this).apply {
-            text = "Workspace: ${DeviceConfig.MERCHANT}"
+            text = "Merchant: ${DeviceConfig.merchant}"
             textSize = 16f
         }
         layout.addView(workspace)
 
         val deviceId = TextView(this).apply {
-            text = "Device ID: ${DeviceConfig.DEVICE_ID}"
-            textSize = 16f
+            text = "Device ID: ${DeviceConfig.deviceId}"
+            textSize = 14f
         }
         layout.addView(deviceId)
 
@@ -82,6 +88,12 @@ class MainActivity : Activity() {
             textSize = 14f
         }
         layout.addView(heartbeatText)
+
+        dailyLimitText = TextView(this).apply {
+            text = "Daily limit: —"
+            textSize = 14f
+        }
+        layout.addView(dailyLimitText)
 
         val divider1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 2); setBackgroundColor(0xFF283344.toInt()) }
@@ -118,6 +130,18 @@ class MainActivity : Activity() {
         pairButton = Button(this).apply { text = "Enroll Device (Pairing Code)" }
         layout.addView(pairButton)
 
+        upiButton = Button(this).apply {
+            text = "Register My UPI"
+            isEnabled = false
+        }
+        layout.addView(upiButton)
+
+        checkoutButton = Button(this).apply {
+            text = "Create Payment Link"
+            isEnabled = false
+        }
+        layout.addView(checkoutButton)
+
         refreshButton = Button(this).apply { text = "Refresh Status" }
         layout.addView(refreshButton)
 
@@ -134,11 +158,24 @@ class MainActivity : Activity() {
             startActivity(intent)
         }
 
+        upiButton.setOnClickListener {
+            val intent = Intent(this, RegisterUpiActivity::class.java)
+            startActivity(intent)
+        }
+
+        checkoutButton.setOnClickListener {
+            val intent = Intent(this, CheckoutActivity::class.java)
+            startActivity(intent)
+        }
+
         permissionButton.setOnClickListener {
             openNotificationSettings()
         }
 
-        refreshButton.setOnClickListener { refreshStatus() }
+        refreshButton.setOnClickListener {
+            refreshStatus()
+            loadDailyLimit()
+        }
     }
 
     private fun openNotificationSettings() {
@@ -180,6 +217,7 @@ class MainActivity : Activity() {
         try {
             updateButtons()
             refreshStatus()
+            loadDailyLimit()
             checkNotificationPermission()
         } catch (e: Exception) {
             showErrorScreen("Resume failed: ${e.message}")
@@ -188,12 +226,13 @@ class MainActivity : Activity() {
 
     private fun updateButtons() {
         val enrolled = credentialStore.isEnrolled()
-        observeButtonState(enrolled)
+        val upiRegistered = DeviceConfig.upiRegistered
         pairButton.text = if (enrolled) "Re-enroll Device" else "Enroll Device (Pairing Code)"
+        upiButton.isEnabled = enrolled
+        checkoutButton.isEnabled = enrolled && upiRegistered
     }
 
     private fun observeButtonState(enrolled: Boolean) {
-        // The manual observation button is removed — observation is automatic.
         // Enrollment state is reflected in the UI text only.
     }
 
@@ -213,6 +252,35 @@ class MainActivity : Activity() {
         val pkg = packageName
         val service = "$pkg/.UpiPaymentObserver"
         return flat.split(":").any { it.contains(service) }
+    }
+
+    private fun loadDailyLimit() {
+        val token = credentialStore.getCredential() ?: return
+        ApiClient.dailyLimit(token) { result ->
+            runOnUiThread {
+                when (result) {
+                    is ApiClient.Result.Success -> {
+                        try {
+                            val json = JsonParser.parseString(result.value).asJsonObject
+                            val collected = json.get("collected_today_rupees").asDouble
+                            val limit = json.get("daily_limit_rupees").asDouble
+                            val remaining = json.get("remaining_rupees").asDouble
+                            val canCollect = json.get("can_collect").asBoolean
+                            dailyLimitText.text = "Daily: ₹${"%.2f".format(collected)} / ₹${"%.2f".format(limit)} (left: ₹${"%.2f".format(remaining)})"
+                            if (!canCollect) {
+                                checkoutButton.isEnabled = false
+                                checkoutButton.text = "Daily limit reached — shop closed"
+                            }
+                        } catch (e: Exception) {
+                            dailyLimitText.text = "Daily limit: parse error"
+                        }
+                    }
+                    is ApiClient.Result.Error -> {
+                        dailyLimitText.text = "Daily limit: ${result.message}"
+                    }
+                }
+            }
+        }
     }
 
     private fun refreshStatus() {

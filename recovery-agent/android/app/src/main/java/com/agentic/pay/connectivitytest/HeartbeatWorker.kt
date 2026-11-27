@@ -19,7 +19,7 @@ class HeartbeatWorker(
             return Result.failure()
         }
         return try {
-            val url = URL(DeviceConfig.BACKEND_URL + "/api/android/heartbeat")
+            val url = URL(DeviceConfig.backendUrl + "/api/android/heartbeat")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")

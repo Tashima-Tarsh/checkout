@@ -16,6 +16,7 @@ class PairingActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         try {
             credentialStore = CredentialStore.init(this)
             keyPair = DeviceKeyStore.getOrCreateKeyPair(this)
@@ -116,7 +117,7 @@ class PairingActivity : Activity() {
         val publicKeyPem = DeviceKeyStore.getPublicKeyPem(keyPair)
         val appVersion = DeviceConfig.APP_VERSION_NAME
 
-        ApiClient.pairDevice(code, DeviceConfig.DEVICE_ID, publicKeyPem, appVersion) { result ->
+        ApiClient.pairDevice(code, DeviceConfig.deviceId, publicKeyPem, appVersion) { result ->
             runOnUiThread {
                 submitButton.isEnabled = true
                 when (result) {

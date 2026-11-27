@@ -305,7 +305,7 @@ class UpiPaymentObserver : NotificationListenerService() {
 
     private fun httpPost(path: String, body: Map<String, Any?>, authToken: String): ApiClient.Result<String> {
         return try {
-            val url = URL(DeviceConfig.BACKEND_URL + path)
+            val url = URL(DeviceConfig.backendUrl + path)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
