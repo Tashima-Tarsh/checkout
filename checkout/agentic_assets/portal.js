@@ -23,7 +23,7 @@ function filtered(){const q=$('order-search').value.toLowerCase(),s=$('order-fil
 function renderOrders(){table('orders',filtered(),r=>[r.id,date(r.created),money(r.amount_minor),r.status==='AWAITING_PAYMENT'&&r.expires<=Date.now()/1000?'EXPIRED':(r.settlement?.state||r.status),orderLink(r)],'No matching orders.',5)}
 function view(name){const root=$(page);if(!root)return;const target=root.querySelector('[id="view-'+name+'"]');if(!target){if(page==='merchant'&&name==='agentmonitor')location.href='/agents';return}root.querySelectorAll('.view').forEach(v=>{v.hidden=v!==target;v.classList.toggle('active',v===target)});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));document.body.dataset.currentView=name;const button=[...$(page+'-nav').querySelectorAll('[data-view]')].find(b=>b.dataset.view===name);if(button)$('heading').textContent=(button.querySelector('span')||button).textContent.trim();$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')}
 async function refresh(){
- if(page==='owner'){const rows=await call('/owner/merchants');table('merchants',rows,r=>[r.name,r.id],'No merchants registered.',2);$('ownerCount').textContent=rows.length}
+ if(page==='owner'){const rows=await call('/owner/merchants');table('merchants',rows,r=>[r.name,r.id],'No merchants registered.',2);$('ownerCount').textContent=rows.length;await refreshOwnerTab(document.body.dataset.currentView||'overview')}
  else if(page==='agents'){const rows=await call('/agents');table('agent-list',rows,r=>[r.agent_id,r.vpa,r.bank,'•••• '+r.last4,r.state,date(r.expires)],'No agents registered.',6);$('agentCount').textContent=rows.length;$('agentAuth').textContent=rows.filter(r=>r.state==='AUTH_REQUIRED').length}
  else {const [accounts,orders]=await Promise.all([call('/accounts'),call('/orders')]);recentOrders=orders;table('accounts',accounts,r=>[r.vpa,r.holder,r.bank,'•••• '+r.last4,r.state],'No receiving accounts registered.',5);renderOrders();$('new-order').elements.account_id.replaceChildren(...accounts.map(r=>new Option(r.vpa,r.id)));$('metricAccounts').textContent=accounts.length;$('metricOrders').textContent=orders.length;$('metricPending').textContent=orders.filter(r=>r.status==='PENDING').length;$('metricVolume').textContent=money(orders.reduce((n,r)=>n+r.amount_minor,0));$('order-summary').textContent=orders.length?'Recent requests: '+orders.filter(r=>r.status==='PENDING').length+' pending · '+orders.filter(r=>r.status==='AWAITING_PAYMENT').length+' awaiting payment.':'No payment requests yet.';$('pending-bar').style.width=(orders.length?orders.filter(r=>r.status==='PENDING').length/orders.length*100:0)+'%';$('intelligence-summary').textContent=orders.length+' recent payment requests. Verification states come from the server ledger.'}
 }
@@ -103,7 +103,7 @@ submit('new-order', async ({amount, account_id}) => {
   await refresh();
 }, 'Checkout link created.');
 
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.view)));
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{view(b.dataset.view);if(page==='owner')refreshOwnerTab(b.dataset.view)}));
 $('sideToggle').onclick=()=>{const open=$('appSide').classList.toggle('open');$('sideBackdrop').hidden=!open;$('sideToggle').setAttribute('aria-expanded',String(open))};
 $('sideBackdrop').onclick=()=>{$('appSide').classList.remove('open');$('sideBackdrop').hidden=true;$('sideToggle').setAttribute('aria-expanded','false')};
 $('refresh').onclick=async()=>{try{await refresh();$('status').textContent='Workspace refreshed.'}catch(e){$('status').textContent=e.message}};
@@ -115,6 +115,20 @@ $('check-health').onclick=async()=>{try{const r=await fetch('/healthz');const x=
 
 async function refreshAndroidRuntime(){
  const el=$('android-runtime-status'); if(!el || page!=='owner') return;
- try { const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Device connected':'Cloud Android runtime not connected'; } catch {el.textContent='Device status unavailable';}
+ try { const link=$('android-provider-display');if(link){link.hidden=true;link.removeAttribute('href');} const res=await fetch('/api/android/workspace/status',{cache:'no-store'}); if(!res.ok){el.textContent='Sign in with your existing email and password to check device status.';return;} const data=await res.json();el.textContent=data.connected?'Genymotion device online':data.state.replaceAll('_',' '); const link=$('android-provider-display');if(link){link.hidden=!data.connected||!data.display_url;if(!link.hidden)link.href=data.display_url;else link.removeAttribute('href');} } catch {el.textContent='Device status unavailable';}
 }
 $('android-refresh').addEventListener('click',refreshAndroidRuntime);
+
+async function refreshOwnerTab(name){
+ const note=$('owner-note-'+name),body=$('owner-data-'+name),head=$('owner-head-'+name);
+ if(name!=='overview'&&!note){if(name==='androidworkspace')await refreshAndroidRuntime();return;}
+ try{
+  const result=await call('/owner/dashboard/'+name);
+  if(name==='overview'){const el=$('owner-summary');if(el)el.textContent=result.rows.reduce((n,r)=>n+r.count,0)+' payment requests · '+money(result.rows.reduce((n,r)=>n+(r.requested_minor||0),0))+' requested (not confirmed receipts)';return;}
+  note.textContent=result.note;head.replaceChildren();body.replaceChildren();
+  const keys=Object.keys(result.rows[0]||{});
+  if(!keys.length){const tr=document.createElement('tr'),td=document.createElement('td');td.textContent='No matching records.';tr.append(td);body.append(tr);return;}
+  const tr=document.createElement('tr');for(const key of keys){const th=document.createElement('th');th.textContent=key.replaceAll('_',' ');tr.append(th)}head.append(tr);
+  table('owner-data-'+name,result.rows,r=>keys.map(k=>k.endsWith('_minor')&&r[k]!=null?money(r[k]):['created','updated','expires','retry_at'].includes(k)?date(r[k]):r[k]),'No matching records.',keys.length);
+ }catch(e){if(note){note.textContent=e.message;body.replaceChildren();head.replaceChildren();}else if($('owner-summary'))$('owner-summary').textContent=e.message;}
+}
