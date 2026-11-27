@@ -5,6 +5,7 @@ These tools configure payment initiation UI, not financial settlement.
 from __future__ import annotations
 
 import re
+import os
 import time
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field, field_validator
@@ -104,4 +105,52 @@ def overview(request: Request):
         "states": {state: count for state, count in by_state},
         "financially_verified": 0,
         "note": "Operational observations, not evidence of funds debited.",
+    }
+
+
+@router.get("/api/admin/health")
+def health(request: Request):
+    """Per-tab health verification for the SaaS control center.
+
+    Each tab's backing API is probed so the admin UI can show a verified
+    status badge per section: overview, appearance, inventory, android
+    workspace. Never sets financially_verified.
+    """
+    now = int(time.time())
+    tabs = {}
+    with request.app.state.engine.connect() as connection:
+        # Overview tab: sessions table readable
+        try:
+            connection.scalar(select(func.count()).select_from(sessions))
+            tabs["overview"] = {"healthy": True, "note": "Sessions table readable"}
+        except Exception as exc:
+            tabs["overview"] = {"healthy": False, "note": str(exc)[:120]}
+
+        # Appearance tab: settings table readable
+        try:
+            connection.execute(select(checkout_settings).where(checkout_settings.c.id == 1))
+            tabs["appearance"] = {"healthy": True, "note": "Appearance settings readable"}
+        except Exception as exc:
+            tabs["appearance"] = {"healthy": False, "note": str(exc)[:120]}
+
+        # Inventory tab: vpa_routes table readable
+        try:
+            connection.scalar(select(func.count()).select_from(vpa_routes))
+            tabs["inventory"] = {"healthy": True, "note": "Recipient route inventory readable"}
+        except Exception as exc:
+            tabs["inventory"] = {"healthy": False, "note": str(exc)[:120]}
+
+    # Android Workspace tab: check configuration flag
+    android_configured = bool(os.getenv("ANDROID_DEVICE_ID") and os.getenv("ANDROID_TENANT_ID"))
+    tabs["android_workspace"] = {
+        "healthy": android_configured,
+        "note": "Android Workspace authentication not configured" if not android_configured else "Android Workspace configured",
+    }
+
+    all_healthy = all(t["healthy"] for t in tabs.values())
+    return {
+        "healthy": all_healthy,
+        "checked_at": now,
+        "tabs": tabs,
+        "note": "Per-tab API verification; financially_verified remains 0.",
     }

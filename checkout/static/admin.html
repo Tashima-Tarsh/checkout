@@ -36,6 +36,7 @@
     </div>
 
     <div id="overview" class="overview-grid" hidden aria-live="polite"></div>
+    <span id="health-overview" class="health-pill"></span>
   </section>
 
   <section class="panel" aria-label="Appearance">
@@ -46,6 +47,7 @@
         <p>Checkout brand, headline, accent color, and theme.</p>
       </div>
     </div>
+    <span id="health-appearance" class="health-pill"></span>
     <form id="appearanceForm" class="form-grid">
       <div class="field">
         <label for="brandName">Checkout brand</label>
@@ -84,6 +86,7 @@
         <p>Import VPA routes (CSV/XLSX, up to 500 rows / 1 MB). Inventory only — no debit verified.</p>
       </div>
     </div>
+    <span id="health-inventory" class="health-pill"></span>
     <form id="inventory" class="form-grid">
       <div class="field compact">
         <label>Admin bearer credential</label>
@@ -108,9 +111,11 @@
         <p>Live Android receiver device observation. View and interact with the assigned Android receiving device.</p>
       </div>
     </div>
+    <span id="health-android_workspace" class="health-pill"></span>
     <div class="field compact">
       <label>Android Workspace access</label>
       <button id="openAndroidWorkspace" type="button" class="primary-btn" disabled>Open Android Workspace</button>
+      <span id="androidStatusText" class="notice" style="margin-left:10px;font-size:11px;"></span>
     </div>
     <p id="androidWorkspaceResult" class="notice"></p>
   </section>
