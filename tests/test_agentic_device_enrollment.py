@@ -571,3 +571,24 @@ def test_owner_dashboard_enrollment_functionality(api):
     res = client.get("/api/android/workspace/status", headers=owner_headers())
     assert res.status_code == 200
     assert res.json()["state"] == "ENROLLMENT_PENDING"
+
+
+def test_device_status_recovery_and_rotation(api):
+    client, engine, merchant, account = api
+    def pair():
+        code = client.post("/api/android/devices/pairing", json={"merchant_id": merchant, "agent_id": "AGENT-0001"}, headers=owner_headers()).json()["code"]
+        response = client.post("/api/android/pair", json={"code": code, "device_id": "RecoveryDevice01", "public_key_pem": "-----BEGIN PUBLIC KEY-----\\n" + "A" * 120 + "\\n-----END PUBLIC KEY-----"})
+        assert response.status_code == 201
+        return {"Authorization": "Bearer " + response.json()["credential"]}
+    headers = pair()
+    assert client.get("/api/android/device/status").status_code == 401
+    with engine.begin() as conn:
+        conn.execute(devices.update().where(devices.c.device_id == "RecoveryDevice01").values(state="OFFLINE"))
+    assert client.get("/api/android/device/status", headers=headers).json()["connected"] is False
+    assert client.post("/api/android/heartbeat", headers=headers).status_code == 204
+    status = client.get("/api/android/device/status", headers=headers).json()
+    assert status["connected"] is True
+    assert status["financially_verified"] is False
+    replacement = pair()
+    assert client.get("/api/android/device/status", headers=headers).status_code == 401
+    assert client.get("/api/android/device/status", headers=replacement).status_code == 200

@@ -16,8 +16,15 @@ class ObservationActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        credentialStore = CredentialStore.init(this)
+        try {
+            credentialStore = CredentialStore.init(this)
+            buildUI()
+        } catch (e: Exception) {
+            showErrorScreen("Initialization failed: ${e.message}")
+        }
+    }
 
+    private fun buildUI() {
         if (!credentialStore.isEnrolled()) {
             val layout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -93,6 +100,35 @@ class ObservationActivity : Activity() {
         backButton.setOnClickListener { finish() }
     }
 
+    private fun showErrorScreen(message: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        val title = TextView(this).apply {
+            text = "Evidence Submission Error"
+            textSize = 22f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        layout.addView(title)
+
+        val errorText = TextView(this).apply {
+            text = message
+            textSize = 16f
+        }
+        layout.addView(errorText)
+
+        val retryButton = Button(this).apply { text = "Retry" }
+        layout.addView(retryButton)
+
+        setContentView(layout)
+
+        retryButton.setOnClickListener {
+            recreate()
+        }
+    }
+
     private fun submit() {
         val orderId = orderIdInput.text.toString().trim()
         val amountStr = amountInput.text.toString().trim()
@@ -121,6 +157,7 @@ class ObservationActivity : Activity() {
             orderId = orderId,
             amountPaise = amount,
             currency = "INR",
+            accountId = credentialStore.getAccountId() ?: DeviceConfig.MERCHANT,
             transactionReference = utrFinal,
             observationDirection = "incoming",
             evidenceProvenance = "user_authorized",
