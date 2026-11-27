@@ -159,3 +159,41 @@ function tintColor(color, percent) {
   const toHex = n => n.toString(16).padStart(2, '0');
   return '#' + toHex(Math.round((255 - R) * percent / 100 + R)) + toHex(Math.round((255 - G) * percent / 100 + G)) + toHex(Math.round((255 - B) * percent / 100 + B));
 }
+
+// Android Workspace
+$('openAndroidWorkspace').addEventListener('click', () => {
+  if (!token) return;
+  const result = $('androidWorkspaceResult');
+  result.textContent = 'Opening Android Workspace...';
+  fetch('/api/android/workspace/config', {
+    headers: {'Authorization': 'Bearer ' + token, 'Cache-Control': 'no-store'}
+  })
+  .then(async r => {
+    if (!r.ok) throw Error((await r.json()).detail || 'Failed to get workspace config');
+    return r.json();
+  })
+  .then(cfg => {
+    if (!cfg.host_connected) throw Error('Android host agent not connected');
+    const wsUrl = window.location.origin.replace(/^http/, 'ws') + cfg.ws_url;
+    const ws = new WebSocket(wsUrl, 'android-workspace');
+    ws.onopen = () => {
+      result.textContent = 'Android Workspace connected.';
+      ws.close();
+      window.location.href = '/android/workspace';
+    };
+    ws.onerror = () => {
+      result.textContent = 'Unable to connect to Android Workspace. Host agent may be offline.';
+    };
+    ws.onmessage = (msg) => {
+      try {
+        const d = JSON.parse(msg.data);
+        if (d.host_connected === false) {
+          result.textContent = 'Android host agent is not connected.';
+        }
+      } catch {}
+    };
+  })
+  .catch(error => {
+    result.textContent = error.message;
+  });
+});
