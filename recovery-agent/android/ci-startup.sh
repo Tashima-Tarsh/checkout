@@ -23,7 +23,7 @@ launch() {
   adb shell dumpsys activity activities | grep -E 'mResumedActivity.*com\.agentic\.pay\.connectivitytest/(com\.agentic\.pay\.connectivitytest)?\.MainActivity'
   adb shell uiautomator dump /sdcard/agentic-ui.xml
   adb pull /sdcard/agentic-ui.xml /tmp/agentic-ui.xml
-  grep -qi 'Enroll Device' /tmp/agentic-ui.xml
+  grep -qi 'Enroll Device' /tmp/agentic-ui.xml || { cat /tmp/agentic-ui.xml; exit 1; }
   ! grep -qi 'Application Error' /tmp/agentic-ui.xml
 }
 launch
@@ -44,7 +44,7 @@ sleep 3
 adb shell dumpsys activity activities | grep -E 'mResumedActivity.*com\.agentic\.pay\.connectivitytest/(com\.agentic\.pay\.connectivitytest)?\.PairingActivity'
 adb shell uiautomator dump /sdcard/agentic-ui.xml
 adb pull /sdcard/agentic-ui.xml /tmp/agentic-ui.xml
-grep -qi 'Pair Device' /tmp/agentic-ui.xml
+grep -qi 'Pair Device' /tmp/agentic-ui.xml || { cat /tmp/agentic-ui.xml; exit 1; }
 adb shell am force-stop "$pkg"
 launch
 adb logcat -b crash -d > startup-logcat.txt

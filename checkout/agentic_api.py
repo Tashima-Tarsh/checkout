@@ -343,17 +343,13 @@ def create_order(request: Request, identity: Merchant, item: OrderInput):
             enforce_entitlement(conn, identity, created)
             reserve_daily_issuance(conn, request, account_row.mobile_cipher, payable, created, mode=item.mode)
 
-        # Auto-assign UPI from pool for P2P mode if not explicitly provided
-        if item.mode == "P2P" and not selected_upi_id:
-            selected, route_reason = _select_best_upi(conn, identity, item.amount_minor, now_ts)
-            if selected is None:
-                raise HTTPException(409, f"No UPI available for routing: {route_reason}")
-            selected_upi_id = selected["upi_id"]
-            cooldown = _cooldown_seconds(item.amount_minor)
-            _update_upi_health_after_route(conn, selected_upi_id, item.amount_minor, now_ts, cooldown)
-            _record_rotation_log(conn, identity, selected_upi_id, order_id, item.amount_minor,
-                                 "ORDER_AUTO_ROUTE", "Auto-routed via weighted intelligent rotation",
-                                 secrets.token_hex(16), now_ts)
+        # The selected receiving account is authoritative; never silently rotate
+        # to a different account or accept a caller-supplied unrelated VPA.
+        registered_vpa = conn.scalar(select(accounts.c.vpa).where(
+            accounts.c.id == account, accounts.c.merchant_id == identity))
+        if selected_upi_id is not None and selected_upi_id != registered_vpa:
+            raise HTTPException(422, "UPI ID does not match the selected receiving account")
+        selected_upi_id = registered_vpa
 
         conn.execute(orders.insert().values(
             id=order_id, merchant_id=identity, account_id=account, amount_minor=item.amount_minor,
