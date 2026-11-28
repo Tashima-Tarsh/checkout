@@ -2,7 +2,7 @@
 import os
 
 from sqlalchemy import (
-    BigInteger, Column, ForeignKey, ForeignKeyConstraint, Integer, MetaData,
+    BigInteger, Boolean, Float, Column, ForeignKey, ForeignKeyConstraint, Integer, MetaData,
     String, Table, Text, UniqueConstraint, create_engine, inspect, text,
 )
 from sqlalchemy.engine import make_url
@@ -64,6 +64,7 @@ orders = Table(
     Column("expires", BigInteger, nullable=False),
     Column("status", String(16), nullable=False),
     Column("mode", String(4), nullable=False, default="P2P"),
+    Column("upi_id", String(321)),
     ForeignKeyConstraint(["merchant_id", "account_id"], ["ap_accounts.merchant_id", "ap_accounts.id"]),
 )
 jobs = Table(
@@ -224,6 +225,141 @@ credit_events = Table(
 )
 
 
+merchant_profiles = Table(
+    "ap_merchant_profiles", metadata,
+    Column("id", String(32), primary_key=True),
+    Column("clerk_user_id", String(255), nullable=False, unique=True),
+    Column("email", String(254), nullable=False),
+    Column("business_name", String(150), nullable=False),
+    Column("gst_number", String(15)),
+    Column("tier", String(20), server_default=text("'starter'")),
+    Column("monthly_volume_estimate", BigInteger),
+    Column("api_key_hash", String(64)),
+    Column("api_key_prefix", String(20)),
+    Column("subscription_status", String(20), server_default=text("'trial'")),
+    Column("trial_ends_at", BigInteger),
+    Column("created_at", BigInteger, nullable=False),
+    Column("updated_at", BigInteger),
+)
+
+upi_ledger = Table(
+    "ap_upi_ledger", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("upi_id", String(321), nullable=False),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("order_id", String(48)),
+    Column("amount_minor", BigInteger, nullable=False),
+    Column("currency", String(8), server_default=text("'INR'")),
+    Column("direction", String(16), server_default=text("'outgoing'")),
+    Column("created", BigInteger, nullable=False),
+    Column("status", String(16), server_default=text("'pending'")),
+    Column("cooldown_until", BigInteger),
+    Column("daily_count", Integer, server_default=text("0")),
+    Column("daily_volume", BigInteger, server_default=text("0")),
+    Column("penalty_until", BigInteger),
+    Column("blacklisted", Boolean, server_default=text("FALSE")),
+    Column("success_rate", Float, server_default=text("1.0")),
+    Column("last_transaction", BigInteger),
+)
+
+upi_health = Table(
+    "ap_upi_health", metadata,
+    Column("upi_id", String(321), primary_key=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("cooldown_until", BigInteger, server_default=text("0")),
+    Column("daily_count", Integer, server_default=text("0")),
+    Column("daily_volume", BigInteger, server_default=text("0")),
+    Column("last_daily_reset", BigInteger, server_default=text("0")),
+    Column("rapid_fire_count", Integer, server_default=text("0")),
+    Column("rapid_fire_window_start", BigInteger, server_default=text("0")),
+    Column("penalty_until", BigInteger, server_default=text("0")),
+    Column("blacklisted", Boolean, server_default=text("FALSE")),
+    Column("blacklist_reason", String(200)),
+    Column("success_count", Integer, server_default=text("0")),
+    Column("failure_count", Integer, server_default=text("0")),
+    Column("success_rate", Float, server_default=text("1.0")),
+    Column("last_transaction", BigInteger, server_default=text("0")),
+    Column("warmup_required", Boolean, server_default=text("FALSE")),
+)
+
+upi_rotation_log = Table(
+    "ap_upi_rotation_log", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("upi_id", String(321), nullable=False),
+    Column("order_id", String(48)),
+    Column("amount_minor", BigInteger),
+    Column("decision", String(32), nullable=False),
+    Column("reason", String(200)),
+    Column("correlation_id", String(64)),
+    Column("created", BigInteger, nullable=False),
+)
+
+workers = Table(
+    "ap_workers", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("device_id", String(48), nullable=False),
+    Column("worker_index", Integer, nullable=False),
+    Column("upi_id", String(321)),
+    Column("upi_app", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default=text("'IDLE'")),
+    Column("current_order_id", String(48)),
+    Column("last_heartbeat", BigInteger, server_default=text("0")),
+    Column("auto_mode", Boolean, server_default=text("FALSE")),
+    Column("daily_txns", Integer, server_default=text("0")),
+    Column("daily_volume", BigInteger, server_default=text("0")),
+    Column("created_at", BigInteger, nullable=False),
+    Column("updated_at", BigInteger, nullable=False),
+)
+
+device_upi_apps = Table(
+    "ap_device_upi_apps", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("device_id", String(48), ForeignKey("ap_devices.device_id"), nullable=False),
+    Column("app_name", Text, nullable=False),
+    Column("app_package", Text, nullable=False),
+    Column("is_installed", Boolean, server_default=text("FALSE")),
+    Column("is_enabled", Boolean, server_default=text("FALSE")),
+    Column("last_checked", BigInteger, server_default=text("0")),
+    Column("created_at", BigInteger, nullable=False),
+)
+
+automation_config = Table(
+    "ap_automation_config", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("device_id", String(48), nullable=False),
+    Column("auto_checkout", Boolean, server_default=text("FALSE")),
+    Column("auto_verify", Boolean, server_default=text("FALSE")),
+    Column("auto_refund", Boolean, server_default=text("FALSE")),
+    Column("auto_rotate_upi", Boolean, server_default=text("FALSE")),
+    Column("daily_txn_target", Integer, server_default=text("100")),
+    Column("min_amount_paise", Integer, server_default=text("100")),
+    Column("max_amount_paise", Integer, server_default=text("100000000")),
+    Column("p2p_daily_cap_paise", Integer, server_default=text("7000000")),
+    Column("created_at", BigInteger, nullable=False),
+    Column("updated_at", BigInteger, nullable=False),
+)
+
+auto_checkout = Table(
+    "ap_auto_checkout", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("merchant_id", String(32), ForeignKey("ap_merchants.id"), nullable=False),
+    Column("device_id", String(48), nullable=False),
+    Column("worker_id", String(48)),
+    Column("upi_id", String(321)),
+    Column("amount_minor", BigInteger, nullable=False),
+    Column("mode", Text, nullable=False, server_default=text("'P2P'")),
+    Column("status", Text, nullable=False, server_default=text("'PENDING'")),
+    Column("order_id", String(48)),
+    Column("checkout_path", String(255)),
+    Column("expires_at", BigInteger, nullable=False),
+    Column("created_at", BigInteger, nullable=False),
+    Column("processed_at", BigInteger),
+    Column("error", Text),
+)
+
 def isolated_database_url():
     configured = os.environ.get("AGENTIC_DATABASE_URL")
     if not configured:
@@ -272,197 +408,16 @@ def expire_previous_uat_links(engine, *, merchant_id, cutoff, timestamp):
 
 
 def ensure_schema(engine):
-    """Add order_id and detail columns to ap_audit on existing databases (idempotent)."""
-    from sqlalchemy import inspect
+    """Create missing tables and add backward-compatible columns."""
     with engine.begin() as connection:
+        metadata.create_all(connection)
         inspector = inspect(connection)
-        columns = {c["name"] for c in inspector.get_columns("ap_audit")}
-        if "order_id" not in columns:
-            connection.execute(text(
-                "ALTER TABLE ap_audit ADD COLUMN order_id VARCHAR(48)"
-            ))
-        if "detail" not in columns:
-            connection.execute(text(
-                "ALTER TABLE ap_audit ADD COLUMN detail TEXT"
-            ))
-        merchant_cols = {c["name"] for c in inspector.get_columns("ap_merchants")}
-        if "email" not in merchant_cols:
-            connection.execute(text(
-                "ALTER TABLE ap_merchants ADD COLUMN email VARCHAR(254)"
-            ))
-        # merchant_profiles table (idempotent)
-        merchant_cols = {c["name"] for c in inspector.get_columns("ap_merchant_profiles")}
-        if not merchant_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_merchant_profiles ("
-                "id VARCHAR(32) PRIMARY KEY,"
-                "clerk_user_id VARCHAR(255) UNIQUE NOT NULL,"
-                "email VARCHAR(254) NOT NULL,"
-                "business_name VARCHAR(150) NOT NULL,"
-                "gst_number VARCHAR(15),"
-                "tier VARCHAR(20) DEFAULT 'starter',"
-                "monthly_volume_estimate BIGINT,"
-                "api_key_hash VARCHAR(64),"
-                "api_key_prefix VARCHAR(20),"
-                "subscription_status VARCHAR(20) DEFAULT 'trial',"
-                "trial_ends_at BIGINT,"
-                "created_at BIGINT NOT NULL,"
-                "updated_at BIGINT"
-                ")"
-            ))
-        # orders.mode column migration (idempotent)
-        order_cols = {c["name"] for c in inspector.get_columns("ap_orders")}
-        if "mode" not in order_cols:
-            connection.execute(text(
-                "ALTER TABLE ap_orders ADD COLUMN mode VARCHAR(4) DEFAULT 'P2P'"
-            ))
-        if "upi_id" not in order_cols:
-            connection.execute(text(
-                "ALTER TABLE ap_orders ADD COLUMN upi_id VARCHAR(321)"
-            ))
-        # UPI per-ID ledger table (idempotent)
-        upi_ledger_cols = {c["name"] for c in inspector.get_columns("ap_upi_ledger")}
-        if not upi_ledger_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_upi_ledger ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "upi_id VARCHAR(321) NOT NULL,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "order_id VARCHAR(48),"
-                "amount_minor BIGINT NOT NULL,"
-                "currency VARCHAR(8) DEFAULT 'INR',"
-                "direction VARCHAR(16) DEFAULT 'outgoing',"
-                "created BIGINT NOT NULL,"
-                "status VARCHAR(16) DEFAULT 'pending',"
-                "cooldown_until BIGINT,"
-                "daily_count INT DEFAULT 0,"
-                "daily_volume BIGINT DEFAULT 0,"
-                "penalty_until BIGINT,"
-                "blacklisted BOOLEAN DEFAULT FALSE,"
-                "success_rate DOUBLE PRECISION DEFAULT 1.0,"
-                "last_transaction BIGINT,"
-                "CONSTRAINT fk_upi_ledger_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
-        # UPI health state table (idempotent)
-        upi_health_cols = {c["name"] for c in inspector.get_columns("ap_upi_health")}
-        if not upi_health_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_upi_health ("
-                "upi_id VARCHAR(321) PRIMARY KEY,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "cooldown_until BIGINT DEFAULT 0,"
-                "daily_count INT DEFAULT 0,"
-                "daily_volume BIGINT DEFAULT 0,"
-                "last_daily_reset BIGINT DEFAULT 0,"
-                "rapid_fire_count INT DEFAULT 0,"
-                "rapid_fire_window_start BIGINT DEFAULT 0,"
-                "penalty_until BIGINT DEFAULT 0,"
-                "blacklisted BOOLEAN DEFAULT FALSE,"
-                "blacklist_reason VARCHAR(200),"
-                "success_count INT DEFAULT 0,"
-                "failure_count INT DEFAULT 0,"
-                "success_rate DOUBLE PRECISION DEFAULT 1.0,"
-                "last_transaction BIGINT DEFAULT 0,"
-                "warmup_required BOOLEAN DEFAULT FALSE,"
-                "CONSTRAINT fk_upi_health_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
-        # UPI rotation audit log table (idempotent)
-        upi_rotation_cols = {c["name"] for c in inspector.get_columns("ap_upi_rotation_log")}
-        if not upi_rotation_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_upi_rotation_log ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "upi_id VARCHAR(321) NOT NULL,"
-                "order_id VARCHAR(48),"
-                "amount_minor BIGINT,"
-                "decision VARCHAR(32) NOT NULL,"
-                "reason VARCHAR(200),"
-                "correlation_id VARCHAR(64),"
-                "created BIGINT NOT NULL,"
-                "CONSTRAINT fk_upi_rotation_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
-        # Workers table: 15 workers per agent device (1 per UPI ID)
-        workers_cols = {c["name"] for c in inspector.get_columns("ap_workers")}
-        if not workers_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_workers ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "device_id VARCHAR(48) NOT NULL,"
-                "worker_index INT NOT NULL,"
-                "upi_id VARCHAR(321),"
-                "upi_app TEXT NOT NULL,"
-                "status TEXT NOT NULL DEFAULT 'IDLE',"
-                "current_order_id VARCHAR(48),"
-                "last_heartbeat BIGINT DEFAULT 0,"
-                "auto_mode BOOLEAN DEFAULT TRUE,"
-                "daily_txns INT DEFAULT 0,"
-                "daily_volume BIGINT DEFAULT 0,"
-                "created_at BIGINT NOT NULL,"
-                "updated_at BIGINT NOT NULL,"
-                "CONSTRAINT fk_workers_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
-        # Device UPI apps inventory (pre-installed apps on merchant Android)
-        device_upi_apps_cols = {c["name"] for c in inspector.get_columns("ap_device_upi_apps")}
-        if not device_upi_apps_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_device_upi_apps ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "device_id VARCHAR(48) NOT NULL,"
-                "app_name TEXT NOT NULL,"
-                "app_package TEXT NOT NULL,"
-                "is_installed BOOLEAN DEFAULT TRUE,"
-                "is_enabled BOOLEAN DEFAULT TRUE,"
-                "last_checked BIGINT DEFAULT 0,"
-                "created_at BIGINT NOT NULL,"
-                "CONSTRAINT fk_device_upi_apps_device FOREIGN KEY (device_id) REFERENCES ap_devices(id)"
-                ")"
-            ))
-        # Automation config per merchant/device
-        automation_cols = {c["name"] for c in inspector.get_columns("ap_automation_config")}
-        if not automation_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_automation_config ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "device_id VARCHAR(48) NOT NULL,"
-                "auto_checkout BOOLEAN DEFAULT TRUE,"
-                "auto_verify BOOLEAN DEFAULT TRUE,"
-                "auto_refund BOOLEAN DEFAULT TRUE,"
-                "auto_rotate_upi BOOLEAN DEFAULT TRUE,"
-                "daily_txn_target INT DEFAULT 100,"
-                "min_amount_paise INT DEFAULT 100,"
-                "max_amount_paise INT DEFAULT 100000000,"
-                "p2p_daily_cap_paise INT DEFAULT 7000000,"
-                "created_at BIGINT NOT NULL,"
-                "updated_at BIGINT NOT NULL,"
-                "CONSTRAINT fk_automation_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
-        # Auto checkout queue
-        auto_checkout_cols = {c["name"] for c in inspector.get_columns("ap_auto_checkout")}
-        if not auto_checkout_cols:
-            connection.execute(text(
-                "CREATE TABLE ap_auto_checkout ("
-                "id VARCHAR(48) PRIMARY KEY,"
-                "merchant_id VARCHAR(32) NOT NULL,"
-                "device_id VARCHAR(48) NOT NULL,"
-                "worker_id VARCHAR(48),"
-                "upi_id VARCHAR(321),"
-                "amount_minor BIGINT NOT NULL,"
-                "mode TEXT NOT NULL DEFAULT 'P2P',"
-                "status TEXT NOT NULL DEFAULT 'PENDING',"
-                "order_id VARCHAR(48),"
-                "checkout_path VARCHAR(255),"
-                "expires_at BIGINT NOT NULL,"
-                "created_at BIGINT NOT NULL,"
-                "processed_at BIGINT,"
-                "error TEXT,"
-                "CONSTRAINT fk_auto_checkout_merchant FOREIGN KEY (merchant_id) REFERENCES ap_merchants(id)"
-                ")"
-            ))
+        for table, additions in {
+            "ap_audit": {"order_id": "VARCHAR(48)", "detail": "TEXT"},
+            "ap_merchants": {"email": "VARCHAR(254)"},
+            "ap_orders": {"mode": "VARCHAR(4) DEFAULT 'P2P'", "upi_id": "VARCHAR(321)"},
+        }.items():
+            columns = {c["name"] for c in inspector.get_columns(table)}
+            for name, definition in additions.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))

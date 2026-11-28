@@ -23,9 +23,11 @@ from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders, amount_reservations,
     evidence_consumption, receipt_observations, settlement_states, shared_test_orders,
     devices, pairing_codes, device_credentials, device_observations, device_heartbeats,
-    credit_events, daily_issuance, subscriptions, upi_health, upi_ledger,
+    credit_events, daily_issuance, subscriptions, upi_health, upi_ledger, upi_rotation_log,
     workers, device_upi_apps, automation_config, auto_checkout,
 )
+
+from checkout.config import ENVIRONMENT, BASE_DOMAIN, get_all_urls
 
 router = APIRouter(prefix="/api")
 Token = Annotated[str | None, Header(max_length=256)]
@@ -1330,6 +1332,10 @@ def android_refund(request: Request, item: RefundInput, authorization: Token = N
 # Adaptive P2P UPI Routing & Velocity Control Engine
 # ============================================================================
 
+def require_unreviewed_feature_disabled():
+    """Do not expose unfinished payment automation or device provisioning."""
+    raise HTTPException(503, "Feature unavailable pending security and financial verification")
+
 UPI_DAILY_TXN_LIMIT = 50          # max transactions per UPI per 24h
 UPI_DAILY_VOLUME_LIMIT = 10000000 # max volume per UPI per 24h (₹1,00,000 in paise)
 RAPID_FIRE_LIMIT = 3              # max txns per 10-min window
@@ -1386,7 +1392,7 @@ def _select_best_upi(conn, merchant_id: str, amount_minor: int, now_ts: int):
 
     candidates = []
     for row in rows:
-        row = _reset_daily_if_needed(row, now_ts)
+        row = _reset_daily_if_needed(dict(row), now_ts)
 
         # Blacklist check
         if row.get("blacklisted"):
@@ -1486,7 +1492,7 @@ def _update_upi_health_after_result(conn, upi_id: str, success: bool, now_ts: in
         ))
 
 
-@app.post("/android/upi-route", response_model=dict)
+@router.post("/android/upi-route", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_upi_route(request: Request, item: UpiRouteInput, authorization: Token = None):
     """Intelligent UPI routing: returns the best UPI ID for a transaction."""
     row = device_bearer(request, authorization)
@@ -1525,7 +1531,7 @@ def android_upi_route(request: Request, item: UpiRouteInput, authorization: Toke
     }
 
 
-@app.post("/android/upi-result", response_model=dict)
+@router.post("/android/upi-result", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_upi_result(request: Request, authorization: Token = None,
                        upi_id: str = None, success: bool = None,
                        order_id: str = None):
@@ -1543,7 +1549,7 @@ def android_upi_result(request: Request, authorization: Token = None,
     return {"upi_id": upi_id, "success": success, "recorded_at": now_ts}
 
 
-@app.get("/android/upi-pool", response_model=dict)
+@router.get("/android/upi-pool", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_upi_pool(request: Request, authorization: Token = None):
     """Return all registered UPI IDs with their current health status."""
     row = device_bearer(request, authorization)
@@ -1557,7 +1563,7 @@ def android_upi_pool(request: Request, authorization: Token = None):
 
     pool = []
     for r in rows:
-        r = _reset_daily_if_needed(r, now_ts)
+        r = _reset_daily_if_needed(dict(r), now_ts)
         pool.append({
             "upi_id": r["upi_id"],
             "daily_count": r.get("daily_count", 0),
@@ -1583,7 +1589,7 @@ def android_upi_pool(request: Request, authorization: Token = None):
             "checked_at": now_ts}
 
 
-@app.post("/android/daily-report", response_model=dict)
+@router.post("/android/daily-report", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_daily_report(request: Request, authorization: Token = None):
     """Generate and email daily P2P/P2M report to merchant owner."""
     row = device_bearer(request, authorization)
@@ -1669,7 +1675,7 @@ def android_daily_report(request: Request, authorization: Token = None):
     return report
 
 
-@app.get("/android/upi-master-ledger", response_model=dict)
+@router.get("/android/upi-master-ledger", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_upi_master_ledger(request: Request, authorization: Token = None):
     """Master UPI ledger: all UPI IDs for the merchant with P2P consumption,
     cooldown status, and which UPI is next in rotation when one hits ₹70k cap."""
@@ -1802,7 +1808,7 @@ class ProvisionDeviceInput(BaseModel):
     business_name: str
 
 
-@app.post("/android/auto-checkout", response_model=dict)
+@router.post("/android/auto-checkout", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_auto_checkout(request: Request, item: AutoCheckoutInput, authorization: Token = None):
     """Auto-create a checkout via worker. Worker specifies which UPI index to use."""
     row = device_bearer(request, authorization)
@@ -1875,7 +1881,7 @@ def android_auto_checkout(request: Request, item: AutoCheckoutInput, authorizati
     }
 
 
-@app.get("/android/worker-dispatch", response_model=dict)
+@router.get("/android/worker-dispatch", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_worker_dispatch(request: Request, authorization: Token = None,
                              worker_index: int = None):
     """Dispatch work to a worker: returns pending auto-checkouts or idle status."""
@@ -1928,7 +1934,7 @@ def android_worker_dispatch(request: Request, authorization: Token = None,
     }
 
 
-@app.post("/android/worker-result", response_model=dict)
+@router.post("/android/worker-result", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_worker_result(request: Request, item: WorkerResultInput, authorization: Token = None):
     """Worker reports transaction result: success or failure."""
     row = device_bearer(request, authorization)
@@ -1990,7 +1996,7 @@ def android_worker_result(request: Request, item: WorkerResultInput, authorizati
     }
 
 
-@app.get("/api/super-admin/device-fleet", response_model=dict)
+@router.get("/super-admin/device-fleet", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def super_admin_device_fleet(request: Request, authorization: Token = None):
     """Super Admin: view all merchant devices across the platform."""
     # Super admin check
@@ -2033,7 +2039,7 @@ def super_admin_device_fleet(request: Request, authorization: Token = None):
     }
 
 
-@app.post("/api/super-admin/provision-device", response_model=dict)
+@router.post("/super-admin/provision-device", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def super_admin_provision_device(request: Request, item: ProvisionDeviceInput, authorization: Token = None):
     """Super Admin: provision a new merchant Android device with 15 workers."""
     admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
@@ -2125,7 +2131,7 @@ def super_admin_provision_device(request: Request, item: ProvisionDeviceInput, a
     }
 
 
-@app.get("/android/automation-config", response_model=dict)
+@router.get("/android/automation-config", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_automation_config(request: Request, authorization: Token = None):
     """Get automation config for this device."""
     row = device_bearer(request, authorization)
@@ -2151,7 +2157,7 @@ def android_automation_config(request: Request, authorization: Token = None):
     }
 
 
-@app.put("/android/automation-config", response_model=dict)
+@router.put("/android/automation-config", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def android_update_automation_config(request: Request, item: AutomationConfigInput, authorization: Token = None):
     """Update automation config for this device."""
     row = device_bearer(request, authorization)
@@ -2190,7 +2196,7 @@ def require_owner_token(request: Request):
     return token
 
 
-@app.get("/api/superadmin/overview", response_model=dict)
+@router.get("/superadmin/overview", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_overview(request: Request, authorization: Token = None):
     """Platform-wide executive overview for Super Admin."""
     require_owner_token(request)
@@ -2237,7 +2243,7 @@ def superadmin_overview(request: Request, authorization: Token = None):
     }
 
 
-@app.get("/api/superadmin/incidents", response_model=list[dict])
+@router.get("/superadmin/incidents", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_incidents(request: Request, authorization: Token = None):
     """Open platform incidents."""
     require_owner_token(request)
@@ -2259,7 +2265,7 @@ def superadmin_incidents(request: Request, authorization: Token = None):
     return incidents
 
 
-@app.get("/api/superadmin/security", response_model=list[dict])
+@router.get("/superadmin/security", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_security(request: Request, authorization: Token = None):
     """Recent security events."""
     require_owner_token(request)
@@ -2282,7 +2288,7 @@ def superadmin_security(request: Request, authorization: Token = None):
     return events
 
 
-@app.get("/api/superadmin/aws/resources", response_model=list[dict])
+@router.get("/superadmin/aws/resources", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_resources(request: Request, authorization: Token = None):
     """AWS resource discovery (read-only). Requires AWS credentials configured."""
     require_owner_token(request)
@@ -2291,7 +2297,7 @@ def superadmin_aws_resources(request: Request, authorization: Token = None):
     return []
 
 
-@app.get("/api/superadmin/aws/billing", response_model=dict)
+@router.get("/superadmin/aws/billing", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_billing(request: Request, authorization: Token = None):
     """AWS billing intelligence (read-only). Requires AWS credentials configured."""
     require_owner_token(request)
@@ -2307,7 +2313,7 @@ def superadmin_aws_billing(request: Request, authorization: Token = None):
     }
 
 
-@app.get("/api/superadmin/aws/credits", response_model=dict)
+@router.get("/superadmin/aws/credits", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_credits(request: Request, authorization: Token = None):
     """AWS credit intelligence (read-only). Requires AWS credentials configured."""
     require_owner_token(request)
@@ -2337,7 +2343,7 @@ class ContactInquiryInput(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
 
-@app.post("/api/contact", status_code=201, response_model=dict)
+@router.post("/contact", status_code=201, response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def contact_inquiry(request: Request, item: ContactInquiryInput):
     """Business inquiry form submission."""
     now_ts = _now_ts()
@@ -2361,7 +2367,7 @@ def contact_inquiry(request: Request, item: ContactInquiryInput):
 # Canonical URL Registry Endpoint
 # ============================================================================
 
-@app.get("/api/canonical-urls", response_model=dict)
+@router.get("/canonical-urls", response_model=dict)
 def canonical_urls(request: Request):
     """Return all canonical URL mappings for the platform."""
     return {
