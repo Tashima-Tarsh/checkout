@@ -43,13 +43,12 @@ class MerchantSignupIn(BaseModel):
 def _verify_clerk_token(token: str) -> dict:
     """Verify Clerk JWT and return user payload."""
     if _clerk is None:
-        # Fallback: accept token as-is if Clerk SDK not configured (dev mode)
-        return {"sub": "clerk_dev_user", "email": "dev@example.com"}
+        raise HTTPException(503, "Merchant sign-in is unavailable")
     try:
         token_data = _clerk.tokens.verify(token=TokenVerification(token=token))
         return token_data.model_dump()
-    except Exception as exc:
-        raise HTTPException(401, f"Clerk token invalid: {exc}")
+    except Exception:
+        raise HTTPException(401, "Invalid Clerk session") from None
 
 
 def _generate_api_key() -> tuple[str, str, str]:

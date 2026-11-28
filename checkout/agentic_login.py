@@ -77,7 +77,15 @@ def configure(engine, owner_secret):
 
 
 def require_same_origin(request):
-    if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") != ORIGIN:
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    origin = request.headers.get("origin")
+    allowed_origins = {ORIGIN, *(
+        value.strip()
+        for value in os.getenv("AGENTIC_LOGIN_ALLOWED_ORIGINS", "").split(",")
+        if value.strip().startswith("https://")
+    )}
+    if origin not in allowed_origins:
         raise HTTPException(403, "Invalid request origin")
 
 

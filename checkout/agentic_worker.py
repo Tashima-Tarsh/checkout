@@ -25,12 +25,17 @@ class NoRedirect(HTTPRedirectHandler):
 class N8nProvider:
     def __init__(self, url, token):
         endpoint = urlsplit(url)
+        hostname = endpoint.hostname or ""
+        private_endpoint = hostname.endswith(".railway.internal") or (
+            hostname in {"workflow.dev.disha.internal", "workflow.uat.disha.internal"}
+            and endpoint.port == 5678
+        )
         if (
-            endpoint.scheme != "http" or not (endpoint.hostname or "").endswith(".railway.internal")
+            endpoint.scheme != "http" or not private_endpoint
             or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
             or endpoint.path != "/webhook/agentic-pay-dispatch" or len(token) < 43
         ):
-            raise RuntimeError("Configure a private Railway n8n webhook and a strong token")
+            raise RuntimeError("Configure an approved private n8n webhook and a strong token")
         self.url = url
         self.token = token
 

@@ -1,6 +1,8 @@
 # DISHA 8.2 — AWS Infrastructure Architecture (ap-southeast-2)
 
-This document defines the complete AWS-native infrastructure for the DISHA Super Admin control plane.
+This document describes the proposed AWS architecture for the DISHA Super Admin control plane. The multi-account design and cost estimate below are planning inputs.
+
+The deployed Sydney environment uses the CloudFormation stacks documented in [the AWS runbook](infra/aws/README.md). The Terraform files in `infra/aws` contain provider settings and example variable values. They have no resource modules or environment root configurations capable of provisioning this design. Use the existing CloudFormation stack names for updates to resources they manage.
 
 **Project Region:** `ap-southeast-2` (Asia Pacific / Sydney)
 **Environments:** `development`, `uat`, `production`

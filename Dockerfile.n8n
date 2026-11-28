@@ -24,4 +24,5 @@ ENV PATH="/usr/local/bin:${PATH}"
 RUN python3 -c "import ssl, sqlite3, sys; print(sys.version)" && pip3 --version
 
 COPY --chown=node:node n8n/agentic-pay-dispatch.json n8n/bootstrap.mjs n8n/preflight.mjs n8n/editor-ingress.sh /opt/agentic-pay/
+RUN sed -i 's/\r$//' /opt/agentic-pay/editor-ingress.sh
 ENTRYPOINT ["tini", "--", "/bin/sh", "/opt/agentic-pay/editor-ingress.sh"]
