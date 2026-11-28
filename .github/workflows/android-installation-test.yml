@@ -1,9 +1,9 @@
 name: Android receiver startup validation and APK build
 on:
   push:
-    branches: [fix/android-receiver-startup-v2.1, fix/receiver-automatic-runtime-v2.2, main, dev, uat, 'uat/release']
+    branches: [fix/android-receiver-startup-v2.1, fix/receiver-automatic-runtime-v2.2, main]
   pull_request:
-    branches: [main, dev, uat, 'uat/release']
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

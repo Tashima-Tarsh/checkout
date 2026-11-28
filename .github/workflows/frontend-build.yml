@@ -1,9 +1,9 @@
 name: React frontend build
 on:
   push:
-    branches: [main, dev, uat, 'uat/release']
+    branches: [main]
   pull_request:
-    branches: [main, dev, uat, 'uat/release']
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
