@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleAudio, isAudioPlaying = 
 
           {/* Merchant Portal Login */}
           <a
-            href="https://merchant.disha8-2.thenitishkr.in/"
+            href="/merchant-login"
             className="text-xs font-bold text-[#07865C] hover:text-[#065440] transition-colors px-3 py-2 rounded-xl border border-[#07865C]/30 hover:border-[#07865C] bg-[#07865C]/5"
           >
             Merchant Login
@@ -178,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleAudio, isAudioPlaying = 
             </a>
             <div className="pt-3 border-t border-[#DCE2E7] flex flex-col gap-2">
               <a
-                href="https://merchant.disha8-2.thenitishkr.in/"
+                href="/merchant-login"
                 className="w-full text-center py-2 text-sm font-bold text-[#07865C] bg-[#07865C]/10 rounded-xl"
               >
                 Merchant Login

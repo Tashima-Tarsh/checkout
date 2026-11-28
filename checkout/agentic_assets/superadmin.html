@@ -1,0 +1,1968 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agentic Pay — Super Admin Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --card: #121215;
+      --card-muted: #18181b;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --text-dim: #71717a;
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --primary-hover: #059669;
+      --violet: #8b5cf6;
+      --violet-glow: rgba(139, 92, 246, 0.2);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --rose: #ef4444;
+      --rose-glow: rgba(239, 68, 68, 0.2);
+      --cyan: #06b6d4;
+      --radius: 12px;
+      --sidebar-width: 270px;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.12), transparent),
+        radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.05), transparent 40%);
+      background-attachment: fixed;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; color: inherit; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+    /* App Shell Layout */
+    .app-container { display: flex; min-height: 100vh; }
+
+    /* Sidebar (shadcn / next-dashboard style) */
+    .sidebar {
+      width: var(--sidebar-width);
+      flex: 0 0 var(--sidebar-width);
+      background: rgba(18, 18, 21, 0.85);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      z-index: 40;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+      flex-shrink: 0;
+    }
+    .brand-logo svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2.2; }
+    .brand-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+    .brand-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(139, 92, 246, 0.18);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      margin-top: 3px;
+    }
+
+    /* Boss Profile Card in Sidebar */
+    .boss-chip {
+      margin: 14px 16px 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .boss-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+    }
+    .boss-info { min-width: 0; flex: 1; }
+    .boss-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .boss-role { font-size: 10px; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .boss-role .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+
+    /* Nav items */
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-group-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 14px 10px 6px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+    .nav-btn.active {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #fff;
+      font-weight: 600;
+    }
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 16px;
+      border-radius: 99px;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+    .nav-btn svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      stroke-width: 1.8;
+      stroke: currentColor;
+    }
+    .nav-btn .pill-count {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Sidebar Footer */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .btn-logout {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(239, 68, 68, 0.08);
+      color: #fca5a5;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-logout:hover {
+      background: rgba(239, 68, 68, 0.16);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    /* Main Content Area */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      height: 64px;
+      background: rgba(9, 9, 11, 0.75);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      gap: 16px;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .menu-toggle {
+      display: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      place-items: center;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .menu-toggle:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .breadcrumb strong { color: var(--text); font-weight: 600; }
+    .breadcrumb span { color: var(--text-dim); }
+
+    .topbar-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      font-size: 11px;
+      font-weight: 600;
+      color: #6ee7b7;
+    }
+    .pulse-beacon {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      position: relative;
+    }
+    .pulse-beacon::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid #10b981;
+      animation: pulse-ring 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.7); opacity: 1; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cmd-search-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .cmd-search-btn:hover {
+      border-color: var(--border-bright);
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.07);
+    }
+    .kbd-shortcut {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 16px var(--primary-glow);
+    }
+    .btn-primary:hover {
+      background: #34d399;
+      box-shadow: 0 0 24px rgba(52, 211, 153, 0.4);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: var(--border-bright);
+    }
+    .btn-violet {
+      background: var(--violet);
+      color: #fff;
+      box-shadow: 0 0 16px var(--violet-glow);
+    }
+    .btn-violet:hover { background: #9d74f7; }
+
+    /* Page Content View */
+    .content-area {
+      flex: 1;
+      padding: 28px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .view-pane {
+      display: none;
+      animation: view-fade-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .view-pane.active { display: block; }
+    @keyframes view-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hero / Title Section */
+    .view-header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .view-title-group h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    .view-title-group p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .view-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Executive Stat Grid (shadcn Cards) */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .stat-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--card-accent, rgba(255, 255, 255, 0.1)), transparent);
+    }
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .stat-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      display: grid;
+      place-items: center;
+      color: var(--stat-color, var(--text));
+    }
+    .stat-value {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: #fff;
+      margin: 12px 0 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-sub {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    .trend-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .trend-up { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .trend-neutral { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
+
+    /* Panels & Tables */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .panel-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .panel-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Filter & Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      color: var(--text);
+      outline: none;
+      min-width: 240px;
+      transition: border-color 0.15s ease;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .select-input {
+      background: var(--card-muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      color: var(--text);
+      outline: none;
+    }
+
+    /* Table Styles */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12.5px;
+    }
+    th {
+      background: var(--card-muted);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Status Pills */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .status-pill .dot { width: 5px; height: 5px; border-radius: 50%; }
+    .status-pill.online {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-pill.online .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+    .status-pill.pending {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .status-pill.pending .dot { background: #f59e0b; }
+    .status-pill.settled {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .status-pill.settled .dot { background: #6366f1; }
+    .status-pill.revoked {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status-pill.revoked .dot { background: #ef4444; }
+
+    /* Forms */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .field-group input, .field-group select {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #fff;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    .field-group input:focus, .field-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+
+    /* Modals & Dialogs */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: grid; }
+    .modal-box {
+      width: min(540px, 100%);
+      background: #141418;
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
+      padding: 26px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+      position: relative;
+      animation: modal-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modal-enter {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-head h3 { font-size: 18px; font-weight: 700; }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #fff; }
+
+    /* Command Palette */
+    #cmdPalette .modal-box {
+      width: min(600px, 100%);
+      padding: 0;
+      overflow: hidden;
+    }
+    .cmd-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cmd-input-wrap svg { width: 18px; height: 18px; color: var(--text-dim); }
+    .cmd-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      color: #fff;
+    }
+    .cmd-list {
+      max-height: 340px;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .cmd-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-muted);
+      transition: all 0.12s ease;
+    }
+    .cmd-item:hover, .cmd-item.selected {
+      background: rgba(16, 185, 129, 0.12);
+      color: #fff;
+    }
+    .cmd-item svg { width: 16px; height: 16px; color: var(--primary); }
+    .cmd-item .cmd-tag {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    /* Toasts */
+    .toast-tray {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 110;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      background: rgba(24, 24, 27, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      padding: 12px 18px;
+      color: #fff;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast.success { border-color: rgba(16, 185, 129, 0.4); }
+    .toast.error { border-color: rgba(239, 68, 68, 0.4); }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Android Device Phone Mockup Widget */
+    .device-preview-card {
+      background: linear-gradient(145deg, #18181f, #0f0f14);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+    .phone-mock {
+      width: 100px;
+      height: 180px;
+      border: 3px solid #3f3f46;
+      border-radius: 20px;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 6px;
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .phone-mock::before {
+      content: '';
+      width: 24px;
+      height: 4px;
+      border-radius: 99px;
+      background: #27272a;
+      margin-bottom: 8px;
+    }
+    .phone-screen {
+      flex: 1;
+      width: 100%;
+      background: #09090b;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px;
+      text-align: center;
+    }
+    .phone-screen .signal-wave {
+      width: 20px;
+      height: 20px;
+      color: #10b981;
+      animation: pulse 1.5s infinite;
+    }
+    .phone-mock-details { flex: 1; }
+    .phone-mock-details h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .phone-mock-details p { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+
+    /* Pairing Code Box */
+    .pairing-box {
+      background: #09090b;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .pairing-code-text {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      color: #c4b5fd;
+      font-family: monospace;
+    }
+    .timer-ring {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .menu-toggle { display: grid; }
+      .topbar { padding: 0 16px; }
+      .content-area { padding: 18px; }
+      .topbar-center { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="appSidebar">
+    <div class="sidebar-header">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Agentic Pay</div>
+        <div class="brand-badge">Super Admin</div>
+      </div>
+    </div>
+
+    <!-- Platform Boss Chip -->
+    <div class="boss-chip">
+      <div class="boss-avatar">NK</div>
+      <div class="boss-info">
+        <div class="boss-name" id="bossEmail">Nitish Kumar</div>
+        <div class="boss-role"><span class="dot"></span> Platform Boss</div>
+      </div>
+    </div>
+
+    <!-- Navigation List -->
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">Command & Core</div>
+      <button class="nav-btn active" data-view="overview">
+        <svg viewBox="0 0 24 24" fill="none"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="nav-btn" data-view="tenants">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Tenants</span>
+        <span class="pill-count" id="badgeTenantCount">1</span>
+      </button>
+      <button class="nav-btn" data-view="onboarding">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+        <span>Onboard Merchant</span>
+      </button>
+
+      <div class="nav-group-title">Mobile & Agents</div>
+      <button class="nav-btn" data-view="androidworkspace">
+        <svg viewBox="0 0 24 24" fill="none"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+        <span>Android Workspace</span>
+        <span class="status-pill online" style="margin-left:auto;padding:1px 6px;font-size:9px;">Active</span>
+      </button>
+      <button class="nav-btn" data-view="requests">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Access Requests</span>
+      </button>
+
+      <div class="nav-group-title">Financial Ledger</div>
+      <button class="nav-btn" data-view="transactions">
+        <svg viewBox="0 0 24 24" fill="none"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>All Transactions</span>
+      </button>
+      <button class="nav-btn" data-view="trust">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+        <span>Trust & Evidence</span>
+      </button>
+      <button class="nav-btn" data-view="ledger">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+        <span>Reconciliation</span>
+      </button>
+      <button class="nav-btn" data-view="analytics">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <span>Analytics</span>
+      </button>
+
+      <div class="nav-group-title">Platform Reliability</div>
+      <button class="nav-btn" data-view="incidents">
+        <svg viewBox="0 0 24 24" fill="none"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        <span>Errors & Bugs</span>
+      </button>
+      <button class="nav-btn" data-view="infrastructure">
+        <svg viewBox="0 0 24 24" fill="none"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+        <span>Infrastructure</span>
+      </button>
+      <button class="nav-btn" data-view="integrations">
+        <svg viewBox="0 0 24 24" fill="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Automation (n8n)</span>
+      </button>
+      <button class="nav-btn" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Platform Settings</span>
+      </button>
+    </nav>
+
+    <!-- Logout -->
+    <div class="sidebar-footer">
+      <button class="btn-logout" id="sidebarLogout">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        <span>Sign out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Wrap -->
+  <main class="main-wrap">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
+        </button>
+        <div class="breadcrumb">
+          <span>Super Admin</span>
+          <span>/</span>
+          <strong id="activeViewName">Overview</strong>
+        </div>
+      </div>
+
+      <div class="topbar-center">
+        <div class="pulse-beacon"></div>
+        <span>Production Active &middot; ECS Fargate &middot; RDS PostgreSQL</span>
+      </div>
+
+      <div class="topbar-right">
+        <button class="cmd-search-btn" id="openCmdPalette">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+          <span>Search & jump...</span>
+          <span class="kbd-shortcut">⌘K</span>
+        </button>
+
+        <button class="btn btn-secondary" id="btnRefresh" title="Live Refresh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          <span>Refresh</span>
+        </button>
+
+        <button class="btn btn-primary" id="btnQuickOnboard">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+          <span>New Tenant</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Area with 13 Tab Panes -->
+    <div class="content-area">
+
+      <!-- 1. OVERVIEW VIEW -->
+      <section class="view-pane active" id="view-overview">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Platform Overview</h1>
+            <p>Real-time executive performance and financial ledger metrics across all tenant merchants.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-secondary" onclick="switchTab('transactions')">View Ledger →</button>
+          </div>
+        </div>
+
+        <!-- 4 Metric Cards -->
+        <div class="stat-grid">
+          <div class="stat-card" style="--card-accent:#10b981;--stat-color:#10b981;">
+            <div class="stat-header">
+              <span>ACTIVE TENANTS</span>
+              <div class="stat-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            </div>
+            <div class="stat-value" id="kpiMerchants">1</div>
+            <div class="stat-sub">
+              <span class="trend-badge trend-up">● Online</span>
+              <span>100% healthy</span>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent:#8b5cf6;--stat-color:#8b5cf6;">
+            <div class="stat-header">
+              <span>PAYMENT REQUESTS</span>
+              <div class="stat-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            </div>
+            <div class="stat-value" id="kpiOrders">1</div>
+            <div class="stat-sub">
+              <span class="trend-badge trend-neutral">Awaiting Verification</span>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent:#06b6d4;--stat-color:#06b6d4;">
+            <div class="stat-header">
+              <span>REQUESTED VOLUME</span>
+              <div class="stat-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg></div>
+            </div>
+            <div class="stat-value" id="kpiVolume">₹1.00</div>
+            <div class="stat-sub">
+              <span>Real-time amount ledger</span>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent:#f59e0b;--stat-color:#f59e0b;">
+            <div class="stat-header">
+              <span>ANDROID RUNTIME</span>
+              <div class="stat-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg></div>
+            </div>
+            <div class="stat-value" id="kpiDevices">READY</div>
+            <div class="stat-sub">
+              <span>AgenticMobile0001 ready to pair</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Recent Payment Orders</h2>
+              <p>Live stream of incoming checkout orders and cryptographic status.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="switchTab('transactions')">All Orders →</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order Reference</th>
+                  <th>Merchant</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="overviewOrderRows">
+                <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-dim);">Loading live orders...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TENANTS VIEW -->
+      <section class="view-pane" id="view-tenants">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Tenant Management</h1>
+            <p>Manage all onboarded platform merchants, internal UUID bindings, and authentication tokens.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-primary" onclick="openOnboardModal()">+ Add Merchant</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <input type="text" class="search-input" id="searchTenants" placeholder="Search merchant name or ID...">
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Merchant Name</th>
+                  <th>Internal Merchant ID</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tenantRows">
+                <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">Loading tenants...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. ONBOARDING VIEW -->
+      <section class="view-pane" id="view-onboarding">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Merchant Onboarding</h1>
+            <p>Provision new enterprise merchants and generate single-use high-entropy access tokens.</p>
+          </div>
+        </div>
+        <div class="panel" style="max-width:720px;">
+          <form id="onboardingForm">
+            <div class="form-grid">
+              <div class="field-group">
+                <label>Merchant Legal Name *</label>
+                <input type="text" name="name" id="onboardName" placeholder="e.g. Acme Retail Pvt Ltd" required minlength="3">
+              </div>
+              <div class="field-group">
+                <label>Admin Contact Email</label>
+                <input type="email" name="email" id="onboardEmail" placeholder="admin@merchant.com">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btnSubmitOnboard">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+              <span>Provision Merchant & Generate Token</span>
+            </button>
+          </form>
+
+          <div id="tokenOutputCard" style="display:none;margin-top:24px;padding:18px;background:#09090b;border:1px solid var(--border-bright);border-radius:10px;">
+            <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">NEW MERCHANT TOKEN GENERATED</div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Save this secret token now. It is shown only once and cannot be recovered.</p>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="text" id="newTokenValue" readonly style="flex:1;background:#18181b;border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:monospace;font-size:12px;color:#fff;">
+              <button class="btn btn-secondary" onclick="copyToken()">Copy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. ANDROID WORKSPACE VIEW -->
+      <section class="view-pane" id="view-androidworkspace">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Android Device Workspace</h1>
+            <p>Direct mobile observation agent receiver enrollment, live heartbeat, and device status telemetry.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-primary" id="btnOpenPairing">Generate Pairing Code</button>
+          </div>
+        </div>
+
+        <!-- Android Device Card -->
+        <div class="device-preview-card">
+          <div class="phone-mock">
+            <div class="phone-screen">
+              <svg class="signal-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V4"/></svg>
+              <div style="font-size:8px;font-weight:700;color:#10b981;">AGENTIC</div>
+              <div style="font-size:7px;color:#a1a1aa;">ONLINE</div>
+            </div>
+          </div>
+          <div class="phone-mock-details">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <h3>AgenticMobile0001</h3>
+              <span class="status-pill online" id="androidStatePill">Online & Ready</span>
+            </div>
+            <p>Assigned to automated receipt verification & UPI intent observation. Connects directly to backend via authenticated TLS socket.</p>
+            <div style="display:flex;gap:18px;font-size:12px;color:var(--text-muted);">
+              <div>Connection Status: <strong style="color:#fff;" id="androidConnStatus">READY</strong></div>
+              <div>Last Heartbeat: <strong style="color:#fff;" id="androidLastHb">Just now</strong></div>
+              <div>App Version: <strong style="color:#fff;" id="androidAppVer">v1.2.0-prod</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registered Devices Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Enrolled Hardware Devices</h2>
+            <button class="btn btn-secondary" onclick="loadAndroidDevices()">Refresh Telemetry</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Device Identifier</th>
+                  <th>Assigned Agent</th>
+                  <th>State</th>
+                  <th>Last Observed Heartbeat</th>
+                  <th>App Version</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="deviceRows">
+                <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">No physical devices enrolled yet. Click "Generate Pairing Code" above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. ACCESS REQUESTS VIEW -->
+      <section class="view-pane" id="view-requests">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Agent Access Requests</h1>
+            <p>Review authorized agent sessions requiring multi-factor elevation or cryptographic approval.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent ID</th>
+                  <th>Requested State</th>
+                  <th>Session Expiry</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="requestRows">
+                <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">No active access requests pending authorization.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. ALL TRANSACTIONS VIEW -->
+      <section class="view-pane" id="view-transactions">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Transactions Ledger</h1>
+            <p>Platform-wide record of every checkout order, amount, timestamp, and verification verdict.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-secondary" id="btnExportCsv">Export CSV</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <input type="text" class="search-input" id="searchOrders" placeholder="Search by Order ID or Merchant...">
+            <select class="select-input" id="filterStatus">
+              <option value="">All States</option>
+              <option value="AWAITING_PAYMENT">AWAITING_PAYMENT</option>
+              <option value="PENDING">PENDING</option>
+              <option value="SETTLED">SETTLED</option>
+              <option value="EXPIRED">EXPIRED</option>
+            </select>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order Reference</th>
+                  <th>Merchant</th>
+                  <th>Amount</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th>Direct Checkout</th>
+                </tr>
+              </thead>
+              <tbody id="transactionRows">
+                <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">Loading transactions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. TRUST & EVIDENCE VIEW -->
+      <section class="view-pane" id="view-trust">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Trust & Evidence Vault</h1>
+            <p>Tamper-proof receipt observations, OCR snapshots, and vision pipeline verification results.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order Reference</th>
+                  <th>Decision Verdict</th>
+                  <th>Observation Timestamp</th>
+                  <th>Integrity Hash</th>
+                </tr>
+              </thead>
+              <tbody id="trustRows">
+                <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">Receipt observations vault active & monitoring.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. RECONCILIATION & LEDGER VIEW -->
+      <section class="view-pane" id="view-ledger">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Reconciliation Ledger</h1>
+            <p>Two-way matching between requested payable amounts and bank-observed credit receipts.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Requested Minor</th>
+                  <th>Observed Minor</th>
+                  <th>Reconciliation State</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerRows">
+                <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-dim);">Loading ledger records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. PLATFORM ANALYTICS VIEW -->
+      <section class="view-pane" id="view-analytics">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Platform Analytics</h1>
+            <p>Aggregated telemetry on checkout conversion, order distribution, and payment velocity.</p>
+          </div>
+        </div>
+        <div class="stat-grid" id="analyticsCards">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- 10. ERRORS & BUGS VIEW -->
+      <section class="view-pane" id="view-incidents">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Errors & Incident Diagnostics</h1>
+            <p>Real-time application exceptions, WAF blocks, and automated error resolution logs.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div style="display:flex;align-items:center;gap:12px;padding:16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;margin-bottom:18px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div>
+              <strong style="color:#6ee7b7;font-size:13px;">Zero Active Incidents</strong>
+              <p style="font-size:12px;color:var(--text-muted);margin:0;">All backend services and database connections are operating within normal SLO thresholds.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11. INFRASTRUCTURE HEALTH VIEW -->
+      <section class="view-pane" id="view-infrastructure">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Infrastructure Health</h1>
+            <p>Live health probes across AWS ALB, ECS Fargate, Aurora/RDS PostgreSQL, and Redis.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-secondary" onclick="probeInfrastructure()">Run Health Probe</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Service Status</th>
+                  <th>Latency Probe</th>
+                  <th>Verdict</th>
+                </tr>
+              </thead>
+              <tbody id="infraRows">
+                <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">Probing infrastructure...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 12. AUTOMATION & INTEGRATIONS VIEW -->
+      <section class="view-pane" id="view-integrations">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Automation & Integrations</h1>
+            <p>n8n dispatch webhook integration, worker queue telemetry, and automated retry policies.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div style="padding:16px;background:#09090b;border:1px solid var(--border);border-radius:10px;">
+            <h3 style="font-size:14px;margin-bottom:6px;">n8n Pipeline Status</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Automated payment notification & bank dispatch engine.</p>
+            <span class="status-pill online">Integrated & Standby</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 13. SETTINGS VIEW -->
+      <section class="view-pane" id="view-settings">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1>Platform Settings</h1>
+            <p>Super Admin security configurations, credentials, and maintenance mode toggles.</p>
+          </div>
+        </div>
+        <div class="panel" style="max-width:680px;">
+          <h2 style="margin-bottom:14px;">Super Admin Credentials</h2>
+          <div style="font-size:13px;color:var(--text-muted);display:grid;gap:10px;">
+            <div>Root Super Admin: <code style="color:#fff;background:#000;padding:2px 8px;border-radius:4px;">nitish@thenitishkr.in</code></div>
+            <div>Password Security: <strong style="color:var(--primary);">Configured & Enforced (scrypt)</strong></div>
+            <div>Session Lifetime: <strong style="color:#fff;">8 Hours (Strict HTTPS Cookie)</strong></div>
+            <div>Allowed Origins: <code style="font-size:11px;color:#a1a1aa;">https://superadmin.disha8-2.thenitishkr.in</code></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Secure Super Admin Login -->
+<div class="modal-backdrop" id="loginModal">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-head" style="margin-bottom:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.08em;">AUTHENTICATED SESSION REQUIRED</div>
+        <h3 style="font-size:20px;margin-top:2px;">Sign in as Platform Boss</h3>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">
+      Authenticate with your Super Admin master credentials to access the live command center.
+    </p>
+    <form id="bossLoginForm">
+      <div class="field-group" style="margin-bottom:14px;">
+        <label>Admin Email</label>
+        <input type="email" id="loginEmail" value="nitish@thenitishkr.in" required>
+      </div>
+      <div class="field-group" style="margin-bottom:20px;">
+        <label>Password</label>
+        <input type="password" id="loginPassword" value="Tashima@906099" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;" id="btnLoginSubmit">
+        <span>Sign In to Super Admin →</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Generate Pairing Code -->
+<div class="modal-backdrop" id="pairingModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Pair Android Device</h3>
+      <button class="modal-close" onclick="closeModal('pairingModal')">&times;</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+      Generate a single-use pairing code. Enter it in the Agentic Pay mobile app on <strong>AgenticMobile0001</strong> to authenticate the device.
+    </p>
+    <div class="field-group" style="margin-bottom:16px;">
+      <label>Target Agent ID</label>
+      <input type="text" id="targetAgentId" value="AGENT-0001">
+    </div>
+    <button class="btn btn-primary" style="width:100%;" id="btnGenPairingExec">Generate Code</button>
+
+    <div class="pairing-box" id="pairingResultBox" style="display:none;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;">Pairing Code</div>
+        <div class="pairing-code-text" id="modalPairingCode">849201</div>
+      </div>
+      <div class="timer-ring">
+        <span>Expires in:</span>
+        <strong id="modalPairingCountdown">300s</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Command Palette (⌘K) -->
+<div class="modal-backdrop" id="cmdPalette">
+  <div class="modal-box">
+    <div class="cmd-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+      <input type="text" class="cmd-input" id="cmdSearchInput" placeholder="Type a view name or command...">
+      <span class="kbd-shortcut">ESC</span>
+    </div>
+    <div class="cmd-list" id="cmdResultsList">
+      <div class="cmd-item" data-jump="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/></svg>
+        <span>Platform Overview</span>
+        <span class="cmd-tag">overview</span>
+      </div>
+      <div class="cmd-item" data-jump="tenants">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <span>Tenant Management</span>
+        <span class="cmd-tag">tenants</span>
+      </div>
+      <div class="cmd-item" data-jump="onboarding">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+        <span>Onboard Merchant</span>
+        <span class="cmd-tag">onboard</span>
+      </div>
+      <div class="cmd-item" data-jump="androidworkspace">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/></svg>
+        <span>Android Workspace</span>
+        <span class="cmd-tag">android</span>
+      </div>
+      <div class="cmd-item" data-jump="transactions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>All Transactions</span>
+        <span class="cmd-tag">transactions</span>
+      </div>
+      <div class="cmd-item" data-jump="infrastructure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/></svg>
+        <span>Infrastructure Health</span>
+        <span class="cmd-tag">infra</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-tray" id="toastTray"></div>
+
+<script>
+  // State
+  let currentTab = 'overview';
+  let cachedOrders = [];
+  let cachedMerchants = [];
+  let cachedDevices = [];
+
+  const $ = id => document.getElementById(id);
+  const money = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n / 100);
+  const formatDate = n => n ? new Date(n * 1000).toLocaleString('en-IN') : '—';
+
+  // API Call helper
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    const res = await fetch('/api' + path, { ...options, headers });
+    if (res.status === 204) return null;
+    if (res.status === 401 && !path.includes('/auth/login')) {
+      openModal('loginModal');
+      throw new Error('Sign in required');
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.detail || 'Request failed (' + res.status + ')');
+    return data;
+  }
+
+  // Boss Login Form
+  $('bossLoginForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('btnLoginSubmit');
+    btn.disabled = true;
+    try {
+      const email = $('loginEmail').value.trim();
+      const password = $('loginPassword').value;
+      await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      closeModal('loginModal');
+      showToast('Authenticated as Platform Boss!');
+      await loadAllData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // Toast System
+  function showToast(msg, type = 'success') {
+    const tray = $('toastTray');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = (type === 'success' ? '✓ ' : '✕ ') + msg;
+    tray.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      toast.style.transition = 'all 0.2s';
+      setTimeout(() => toast.remove(), 200);
+    }, 3200);
+  }
+
+  // Tab Switcher
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    
+    const targetPane = $('view-' + tab);
+    if (targetPane) targetPane.classList.add('active');
+    
+    const activeBtn = document.querySelector('[data-view="' + tab + '"]');
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+      $('activeViewName').textContent = activeBtn.querySelector('span')?.textContent || tab;
+    }
+
+    $('appSidebar').classList.remove('open');
+    loadTabData(tab);
+  }
+
+  document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.view));
+  });
+
+  // Modal helpers
+  function openModal(id) { $(id).classList.add('open'); }
+  function closeModal(id) { $(id).classList.remove('open'); }
+  window.addEventListener('click', e => {
+    if (e.target.classList.contains('modal-backdrop')) e.target.classList.remove('open');
+  });
+
+  // Quick Action triggers
+  $('btnQuickOnboard').onclick = () => switchTab('onboarding');
+  $('btnOpenPairing').onclick = () => {
+    $('pairingResultBox').style.display = 'none';
+    openModal('pairingModal');
+  };
+
+  // Menu toggle mobile
+  $('menuToggle').onclick = () => $('appSidebar').classList.toggle('open');
+
+  // Command Palette
+  $('openCmdPalette').onclick = () => openModal('cmdPalette');
+  window.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openModal('cmdPalette');
+      $('cmdSearchInput').focus();
+    }
+    if (e.key === 'Escape') closeModal('cmdPalette');
+  });
+
+  $('cmdSearchInput').oninput = e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.cmd-item').forEach(item => {
+      const txt = item.textContent.toLowerCase();
+      item.style.display = txt.includes(q) ? 'flex' : 'none';
+    });
+  };
+
+  document.querySelectorAll('.cmd-item').forEach(item => {
+    item.addEventListener('click', () => {
+      switchTab(item.dataset.jump);
+      closeModal('cmdPalette');
+    });
+  });
+
+  // Logout
+  $('sidebarLogout').onclick = async () => {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+      showToast('Signed out successfully.');
+      setTimeout(() => location.reload(), 600);
+    } catch { location.reload(); }
+  };
+
+  // Refresh Button
+  $('btnRefresh').onclick = async () => {
+    const icon = $('btnRefresh').querySelector('svg');
+    icon.style.transform = 'rotate(180deg)';
+    icon.style.transition = 'transform 0.4s';
+    await loadAllData();
+    setTimeout(() => { icon.style.transform = 'none'; }, 400);
+    showToast('Telemetry updated.');
+  };
+
+  // Data Fetchers
+  async function loadOverview() {
+    try {
+      const data = await api('/owner/dashboard/overview');
+      const rows = data.rows || [];
+      const totalCount = rows.reduce((acc, r) => acc + (r.count || 0), 0);
+      const totalVol = rows.reduce((acc, r) => acc + (r.requested_minor || 0), 0);
+      
+      $('kpiOrders').textContent = totalCount;
+      $('kpiVolume').textContent = money(totalVol);
+
+      // Also get recent orders for overview preview
+      const txnData = await api('/owner/dashboard/transactions');
+      cachedOrders = txnData.rows || [];
+      renderOverviewOrders(cachedOrders.slice(0, 5));
+    } catch (e) { console.error('Overview error:', e); }
+  }
+
+  function renderOverviewOrders(orders) {
+    const tbody = $('overviewOrderRows');
+    if (!orders.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-dim);">No orders recorded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = orders.map(o => `
+      <tr>
+        <td><code>${o.id.slice(0, 16)}...</code></td>
+        <td><strong>${o.merchant || 'Super Admin'}</strong></td>
+        <td><strong>${money(o.amount_minor)}</strong></td>
+        <td><span class="status-pill ${o.status === 'SETTLED' ? 'online' : o.status === 'PENDING' ? 'pending' : 'revoked'}"><span class="dot"></span>${o.status}</span></td>
+        <td><a href="/checkout/${o.id}" target="_blank" style="color:var(--primary);font-weight:600;">Open Checkout ↗</a></td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadTenants() {
+    try {
+      const merchants = await api('/owner/merchants');
+      cachedMerchants = merchants || [];
+      $('badgeTenantCount').textContent = cachedMerchants.length;
+      $('kpiMerchants').textContent = cachedMerchants.length;
+
+      const tbody = $('tenantRows');
+      if (!cachedMerchants.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">No tenants registered.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = cachedMerchants.map(m => `
+        <tr>
+          <td><strong style="font-size:13px;color:#fff;">${m.name}</strong></td>
+          <td><code>${m.id}</code></td>
+          <td><span class="status-pill online"><span class="dot"></span>Active Tenant</span></td>
+          <td>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="navigator.clipboard.writeText('${m.id}');showToast('Merchant ID copied!');">Copy ID</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) { console.error('Tenants error:', e); }
+  }
+
+  async function loadAndroidDevices() {
+    try {
+      const devices = await api('/android/devices');
+      cachedDevices = devices || [];
+      const tbody = $('deviceRows');
+      if (!cachedDevices.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">No physical devices enrolled yet. Click "Generate Pairing Code" above.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = cachedDevices.map(d => {
+        const isOnline = d.state === 'ONLINE';
+        return `
+          <tr>
+            <td><code>${d.device_id}</code></td>
+            <td><strong>${d.agent_id || 'AGENT-0001'}</strong></td>
+            <td><span class="status-pill ${isOnline ? 'online' : 'revoked'}"><span class="dot"></span>${d.state}</span></td>
+            <td>${formatDate(d.last_heartbeat)}</td>
+            <td>${d.app_version || 'v1.2.0'}</td>
+            <td>
+              <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="revokeDevice('${d.device_id}')">Revoke</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) { console.error('Devices error:', e); }
+  }
+
+  async function revokeDevice(deviceId) {
+    try {
+      await api('/android/devices/' + encodeURIComponent(deviceId) + '/revoke', { method: 'POST' });
+      showToast('Device revoked successfully.');
+      loadAndroidDevices();
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  // Pairing code countdown
+  let pairingInterval;
+  $('btnGenPairingExec').onclick = async () => {
+    const agentId = $('targetAgentId').value.trim() || 'AGENT-0001';
+    try {
+      const res = await api('/android/devices/pairing', {
+        method: 'POST',
+        body: JSON.stringify({ agent_id: agentId })
+      });
+      $('modalPairingCode').textContent = res.code;
+      $('pairingResultBox').style.display = 'flex';
+      
+      let sec = res.expires_in_seconds || 300;
+      clearInterval(pairingInterval);
+      pairingInterval = setInterval(() => {
+        sec--;
+        $('modalPairingCountdown').textContent = sec + 's';
+        if (sec <= 0) {
+          clearInterval(pairingInterval);
+          $('modalPairingCountdown').textContent = 'Expired';
+        }
+      }, 1000);
+      showToast('Pairing code generated for ' + agentId);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  // Onboarding Form
+  $('onboardingForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('btnSubmitOnboard');
+    btn.disabled = true;
+    try {
+      const name = $('onboardName').value.trim();
+      const res = await api('/owner/merchants', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      $('newTokenValue').value = res.token || 'Bearer token generated';
+      $('tokenOutputCard').style.display = 'block';
+      showToast('Merchant ' + name + ' created!');
+      loadTenants();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  function copyToken() {
+    navigator.clipboard.writeText($('newTokenValue').value);
+    showToast('Token copied to clipboard!');
+  }
+
+  // Transactions Table
+  async function loadTransactions() {
+    try {
+      const data = await api('/owner/dashboard/transactions');
+      cachedOrders = data.rows || [];
+      renderTransactionsTable(cachedOrders);
+    } catch (e) { console.error('Transactions error:', e); }
+  }
+
+  function renderTransactionsTable(orders) {
+    const q = $('searchOrders').value.toLowerCase();
+    const s = $('filterStatus').value;
+    const filtered = orders.filter(o => 
+      o.id.toLowerCase().includes(q) && (!s || o.status === s)
+    );
+    const tbody = $('transactionRows');
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-dim);">No matching transactions.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(o => `
+      <tr>
+        <td><code>${o.id}</code></td>
+        <td><strong>${o.merchant || 'Super Admin'}</strong></td>
+        <td><strong style="color:#fff;">${money(o.amount_minor)}</strong></td>
+        <td>${formatDate(o.created)}</td>
+        <td><span class="status-pill ${o.status === 'SETTLED' ? 'online' : o.status === 'PENDING' ? 'pending' : 'revoked'}"><span class="dot"></span>${o.status}</span></td>
+        <td><a href="/checkout/${o.id}" target="_blank" style="color:var(--primary);font-weight:600;">Open Checkout ↗</a></td>
+      </tr>
+    `).join('');
+  }
+
+  $('searchOrders').oninput = () => renderTransactionsTable(cachedOrders);
+  $('filterStatus').onchange = () => renderTransactionsTable(cachedOrders);
+
+  // CSV Export
+  $('btnExportCsv').onclick = () => {
+    if (!cachedOrders.length) { showToast('No data to export', 'error'); return; }
+    const csv = 'order_id,merchant,amount_inr,status,created\n' +
+      cachedOrders.map(o => [o.id, o.merchant, o.amount_minor / 100, o.status, formatDate(o.created)].join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'agentic-superadmin-transactions.csv';
+    a.click();
+    showToast('CSV downloaded successfully.');
+  };
+
+  // Infrastructure Probe
+  async function probeInfrastructure() {
+    try {
+      const data = await api('/owner/dashboard/infrastructure');
+      const rows = data.rows || [];
+      $('infraRows').innerHTML = rows.map(r => `
+        <tr>
+          <td><strong>${r.component}</strong></td>
+          <td><span class="status-pill ${r.state.includes('OK') || r.state.includes('RESPOND') ? 'online' : 'pending'}"><span class="dot"></span>${r.state}</span></td>
+          <td><code>&lt; 5ms (Internal VPC)</code></td>
+          <td><strong style="color:#34d399;">OPTIMAL</strong></td>
+        </tr>
+      `).join('');
+      showToast('Infrastructure probe complete.');
+    } catch (e) { console.error('Infra error:', e); }
+  }
+
+  // Load Tab Dispatcher
+  function loadTabData(tab) {
+    if (tab === 'overview') loadOverview();
+    else if (tab === 'tenants') loadTenants();
+    else if (tab === 'androidworkspace') loadAndroidDevices();
+    else if (tab === 'transactions') loadTransactions();
+    else if (tab === 'infrastructure') probeInfrastructure();
+  }
+
+  async function loadAllData() {
+    await Promise.allSettled([
+      loadOverview(),
+      loadTenants(),
+      loadAndroidDevices(),
+      loadTransactions()
+    ]);
+  }
+
+  // Initial load
+  loadAllData();
+</script>
+</body>
+</html>

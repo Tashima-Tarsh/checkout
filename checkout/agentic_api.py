@@ -844,7 +844,7 @@ def device_pair(request: Request, item: DevicePairInput):
 @router.get("/android/device/status")
 def device_status(request: Request, authorization: Token = None):
     """Return only the authenticated device's own connection status."""
-    identity = device_bearer(request, authorization, allow_offline=True)
+    identity = device_bearer(request, authorization, )
     with request.app.state.engine.connect() as conn:
         row = conn.execute(select(devices).where(
             devices.c.device_id == identity["device_id"]
@@ -866,7 +866,7 @@ def device_heartbeat(request: Request, authorization: Token = None):
     Allows an OFFLINE device to re-heartbeat and return to ONLINE; revoked
     or expired credentials are still rejected.
     """
-    row = device_bearer(request, authorization, allow_offline=True)
+    row = device_bearer(request, authorization, )
     ts = now()
     with request.app.state.engine.begin() as conn:
         conn.execute(
@@ -1997,7 +1997,7 @@ def super_admin_device_fleet(request: Request, authorization: Token = None):
     """Super Admin: view all merchant devices across the platform."""
     # Super admin check
     token = authorization or ""
-    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
+    admin_token = os.getenv("ADMIN_TOKEN", "")
     if not token or not token.startswith("Bearer "):
         raise HTTPException(401, "Super Admin token required")
     token_val = token.split(" ", 1)[1]
@@ -2038,7 +2038,7 @@ def super_admin_device_fleet(request: Request, authorization: Token = None):
 @router.post("/super-admin/provision-device", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def super_admin_provision_device(request: Request, item: ProvisionDeviceInput, authorization: Token = None):
     """Super Admin: provision a new merchant Android device with 15 workers."""
-    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
+    admin_token = os.getenv("ADMIN_TOKEN", "")
     token = authorization or ""
     if not token or not token.startswith("Bearer "):
         raise HTTPException(401, "Super Admin token required")
@@ -2181,12 +2181,12 @@ def android_update_automation_config(request: Request, item: AutomationConfigInp
 # ============================================================================
 
 def require_owner_token(request: Request):
-    """Super Admin bearer token check via PDEP_ADMIN_TOKEN."""
+    """Super Admin bearer token check via ADMIN_TOKEN."""
     authorization = request.headers.get("authorization")
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Super Admin bearer token required")
     token = authorization.split(" ", 1)[1]
-    expected = os.getenv("PDEP_ADMIN_TOKEN")
+    expected = os.getenv("ADMIN_TOKEN")
     if not expected or not secrets.compare_digest(token, expected):
         raise HTTPException(403, "Invalid Super Admin token")
     return token

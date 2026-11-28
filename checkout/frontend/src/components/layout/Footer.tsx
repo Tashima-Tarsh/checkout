@@ -73,7 +73,7 @@ export const Footer: React.FC = () => {
               </li>
               <li className="pt-2">
                 <a
-                  href="https://merchant.disha8-2.thenitishkr.in/"
+                  href="/merchant-login"
                   className="inline-flex items-center gap-1 text-[#07865C] font-bold hover:underline"
                 >
                   <span>Merchant Portal Login</span>

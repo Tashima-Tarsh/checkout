@@ -16,6 +16,8 @@ import { Contact } from './pages/Contact'
 import { Privacy } from './pages/Privacy'
 import { Terms } from './pages/Terms'
 import { CookiePreferences } from './pages/CookiePreferences'
+import { MerchantLogin } from './pages/MerchantLogin'
+import { SuperAdminLogin } from './pages/SuperAdminLogin'
 import { Navbar } from './components/navigation/Navbar'
 import { Footer } from './components/layout/Footer'
 
@@ -138,6 +140,10 @@ function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/cookie-preferences" element={<CookiePreferences />} />
+              <Route path="/login" element={<MerchantLogin />} />
+              <Route path="/merchant-login" element={<MerchantLogin />} />
+              <Route path="/superadmin-login" element={<SuperAdminLogin />} />
+              <Route path="/admin/login" element={<SuperAdminLogin />} />
             </Routes>
           </div>
           <Footer />

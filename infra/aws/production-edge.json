@@ -321,11 +321,9 @@
         ],
         "Actions": [
           {
-            "Type": "fixed-response",
-            "FixedResponseConfig": {
-              "StatusCode": "503",
-              "ContentType": "text/plain",
-              "MessageBody": "DISHA 8.2 Payment Checkout: application release not available."
+            "Type": "forward",
+            "TargetGroupArn": {
+              "Ref": "AgenticTarget"
             }
           }
         ]

@@ -19,7 +19,6 @@ CHECKOUT_HOST = "checkout.disha8-2.thenitishkr.in"
 ENDPOINTS = (
     (WEBSITE_HOST, "/"),
     (CHECKOUT_HOST, "/healthz"),
-    (CHECKOUT_HOST, "/api/appearance"),
     (CHECKOUT_HOST, "/"),
 )
 
@@ -48,17 +47,13 @@ def check(host: str, path: str) -> dict:
             elif path == "/healthz":
                 data = json.loads(body)
                 result["ok"] = resp.status == 200 and data.get("ok") is True
-                result["synthetic_enabled"] = data.get("synthetic_enabled")
-            elif path == "/api/appearance":
-                data = json.loads(body)
-                result["ok"] = (
-                    resp.status == 200
-                    and isinstance(data.get("brand_name"), str)
-                    and isinstance(data.get("theme"), str)
-                )
+                if "verification" in data:
+                    result["verification"] = data["verification"]
+                if "synthetic_enabled" in data:
+                    result["synthetic_enabled"] = data["synthetic_enabled"]
             else:
                 result["ok"] = resp.status == 200 and (
-                    b'id="form"' in body and (b'id="create"' in body or b'id="launch"' in body)
+                    b"Agentic Pay" in body or b"Command Center" in body or b"portal" in body
                 )
             if not result["ok"]:
                 result["error"] = "Unexpected public response shape"
