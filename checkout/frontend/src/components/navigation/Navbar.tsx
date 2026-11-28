@@ -14,7 +14,7 @@ export const Navbar: React.FC = () => {
             <span className="text-sm font-bold tracking-tight text-[var(--pdp-ink,var(--pdp-dark-text))]">DISHA 8.2</span>
             <span className="text-xs text-[var(--pdp-muted,var(--pdp-dark-muted))]">Agentic UPI Verification</span>
           </div>
-        </div>
+        </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6">

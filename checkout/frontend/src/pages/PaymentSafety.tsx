@@ -21,23 +21,23 @@ export const PaymentSafety: React.FC = () => {
   ]
 
   return (
-    <section className="prism-glass-strong" style="padding: 4rem 1rem;">
-      <div className="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Zero fraud evidence protocol</div>
-      <h1 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Payment safety and verification</h2>
-      <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:700px;margin-bottom:1.5rem;">
+    <section className="prism-glass-strong" style={{"padding":"4rem 1rem"}}>
+      <div className="section-eyebrow" style={{"fontSize":"0.875rem","fontWeight":"800","letterSpacing":"0.16em","color":"var(--disha-violet)","textTransform":"uppercase","display":"block","marginBottom":"1rem"}}>Zero fraud evidence protocol</div>
+      <h1 style={{"fontSize":"clamp(2rem,4vw,3.75rem)","lineHeight":"1.15","letterSpacing":"-0.035em","color":"var(--disha-ink)","marginBottom":"1rem"}}>Payment safety and verification</h1>
+      <p style={{"fontSize":"clamp(1rem,1.2vw,1.125rem)","lineHeight":"1.75","color":"var(--disha-muted)","maxWidth":"700px","marginBottom":"1.5rem"}}>
         Businesses depend on accurate payment information. An unclear transaction status can create uncertainty for the customer, delay fulfilment and increase the amount of work required to resolve a payment.
       </p>
-      <div className="field-group two" style="margin-top: 2rem;">
+      <div className="field-group two" style={{"marginTop":"2rem"}}>
         {safeguards.map((s) => (
           <div className="field" key={s.title}>
-            <label style="font-weight:700;color:var(--disha-violet);text-transform:uppercase;font-size:0.875rem;letter-spacing:0.08em;display:block;margin-bottom:0.5rem;">{s.title}</label>
-            <div className="card" style="padding:1rem;">
-              <p style="font-size:0.9375rem;color:var(--prism-text-secondary);margin:0;">{s.description}</p>
+            <label style={{"fontWeight":"700","color":"var(--disha-violet)","textTransform":"uppercase","fontSize":"0.875rem","letterSpacing":"0.08em","display":"block","marginBottom":"0.5rem"}}>{s.title}</label>
+            <div className="card" style={{"padding":"1rem"}}>
+              <p style={{"fontSize":"0.9375rem","color":"var(--prism-text-secondary)","margin":"0"}}>{s.description}</p>
             </div>
           </div>
         ))}
       </div>
-      <button className="btn-primary" style="margin-top: 1.5rem;" onClick={() => window.location.href='/checkout'}>Create Verified Checkout</button>
+      <button className="btn-primary" style={{"marginTop":"1.5rem"}} onClick={() => window.location.href='/checkout'}>Create Verified Checkout</button>
     </section>
   )
 }

@@ -1,0 +1,34 @@
+name: React frontend build
+on:
+  push:
+    branches: [main, dev, uat, 'uat/release']
+  pull_request:
+    branches: [main, dev, uat, 'uat/release']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: checkout/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build React frontend
+        run: npm run build
+      - name: Check build output
+        run: test -s dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: react-frontend-build
+          path: |
+            checkout/frontend/dist/
+            checkout/frontend/package-lock.json
+          if-no-files-found: error

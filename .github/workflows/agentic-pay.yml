@@ -2,7 +2,7 @@ name: Agentic Pay isolation and orchestration
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev, uat, 'uat/release']
 permissions:
   contents: read
 jobs:

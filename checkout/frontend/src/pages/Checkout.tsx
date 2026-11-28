@@ -85,16 +85,16 @@ export const Checkout: React.FC = () => {
 
   if (step === 'create') {
     return (
-      <section className="prism-glass-strong" style="padding: 4rem 1rem; max-width: 600px; margin: 2rem auto;">
-        <div className="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Create Payment Link</div>
-        <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Create Payment Link</h2>
-        <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;margin-bottom:1.5rem;">
+      <section className="prism-glass-strong" style={{"padding":"4rem 1rem","maxWidth":"600px","margin":"2rem auto"}}>
+        <div className="section-eyebrow" style={{"fontSize":"0.875rem","fontWeight":"800","letterSpacing":"0.16em","color":"var(--disha-violet)","textTransform":"uppercase","display":"block","marginBottom":"1rem"}}>Create Payment Link</div>
+        <h2 style={{"fontSize":"clamp(2rem,4vw,3.75rem)","lineHeight":"1.15","letterSpacing":"-0.035em","color":"var(--disha-ink)","marginBottom":"1rem"}}>Create Payment Link</h2>
+        <p style={{"fontSize":"clamp(1rem,1.2vw,1.125rem)","lineHeight":"1.75","color":"var(--disha-muted)","maxWidth":"570px","marginBottom":"1.5rem"}}>
           Customer pays via UPI. Verification completes within 120 seconds.
         </p>
-        <button className="btn-primary" type="button" onClick={createCheckout} style="width:100%;padding:1rem 2rem;font-size:1.1rem;">
+        <button className="btn-primary" type="button" onClick={createCheckout} style={{"width":"100%","padding":"1rem 2rem","fontSize":"1.1rem"}}>
           Create Payment Link
         </button>
-        <p className="notice" style="margin-top: 1rem;">
+        <p className="notice" style={{"marginTop":"1rem"}}>
           No client-submitted proof sets financially_verified=true. Fail-closed: verified remains 0 until server match.
         </p>
       </section>
@@ -103,22 +103,22 @@ export const Checkout: React.FC = () => {
 
   if (step === 'verify') {
     return (
-      <section className="prism-glass-strong" style="padding: 4rem 1rem; max-width: 600px; margin: 2rem auto;">
-        <div className="verify-container" style="text-align:center;">
-          <div className="verify-icon" style="font-size:3rem;margin-bottom:1rem;">⏳</div>
-          <h2 style="font-size:clamp(1.5rem,3vw,2.5rem);color:var(--disha-ink);margin-bottom:0.5rem;">Payment Verification</h2>
+      <section className="prism-glass-strong" style={{"padding":"4rem 1rem","maxWidth":"600px","margin":"2rem auto"}}>
+        <div className="verify-container" style={{"textAlign":"center"}}>
+          <div className="verify-icon" style={{"fontSize":"3rem","marginBottom":"1rem"}}>⏳</div>
+          <h2 style={{"fontSize":"clamp(1.5rem,3vw,2.5rem)","color":"var(--disha-ink)","marginBottom":"0.5rem"}}>Payment Verification</h2>
           <div className="verify-text">
-            <div className="verify-title" style="font-weight:700;color:var(--disha-ink);margin-bottom:0.5rem;">Waiting for payment…</div>
-            <div className="verify-sub" style="font-size:0.9375rem;color:var(--disha-muted);">Customer has not yet paid via UPI.</div>
+            <div className="verify-title" style={{"fontWeight":"700","color":"var(--disha-ink)","marginBottom":"0.5rem"}}>Waiting for payment…</div>
+            <div className="verify-sub" style={{"fontSize":"0.9375rem","color":"var(--disha-muted)"}}>Customer has not yet paid via UPI.</div>
           </div>
-          <div className="timer-display" style="margin-top:1.5rem;font-weight:bold;color:var(--disha-emerald-500);font-size:1.5rem;">
+          <div className="timer-display" style={{"marginTop":"1.5rem","fontWeight":"bold","color":"var(--disha-emerald-500)","fontSize":"1.5rem"}}>
             Time remaining: {Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2,'0')}s
           </div>
-          <div className="verify-actions" style="margin-top:1.5rem;display:flex;gap:0.5rem;">
-            <button className="btn-secondary" style="padding:0.75rem 1.5rem;">Refresh Status</button>
-            <button className="btn-secondary" style="padding:0.75rem 1.5rem;">Copy UPI ID Again</button>
+          <div className="verify-actions" style={{"marginTop":"1.5rem","display":"flex","gap":"0.5rem"}}>
+            <button className="btn-secondary" style={{"padding":"0.75rem 1.5rem"}}>Refresh Status</button>
+            <button className="btn-secondary" style={{"padding":"0.75rem 1.5rem"}}>Copy UPI ID Again</button>
           </div>
-          <div className="verify-note" style="margin-top:1rem;font-size:0.875rem;color:var(--disha-muted);">
+          <div className="verify-note" style={{"marginTop":"1rem","fontSize":"0.875rem","color":"var(--disha-muted)"}}>
             <strong>Important:</strong> Returning to this page, copying the UPI ID, or waiting does not confirm payment. Funds are verified only when the server matches the debit.
           </div>
         </div>
@@ -128,33 +128,33 @@ export const Checkout: React.FC = () => {
 
   if (step === 'verified') {
     return (
-      <section className="prism-glass-strong" style="padding: 4rem 1rem; max-width: 600px; margin: 2rem auto; text-align:center;">
-        <div className="success-animation" style="margin-bottom:1rem;">
-          <div className="rupee-coin" style="font-size:3rem;display:flex;align-items:center;justify-content:center;">₹</div>
-          <div className="verify-seal" style="display:flex;align-items:center;gap:0.5rem;">
-            <span className="seal-check" style="color:var(--disha-emerald-500);font-size:2rem;">✓</span>
-            <span className="seal-text" style="font-weight:700;color:var(--disha-emerald-500);">Verified</span>
+      <section className="prism-glass-strong" style={{"padding":"4rem 1rem","maxWidth":"600px","margin":"2rem auto","textAlign":"center"}}>
+        <div className="success-animation" style={{"marginBottom":"1rem"}}>
+          <div className="rupee-coin" style={{"fontSize":"3rem","display":"flex","alignItems":"center","justifyContent":"center"}}>₹</div>
+          <div className="verify-seal" style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+            <span className="seal-check" style={{"color":"var(--disha-emerald-500)","fontSize":"2rem"}}>✓</span>
+            <span className="seal-text" style={{"fontWeight":"700","color":"var(--disha-emerald-500)"}}>Verified</span>
           </div>
         </div>
-        <h2 style="font-size:clamp(2rem,4vw,3.75rem);color:var(--disha-ink);margin-bottom:1rem;">Payment Verified</h2>
-        <p style="font-size:clamp(1rem,1.2vw,1.125rem);color:var(--disha-muted);margin-bottom:1.5rem;">Debit confirmed by server. Receipt generated.</p>
-        <div className="success-meta" style="margin-bottom:1.5rem;">
-          <div style="display:flex;justify-content:space-between;">
-            <span style="font-size:0.875rem;color:var(--disha-muted);">Order ID</span>
-            <span style="font-weight:700;color:var(--disha-ink);">{session?.id || '—'}</span>
+        <h2 style={{"fontSize":"clamp(2rem,4vw,3.75rem)","color":"var(--disha-ink)","marginBottom":"1rem"}}>Payment Verified</h2>
+        <p style={{"fontSize":"clamp(1rem,1.2vw,1.125rem)","color":"var(--disha-muted)","marginBottom":"1.5rem"}}>Debit confirmed by server. Receipt generated.</p>
+        <div className="success-meta" style={{"marginBottom":"1.5rem"}}>
+          <div style={{"display":"flex","justifyContent":"space-between"}}>
+            <span style={{"fontSize":"0.875rem","color":"var(--disha-muted)"}}>Order ID</span>
+            <span style={{"fontWeight":"700","color":"var(--disha-ink)"}}>{session?.id || '—'}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;">
-            <span style="font-size:0.875rem;color:var(--disha-muted);">Amount</span>
-            <span style="font-weight:700;color:var(--disha-ink);">₹{session?.amount_paise ? (session.amount_paise/100).toFixed(2) : '0.00'}</span>
+          <div style={{"display":"flex","justifyContent":"space-between"}}>
+            <span style={{"fontSize":"0.875rem","color":"var(--disha-muted)"}}>Amount</span>
+            <span style={{"fontWeight":"700","color":"var(--disha-ink)"}}>₹{session?.amount_paise ? (session.amount_paise/100).toFixed(2) : '0.00'}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;">
-            <span style="font-size:0.875rem;color:var(--disha-muted);">UPI ID</span>
-            <span style="font-weight:700;color:var(--disha-ink);">{session?.vpa || '—'}</span>
+          <div style={{"display":"flex","justifyContent":"space-between"}}>
+            <span style={{"fontSize":"0.875rem","color":"var(--disha-muted)"}}>UPI ID</span>
+            <span style={{"fontWeight":"700","color":"var(--disha-ink)"}}>{session?.vpa || '—'}</span>
           </div>
         </div>
-        <div className="success-actions" style="display:flex;gap:0.5rem;">
-          <button className="btn-primary" type="button" style="flex:1;">View Receipt</button>
-          <button className="btn-secondary" type="button" style="flex:1;" onClick={() => {setSession(null);setStep('create');setOrderExpiresAt(0);setSecondsRemaining(0);if(pollTimer)clearInterval(pollTimer);}}>New Checkout</button>
+        <div className="success-actions" style={{"display":"flex","gap":"0.5rem"}}>
+          <button className="btn-primary" type="button" style={{"flex":"1"}}>View Receipt</button>
+          <button className="btn-secondary" type="button" style={{"flex":"1"}} onClick={() => {setSession(null);setStep('create');setOrderExpiresAt(0);setSecondsRemaining(0);if(pollTimer)clearInterval(pollTimer);}}>New Checkout</button>
         </div>
       </section>
     )

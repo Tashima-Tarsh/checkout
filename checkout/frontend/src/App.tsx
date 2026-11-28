@@ -1,23 +1,22 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
-import Home from './pages/Home'
-import About from './pages/About'
-import WhyDisha from './pages/WhyDisha'
-import HowItWorks from './pages/HowItWorks'
-import PaymentSafety from './pages/PaymentSafety'
-import Checkout from './pages/Checkout'
-import Receipt from './pages/Receipt'
-import MerchantPortal from './pages/MerchantPortal'
-import AgentPortal from './pages/AgentPortal'
-import OwnerDashboard from './pages/OwnerDashboard'
-import CompareAndSave from './pages/CompareAndSave'
-import Contact from './pages/Contact'
-import Privacy from './pages/Privacy'
-import Terms from './pages/Terms'
-import CookiePreferences from './pages/CookiePreferences'
-import Navbar from './components/navigation/Navbar'
-import Footer from './components/layout/Footer'
+import { Home } from './pages/Home'
+import { About } from './pages/About'
+import { HowItWorks } from './pages/HowItWorks'
+import { PaymentSafety } from './pages/PaymentSafety'
+import { Checkout } from './pages/Checkout'
+import { Receipt } from './pages/Receipt'
+import { MerchantPortal } from './pages/MerchantPortal'
+import { AgentPortal } from './pages/AgentPortal'
+import { OwnerDashboard } from './pages/OwnerDashboard'
+import { CompareAndSave } from './pages/CompareAndSave'
+import { Contact } from './pages/Contact'
+import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
+import { CookiePreferences } from './pages/CookiePreferences'
+import { Navbar } from './components/navigation/Navbar'
+import { Footer } from './components/layout/Footer'
 
 function App() {
   return (
@@ -27,7 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
-          <Route path="/why-disha" element={<WhyDisha />} />
+          <Route path="/why-disha" element={<About />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/payment-safety" element={<PaymentSafety />} />
           <Route path="/checkout" element={<Checkout />} />
