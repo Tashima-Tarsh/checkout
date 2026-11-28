@@ -32,18 +32,17 @@ jobs:
         include:
           - service: checkout
             dockerfile: Dockerfile
-            output: CheckoutRepository
+            repository: disha8-2-production-runtime-checkoutimages-gdzr2zz3t59l
           - service: agentic
             dockerfile: Dockerfile.agentic
-            output: AgenticRepository
+            repository: disha8-2-production-runtime-agenticimages-hiytu5whxw5y
           - service: workflow
             dockerfile: Dockerfile.n8n
-            output: WorkflowRepository
+            repository: disha8-2-production-runtime-workflowimages-gqokue4ofdzl
     env:
-      STACK_NAME: DISHA8-2-Production-Runtime
       SERVICE: ${{ matrix.service }}
       DOCKERFILE: ${{ matrix.dockerfile }}
-      REPOSITORY_OUTPUT: ${{ matrix.output }}
+      REPOSITORY: ${{ matrix.repository }}
     steps:
       - uses: actions/checkout@v4
       - name: Build image with Sydney RDS trust bundle
@@ -68,11 +67,8 @@ jobs:
           aws-region: ap-southeast-2
       - name: Publish immutable image
         run: |
-          aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
-          uri=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
-            --query "Stacks[0].Outputs[?OutputKey=='$REPOSITORY_OUTPUT'].OutputValue | [0]" --output text)
-          [[ "$uri" == 602322433189.dkr.ecr.ap-southeast-2.amazonaws.com/disha8-2-production-runtime-* ]]
-          repo=${uri#*/}
+          repo=$REPOSITORY
+          uri="602322433189.dkr.ecr.ap-southeast-2.amazonaws.com/$repo"
           tag=$GITHUB_SHA
           if ! image=$(aws ecr describe-images --repository-name "$repo" --image-ids "imageTag=$tag" 2>&1); then
             if [[ "$image" != *ImageNotFoundException* ]]; then
