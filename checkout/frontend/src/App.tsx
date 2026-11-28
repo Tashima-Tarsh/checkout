@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { ClerkProvider } from '@clerk/clerk-react'
 
 import { Home } from './pages/Home'
@@ -23,10 +23,18 @@ import { Footer } from './components/layout/Footer'
 
 const CLERK_PUBLISHABLE_KEY = 'pk_live_Y2xlcmsudGhlbml0aXNoa3IuaW4k'
 
-function App() {
+function AppContent() {
+  const location = useLocation()
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+
+  // Check if current path is a standalone login page
+  const isLoginPage =
+    location.pathname === '/login' ||
+    location.pathname === '/merchant-login' ||
+    location.pathname === '/superadmin-login' ||
+    location.pathname === '/admin/login'
 
   const handleToggleAudio = () => {
     if (!('speechSynthesis' in window)) {
@@ -108,46 +116,61 @@ function App() {
     }
   }, [])
 
+  // Standalone full-screen login routes without ANY website navbar or footer
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<MerchantLogin />} />
+        <Route path="/merchant-login" element={<MerchantLogin />} />
+        <Route path="/superadmin-login" element={<SuperAdminLogin />} />
+        <Route path="/admin/login" element={<SuperAdminLogin />} />
+      </Routes>
+    )
+  }
+
+  // Standard Website Layout with Navigation & Footer
+  return (
+    <div className="min-h-screen flex flex-col bg-[#FAF8F3] text-[#262626]">
+      <Navbar isAudioPlaying={isAudioPlaying} onToggleAudio={handleToggleAudio} />
+      <main className="flex-grow">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Home
+                isAudioPlaying={isAudioPlaying}
+                onToggleAudio={handleToggleAudio}
+              />
+            }
+          />
+          <Route path="/about" element={<About />} />
+          <Route path="/why-disha" element={<About />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/payment-safety" element={<PaymentSafety />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/:orderId" element={<Checkout />} />
+          <Route path="/receipt/:orderId" element={<Receipt />} />
+          <Route path="/receipt" element={<Receipt />} />
+          <Route path="/merchant-portal" element={<MerchantPortal />} />
+          <Route path="/agent-portal" element={<AgentPortal />} />
+          <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+          <Route path="/compare-and-save" element={<CompareAndSave />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/cookie-preferences" element={<CookiePreferences />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
+function App() {
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col bg-[#FAF8F3] text-[#262626]">
-          <Navbar isAudioPlaying={isAudioPlaying} onToggleAudio={handleToggleAudio} />
-          <div className="flex-grow">
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <Home
-                    isAudioPlaying={isAudioPlaying}
-                    onToggleAudio={handleToggleAudio}
-                  />
-                }
-              />
-              <Route path="/about" element={<About />} />
-              <Route path="/why-disha" element={<About />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/payment-safety" element={<PaymentSafety />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/checkout/:orderId" element={<Checkout />} />
-              <Route path="/receipt/:orderId" element={<Receipt />} />
-              <Route path="/receipt" element={<Receipt />} />
-              <Route path="/merchant-portal" element={<MerchantPortal />} />
-              <Route path="/agent-portal" element={<AgentPortal />} />
-              <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-              <Route path="/compare-and-save" element={<CompareAndSave />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/cookie-preferences" element={<CookiePreferences />} />
-              <Route path="/login" element={<MerchantLogin />} />
-              <Route path="/merchant-login" element={<MerchantLogin />} />
-              <Route path="/superadmin-login" element={<SuperAdminLogin />} />
-              <Route path="/admin/login" element={<SuperAdminLogin />} />
-            </Routes>
-          </div>
-          <Footer />
-        </div>
+        <AppContent />
       </BrowserRouter>
     </ClerkProvider>
   )

@@ -603,29 +603,163 @@ a:hover {
   }
 }
 
-/* Clerk Glass Container Styling */
-.clerk-glass-container .cl-card {
-  background: transparent !important;
+/* ==========================================================================
+   CLERK "NO BOX" PURE GLASS OVERRIDES
+   Completely removes all outer boxes, white cards, thick borders, and shadows.
+   Input fields and buttons float directly over the cinematic background.
+   ========================================================================== */
+
+.clerk-no-box,
+.clerk-no-box * {
   box-shadow: none !important;
+}
+
+.clerk-no-box .cl-rootBox,
+.clerk-no-box .cl-card,
+.clerk-no-box .cl-cardBox,
+.clerk-no-box .cl-main,
+.clerk-no-box .cl-signIn-start,
+.clerk-no-box .cl-signIn-root,
+.clerk-no-box [class*="card"],
+.clerk-no-box [class*="Card"],
+.clerk-no-box [class*="rootBox"],
+.clerk-no-box [class*="main"] {
+  background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
 }
 
-.clerk-glass-container .cl-headerTitle {
+.clerk-no-box .cl-header,
+.clerk-no-box [class*="header"] {
+  display: none !important;
+}
+
+.clerk-no-box .cl-headerTitle,
+.clerk-no-box [class*="headerTitle"] {
   color: #ffffff !important;
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
 }
 
-.clerk-glass-container .cl-headerSubtitle {
-  color: rgba(255, 255, 255, 0.8) !important;
+.clerk-no-box .cl-headerSubtitle,
+.clerk-no-box [class*="headerSubtitle"] {
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 0.8rem !important;
 }
 
-.clerk-glass-container .cl-socialButtonsBlockButton {
-  background: rgba(255, 255, 255, 0.88) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+.clerk-no-box .cl-formFieldLabel,
+.clerk-no-box [class*="formFieldLabel"] {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 0.35rem !important;
 }
 
-.clerk-glass-container .cl-formButtonPrimary {
+.clerk-no-box input,
+.clerk-no-box .cl-formFieldInput,
+.clerk-no-box [class*="formFieldInput"] {
+  background: rgba(255, 255, 255, 0.12) !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  padding: 12px 16px !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.clerk-no-box input:focus,
+.clerk-no-box .cl-formFieldInput:focus,
+.clerk-no-box [class*="formFieldInput"]:focus {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: #B5F5D8 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(181, 245, 216, 0.25) !important;
+}
+
+.clerk-no-box input::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.clerk-no-box button[type="submit"],
+.clerk-no-box .cl-formButtonPrimary,
+.clerk-no-box [class*="formButtonPrimary"] {
   background: linear-gradient(135deg, #07865C, #0a9b6b) !important;
   color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 0.8rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 14px 20px !important;
   box-shadow: 0 10px 25px rgba(7, 134, 92, 0.35) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.clerk-no-box button[type="submit"]:hover,
+.clerk-no-box .cl-formButtonPrimary:hover,
+.clerk-no-box [class*="formButtonPrimary"]:hover {
+  background: linear-gradient(135deg, #065440, #08785c) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 12px 28px rgba(7, 134, 92, 0.45) !important;
+}
+
+.clerk-no-box .cl-socialButtonsBlockButton,
+.clerk-no-box [class*="socialButtonsBlockButton"] {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(12px) !important;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+}
+
+.clerk-no-box .cl-socialButtonsBlockButtonText,
+.clerk-no-box [class*="socialButtonsBlockButtonText"] {
+  color: #ffffff !important;
+}
+
+.clerk-no-box .cl-footer,
+.clerk-no-box .cl-footerAction,
+.clerk-no-box [class*="footer"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 0.75rem !important;
+  margin-top: 1rem !important;
+}
+
+.clerk-no-box .cl-footerActionText,
+.clerk-no-box [class*="footerActionText"] {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.clerk-no-box .cl-footerActionLink,
+.clerk-no-box [class*="footerActionLink"] {
+  color: #B5F5D8 !important;
+  font-weight: 700 !important;
+  text-decoration: underline !important;
+}
+
+.clerk-no-box .cl-dividerText,
+.clerk-no-box [class*="dividerText"] {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 0.75rem !important;
+}
+
+.clerk-no-box .cl-dividerLine,
+.clerk-no-box [class*="dividerLine"] {
+  background: rgba(255, 255, 255, 0.2) !important;
 }
