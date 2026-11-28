@@ -73,8 +73,14 @@ def bearer(authorization):
     return token
 
 
-def device_bearer(request: Request, authorization: Token = None):
-    """Authenticate an enrolled device using its stored credential."""
+def device_bearer(request: Request, authorization: Token = None, *, allow_offline: bool = False):
+    """Authenticate an enrolled device using its stored credential.
+
+    By default the device must be ONLINE. Pass allow_offline=True for the
+    heartbeat endpoint so a device that fell OFFLINE (missed the 90s window)
+    can re-heartbeat and come back online instead of being locked out.
+    Revoked or expired credentials are still rejected.
+    """
     if authorization is None:
         raise HTTPException(401, "Device credentials required")
     token = bearer(authorization)
@@ -93,20 +99,36 @@ def device_bearer(request: Request, authorization: Token = None):
         raise HTTPException(401, "Device revoked")
     if row["expires"] is not None and row["expires"] <= now:
         raise HTTPException(401, "Device credential expired")
-    if row["state"] != DEVICE_STATE_ONLINE:
+    if row["state"] != DEVICE_STATE_ONLINE and not allow_offline:
         raise HTTPException(401, "Device not enrolled")
     return row
 
 
 def require_owner(request: Request, authorization: Token = None):
-    """Super Admin bearer token check."""
-    if authorization is None or not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Super Admin bearer token required")
-    token = authorization.split(" ", 1)[1]
-    expected = os.getenv("ADMIN_TOKEN", "") or os.getenv("PDEP_ADMIN_TOKEN", "")
-    if not token or not secrets.compare_digest(token, expected):
-        raise HTTPException(403, "Invalid Super Admin token")
-    return token
+    if authorization is None:
+        require_session(request)
+        return
+    token = bearer(authorization)
+    if not secrets.compare_digest(digest(token), request.app.state.owner_token_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+
+def merchant_id(request: Request, authorization: Token = None):
+    if authorization is None:
+        identity = require_session(request).merchant_id
+        with request.app.state.engine.connect() as conn:
+            if conn.scalar(select(merchants.c.id).where(merchants.c.id == identity)) is None:
+                raise HTTPException(401, "Merchant access unavailable")
+    else:
+        token_hash = digest(bearer(authorization))
+        with request.app.state.engine.connect() as conn:
+            identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))
+        if identity is None:
+            raise HTTPException(401, "Invalid credentials")
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        with request.app.state.engine.connect() as conn:
+            enforce_entitlement(conn, identity, now())
+    return identity
 
 
 Merchant = Annotated[str, Depends(merchant_id)]
@@ -171,7 +193,7 @@ def api_root():
     return {"service": "Agentic Pay", "verification": "PENDING"}
 
 
-@router.post("/owner/merchants", status_code=201)
+@router.post("/owner/merchants", dependencies=[Depends(require_owner)], status_code=201)
 def create_merchant(request: Request, item: MerchantInput):
     identity = secrets.token_hex(16)
     token = secrets.token_urlsafe(32)
@@ -181,7 +203,7 @@ def create_merchant(request: Request, item: MerchantInput):
     return {"id": identity, "name": item.name, "token": token}
 
 
-@router.get("/owner/merchants")
+@router.get("/owner/merchants", dependencies=[Depends(require_owner)])
 def list_merchants(request: Request):
     with request.app.state.engine.connect() as conn:
         return [dict(row) for row in conn.execute(select(merchants.c.id, merchants.c.name)).mappings()]
@@ -191,7 +213,7 @@ class PaidTerm(BaseModel):
     paid_until: int = Field(gt=0)
 
 
-@router.put("/owner/merchants/{identity}/paid-term")
+@router.put("/owner/merchants/{identity}/paid-term", dependencies=[Depends(require_owner)])
 def set_paid_term(request: Request, identity: str, item: PaidTerm):
     with request.app.state.engine.begin() as conn:
         row = conn.execute(select(subscriptions.c.paid_until).where(
@@ -657,7 +679,8 @@ def _make_pairing_code() -> str:
 @router.post("/android/devices/pairing", status_code=201, response_model=PairingCodeOutput)
 def generate_pairing_code(request: Request, item: PairingCodeInput, authorization: Token = None):
     """Owner generates a short-lived, single-use pairing code bound to a merchant and agent."""
-        # Derive merchant identity: session (cookie auth) or explicit merchant_id (bearer token auth)
+    require_owner(request, authorization)
+    # Derive merchant identity: session (cookie auth) or explicit merchant_id (bearer token auth)
     if authorization is None:
         login = require_session(request)
         identity = login.merchant_id
@@ -684,10 +707,16 @@ def generate_pairing_code(request: Request, item: PairingCodeInput, authorizatio
 @router.get("/android/devices", response_model=list[DeviceListItem])
 def list_devices(request: Request, authorization: Token = None, merchant_id_param: str | None = Query(default=None, alias="merchant_id")):
     """List registered devices for the authenticated merchant."""
-    # Support both device bearer token and merchant bearer token / session
+    # Support both owner bearer token and merchant bearer token / session
     if authorization is not None:
-        identity = device_bearer(request, authorization).device_id
+        try:
+            require_owner(request, authorization)
+        except HTTPException:
+            identity = merchant_id(request, authorization)
+        else:
+            identity = None
     else:
+        require_owner(request, authorization)
         login = require_session(request)
         identity = login.merchant_id
 
@@ -726,8 +755,10 @@ def revoke_device(request: Request, device_id: str, authorization: Token = None,
     """Revoke a registered device and its credentials."""
     if not DEVICE_ID.fullmatch(device_id):
         raise HTTPException(404, "Device not found")
-    if authorization is not None:
-        identity = device_bearer(request, authorization).device_id
+    require_owner(request, authorization)
+    if authorization is None:
+        login = require_session(request)
+        identity = login.merchant_id
     elif merchant_id_param is not None:
         identity = merchant_id_param
     else:
@@ -813,7 +844,7 @@ def device_pair(request: Request, item: DevicePairInput):
 @router.get("/android/device/status")
 def device_status(request: Request, authorization: Token = None):
     """Return only the authenticated device's own connection status."""
-    identity = device_bearer(request, authorization)
+    identity = device_bearer(request, authorization, allow_offline=True)
     with request.app.state.engine.connect() as conn:
         row = conn.execute(select(devices).where(
             devices.c.device_id == identity["device_id"]
@@ -835,7 +866,7 @@ def device_heartbeat(request: Request, authorization: Token = None):
     Allows an OFFLINE device to re-heartbeat and return to ONLINE; revoked
     or expired credentials are still rejected.
     """
-    row = device_bearer(request, authorization)
+    row = device_bearer(request, authorization, allow_offline=True)
     ts = now()
     with request.app.state.engine.begin() as conn:
         conn.execute(
@@ -1223,7 +1254,7 @@ class MerchantEmailInput(BaseModel):
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-@router.post("/admin/merchant-email")
+@router.post("/admin/merchant-email", dependencies=[Depends(require_owner)])
 def admin_set_merchant_email(request: Request, merchant_id: str, item: MerchantEmailInput):
     """Set the notification email for a merchant (owner only)."""
     with request.app.state.engine.begin() as conn:
@@ -1966,7 +1997,7 @@ def super_admin_device_fleet(request: Request, authorization: Token = None):
     """Super Admin: view all merchant devices across the platform."""
     # Super admin check
     token = authorization or ""
-    admin_token = os.getenv("", "")
+    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
     if not token or not token.startswith("Bearer "):
         raise HTTPException(401, "Super Admin token required")
     token_val = token.split(" ", 1)[1]
@@ -2007,7 +2038,7 @@ def super_admin_device_fleet(request: Request, authorization: Token = None):
 @router.post("/super-admin/provision-device", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def super_admin_provision_device(request: Request, item: ProvisionDeviceInput, authorization: Token = None):
     """Super Admin: provision a new merchant Android device with 15 workers."""
-    admin_token = os.getenv("", "")
+    admin_token = os.getenv("PDEP_ADMIN_TOKEN", "")
     token = authorization or ""
     if not token or not token.startswith("Bearer "):
         raise HTTPException(401, "Super Admin token required")
@@ -2149,11 +2180,22 @@ def android_update_automation_config(request: Request, item: AutomationConfigInp
 # Super Admin Control Plane - Prism Command
 # ============================================================================
 
+def require_owner_token(request: Request):
+    """Super Admin bearer token check via PDEP_ADMIN_TOKEN."""
+    authorization = request.headers.get("authorization")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Super Admin bearer token required")
+    token = authorization.split(" ", 1)[1]
+    expected = os.getenv("PDEP_ADMIN_TOKEN")
+    if not expected or not secrets.compare_digest(token, expected):
+        raise HTTPException(403, "Invalid Super Admin token")
+    return token
 
 
 @router.get("/superadmin/overview", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_overview(request: Request, authorization: Token = None):
     """Platform-wide executive overview for Super Admin."""
+    require_owner_token(request)
     now_ts = _now_ts()
     today_start = now_ts - (now_ts % 86400)
 
@@ -2200,6 +2242,7 @@ def superadmin_overview(request: Request, authorization: Token = None):
 @router.get("/superadmin/incidents", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_incidents(request: Request, authorization: Token = None):
     """Open platform incidents."""
+    require_owner_token(request)
     with request.app.state.engine.connect() as conn:
         rows = conn.execute(select(audit).where(
             audit.c.event.in_(["DEVICE_OFFLINE_TIMEOUT", "DEVICE_REVOKED", "CHECKOUT_FAILED"])
@@ -2221,6 +2264,7 @@ def superadmin_incidents(request: Request, authorization: Token = None):
 @router.get("/superadmin/security", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_security(request: Request, authorization: Token = None):
     """Recent security events."""
+    require_owner_token(request)
     with request.app.state.engine.connect() as conn:
         rows = conn.execute(select(audit).where(
             audit.c.event.in_([
@@ -2243,7 +2287,8 @@ def superadmin_security(request: Request, authorization: Token = None):
 @router.get("/superadmin/aws/resources", response_model=list[dict], dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_resources(request: Request, authorization: Token = None):
     """AWS resource discovery (read-only). Requires AWS credentials configured."""
-        # Stub: AWS resources require Boto3 and valid credentials configured in the environment.
+    require_owner_token(request)
+    # Stub: AWS resources require Boto3 and valid credentials configured in the environment.
     # Return empty until AWS SDK access is provisioned.
     return []
 
@@ -2251,6 +2296,7 @@ def superadmin_aws_resources(request: Request, authorization: Token = None):
 @router.get("/superadmin/aws/billing", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_billing(request: Request, authorization: Token = None):
     """AWS billing intelligence (read-only). Requires AWS credentials configured."""
+    require_owner_token(request)
     return {
         "monthly_cost_paise": 0,
         "monthly_cost_rupees": 0.0,
@@ -2266,6 +2312,7 @@ def superadmin_aws_billing(request: Request, authorization: Token = None):
 @router.get("/superadmin/aws/credits", response_model=dict, dependencies=[Depends(require_unreviewed_feature_disabled)])
 def superadmin_aws_credits(request: Request, authorization: Token = None):
     """AWS credit intelligence (read-only). Requires AWS credentials configured."""
+    require_owner_token(request)
     return {
         "original_credits_paise": 0,
         "applied_credits_paise": 0,

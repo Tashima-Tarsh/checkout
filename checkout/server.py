@@ -30,11 +30,17 @@ from checkout.agentic_storage import merchants
 from checkout.vpa_admin import router as admin_router, enforce_optional_session_allowlist
 from checkout.saas import router as saas_router
 from checkout.recovery_integration import recovery_router
+from pdep.protocol import Session, SimulatedIssuer, Verifier
 
 ROOT = Path(__file__).parent
+DEMO = os.getenv("PDEP_DEMO_MODE") == "1" and not (
+    os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PDEP_REQUIRE_POSTGRES") == "1"
+)
+ISSUER = SimulatedIssuer() if DEMO else None
 VALID_PROOF = "SIMULATED_ISSUER_ATTESTATION_VALID"
 log = logging.getLogger("checkout")
-TR_KEY = os.getenv("CHECKOUT_TR_KEY", "dev-only-change-in-production").encode()
+TR_KEY = os.getenv("PDEP_TR_KEY", "dev-only-change-in-production").encode()
+
 
 def make_tr(sid: str, amount: int, vpa: str) -> str:
     digest = hmac.new(TR_KEY, f"{sid}|{amount}|{vpa}".encode(), "sha256").digest()
@@ -65,7 +71,7 @@ async def lifespan(app):
         engine.dispose()
 
 
-app = FastAPI(title="Checkout API", lifespan=lifespan)
+app = FastAPI(title="PDEP research checkout", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 # Isolated opt-in research lab. Existing checkout routes are unchanged.
 app.mount("/pdep-lab", StaticFiles(directory=ROOT / "static" / "pdep-lab", html=True), name="pdep-lab")
@@ -187,7 +193,7 @@ def view(row):
                 test_attested=row["state"] == "SIMULATED_PROOF_VALID",
                 financially_verified=bool(fv),
                 payment_uri=None if expired else uri(row),
-                synthetic_enabled=False)
+                synthetic_enabled=DEMO)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -419,6 +425,9 @@ def proof(sid: str, b: Proof, request: Request, authorization: Authorization = N
         row = auth(connection, sid, authorization)
         require_active(row)
         result = "UNTRUSTED_ISSUER"
+        if DEMO:
+            verifier = Verifier({"SIMULATED_ONLY": ISSUER.public()})
+            result = verifier.verify(proof_session(row), b.receipt)
         if result == VALID_PROOF:
             reference = b.receipt["payload"]["txref"]
             if len(reference) > 128:
@@ -433,6 +442,14 @@ def proof(sid: str, b: Proof, request: Request, authorization: Authorization = N
         return {"result": result, **view(auth(connection, sid, authorization))}
 
 
+if DEMO:
+    @app.post("/api/demo/sessions/{sid}/issue-test-proof")
+    def issue_demo_proof(sid: str, request: Request, authorization: Authorization = None):
+        with request.app.state.engine.connect() as connection:
+            row = auth(connection, sid, authorization)
+        require_active(row)
+        return {"receipt": ISSUER.issue(proof_session(row), "SIM_" + secrets.token_hex(12))}
+
 
 @app.get("/api/sessions/{sid}/events")
 def event_history(sid: str, request: Request, authorization: Authorization = None):
@@ -446,7 +463,7 @@ def event_history(sid: str, request: Request, authorization: Authorization = Non
 def health(request: Request):
     with request.app.state.engine.connect() as connection:
         connection.execute(text("SELECT id FROM checkout_sessions WHERE 1 = 0"))
-    return {"ok": True, "synthetic_enabled": False}
+    return {"ok": True, "synthetic_enabled": DEMO}
 
 
 # ============================================================================
@@ -519,7 +536,7 @@ def android_workspace_page():
 @app.websocket("/android/ws/host")
 async def android_ws_host(websocket: WebSocket):
     """WebSocket endpoint for the Android host agent (runs on local Windows machine).
-    Requires Bearer token authentication matching ADMIN_TOKEN.
+    Requires Bearer token authentication matching PDEP_ADMIN_TOKEN.
     """
     global _host_ws
 
