@@ -1,0 +1,88 @@
+name: Build production application images
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-images.yml'
+      - 'Dockerfile'
+      - 'Dockerfile.agentic'
+      - 'Dockerfile.n8n'
+      - 'checkout/**'
+      - 'migrations/**'
+      - 'n8n/**'
+      - 'pdep/**'
+      - 'recovery-agent/recovery/**'
+      - 'requirements.txt'
+      - 'alembic.ini'
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.repository == 'Tashima-Tarsh/checkout' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: checkout
+            dockerfile: Dockerfile
+            output: CheckoutRepository
+          - service: agentic
+            dockerfile: Dockerfile.agentic
+            output: AgenticRepository
+          - service: workflow
+            dockerfile: Dockerfile.n8n
+            output: WorkflowRepository
+    env:
+      STACK_NAME: DISHA8-2-Production-Runtime
+      SERVICE: ${{ matrix.service }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+      REPOSITORY_OUTPUT: ${{ matrix.output }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image with Sydney RDS trust bundle
+        run: |
+          context="$RUNNER_TEMP/rds-image"
+          mkdir -p "$context"
+          curl --fail --silent --show-error --retry 3 \
+            https://truststore.pki.rds.amazonaws.com/ap-southeast-2/ap-southeast-2-bundle.pem \
+            --output "$context/rds-ca.pem"
+          cat > "$context/Dockerfile" <<'DOCKERFILE'
+          ARG BASE_IMAGE
+          FROM ${BASE_IMAGE}
+          COPY rds-ca.pem /opt/disha/rds-ca.pem
+          ENV NODE_EXTRA_CA_CERTS=/opt/disha/rds-ca.pem
+          DOCKERFILE
+          docker build --file "$DOCKERFILE" --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "disha-base:$SERVICE" .
+          docker build --build-arg "BASE_IMAGE=disha-base:$SERVICE" --tag "disha:$SERVICE" "$context"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::602322433189:role/DISHA8-2-GitHub-production
+          aws-region: ap-southeast-2
+      - name: Publish immutable image
+        run: |
+          aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME"
+          uri=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='$REPOSITORY_OUTPUT'].OutputValue | [0]" --output text)
+          [[ "$uri" == 602322433189.dkr.ecr.ap-southeast-2.amazonaws.com/disha8-2-production-runtime-* ]]
+          repo=${uri#*/}
+          tag=$GITHUB_SHA
+          if ! image=$(aws ecr describe-images --repository-name "$repo" --image-ids "imageTag=$tag" 2>&1); then
+            if [[ "$image" != *ImageNotFoundException* ]]; then
+              echo "$image" >&2
+              exit 1
+            fi
+            aws ecr get-login-password | docker login --username AWS --password-stdin "${uri%%/*}"
+            docker tag "disha:$SERVICE" "$uri:$tag"
+            docker push "$uri:$tag"
+          fi
+          digest=$(aws ecr describe-images --repository-name "$repo" --image-ids "imageTag=$tag" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          printf '%s image: `%s@%s`\n' "$SERVICE" "$uri" "$digest" >> "$GITHUB_STEP_SUMMARY"
