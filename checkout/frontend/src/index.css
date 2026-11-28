@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* ==========================================================================
    PRISM ENTERPRISE DESIGN SYSTEM
    DISHA 8.2 — Agentic UPI Payment Verification Platform
@@ -8,46 +11,46 @@
   /* Pearl Palette */
   --pdp-pearl-50: #FFF7F0;
   --pdp-pearl-100: #FFFCF5;
-  --pdp-pearl-200: '#FFF3E0';
-  --pdp-pearl-300: '#FFE8C4';
-  --pdp-pearl-500: '#F4E5BD';
+  --pdp-pearl-200: #FFF3E0;
+  --pdp-pearl-300: #FFE8C4;
+  --pdp-pearl-500: #F4E5BD;
 
   /* Champagne Palette */
-  --pdp-champagne-50: '#FDF8F0';
-  --pdp-champagne-100: '#F7EBD8';
-  --pdp-champagne-200: '#F0D8B5';
-  --pdp-champagne-300: '#E8C59A';
-  --pdp-champagne-400: '#E1B27F';
-  --pdp-champagne-500: '#D8BC87';
-  --pdp-champagne-600: '#B78D48';
-  --pdp-champagne-700: '#8F6E36';
+  --pdp-champagne-50: #FDF8F0;
+  --pdp-champagne-100: #F7EBD8;
+  --pdp-champagne-200: #F0D8B5;
+  --pdp-champagne-300: #E8C59A;
+  --pdp-champagne-400: #E1B27F;
+  --pdp-champagne-500: #D8BC87;
+  --pdp-champagne-600: #B78D48;
+  --pdp-champagne-700: #8F6E36;
 
   /* Emerald Palette */
-  --pdp-emerald-50: '#E7F8EE';
-  --pdp-emerald-100: '#D1F5DE';
-  --pdp-emerald-200: '#B7EBCD';
-  --pdp-emerald-300: '#99E0BC';
-  --pdp-emerald-400: '#76D4A7';
-  --pdp-emerald-500: '#08785C';
-  --pdp-emerald-600: '#065440';
-  --pdp-emerald-700: '#043C2E';
+  --pdp-emerald-50: #E7F8EE;
+  --pdp-emerald-100: #D1F5DE;
+  --pdp-emerald-200: #B7EBCD;
+  --pdp-emerald-300: #99E0BC;
+  --pdp-emerald-400: #76D4A7;
+  --pdp-emerald-500: #08785C;
+  --pdp-emerald-600: #065440;
+  --pdp-emerald-700: #043C2E;
 
   /* Opal Palette */
-  --pdp-opal-50: '#F7F4FC';
-  --pdp-opal-100: '#EDE7FC';
-  --pdp-opal-200: '#E3D6F7';
-  --pdp-opal-300: '#D9C3F1';
-  --pdp-opal-400: '#D0B7EA';
-  --pdp-opal-500: '#C7A8E3';
-  --pdp-opal-600: '#A385CC';
-  --pdp-opal-700: '#7F63A6';
+  --pdp-opal-50: #F7F4FC;
+  --pdp-opal-100: #EDE7FC;
+  --pdp-opal-200: #E3D6F7;
+  --pdp-opal-300: #D9C3F1;
+  --pdp-opal-400: #D0B7EA;
+  --pdp-opal-500: #C7A8E3;
+  --pdp-opal-600: #A385CC;
+  --pdp-opal-700: #7F63A6;
 
   /* Dark Theme */
-  --pdp-dark-bg: '#0F172A';
-  --pdp-dark-surface: '#1E293B';
-  --pdp-dark-text: '#F8FAFC';
-  --pdp-dark-secondary: '#94A3B8';
-  --pdp-dark-muted: '#64748B';
+  --pdp-dark-bg: #0F172A;
+  --pdp-dark-surface: #1E293B;
+  --pdp-dark-text: #F8FAFC;
+  --pdp-dark-secondary: #94A3B8;
+  --pdp-dark-muted: #64748B;
 
   /* Borders & Glass */
   --pdp-border: rgba(255, 255, 255, 0.82);
@@ -578,3 +581,6 @@ a:hover {
     padding: 1rem;
   }
 }
+
+:root { --pdp-ink:#23242d; --pdp-muted:#5f6368; --pdp-ivory:#fffcf5; --gradient-emerald:var(--pdp-gradient-emerald); --disha-ink:var(--pdp-ink); --disha-muted:var(--pdp-muted); --disha-violet:#7851d8; --disha-emerald-500:#08785c; }
+.disha-body {padding-top:72px;} .btn-primary,.btn-secondary {display:inline-flex;align-items:center;justify-content:center;padding: .85rem 1.3rem;border-radius:14px;font-weight:700;} .btn-primary:hover{color:white;} a:focus-visible,button:focus-visible{outline:3px solid #7851d8;outline-offset:4px;}
