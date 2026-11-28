@@ -41,7 +41,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
-          target: google_apis
+          # Use a retail-style Google Play image; keep application root checks intact.
+          target: google_apis_playstore
           arch: x86_64
           disable-animations: true
           script: bash recovery-agent/android/ci-startup.sh
