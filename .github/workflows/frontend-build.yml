@@ -24,7 +24,11 @@ jobs:
       - name: Build React frontend
         run: npm run build
       - name: Check build output
-        run: test -s dist/index.html
+        run: |
+          test -s dist/index.html
+          grep -q '/react-ui/assets/' dist/index.html
+          test -n "$(find dist/assets -name '*.js' -print -quit)"
+          test -n "$(find dist/assets -name '*.css' -print -quit)"
       - uses: actions/upload-artifact@v4
         with:
           name: react-frontend-build
