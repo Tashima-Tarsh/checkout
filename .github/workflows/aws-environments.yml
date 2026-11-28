@@ -9,30 +9,8 @@ permissions:
   contents: read
   id-token: write
 jobs:
-  dev:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    environment: dev
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::602322433189:role/DISHA8-2-GitHub-dev
-          aws-region: ap-southeast-2
-          allowed-account-ids: '602322433189'
-      - run: aws sts get-caller-identity
-  uat:
-    needs: dev
-    runs-on: ubuntu-24.04
-    environment: uat
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::602322433189:role/DISHA8-2-GitHub-uat
-          aws-region: ap-southeast-2
-          allowed-account-ids: '602322433189'
-      - run: aws sts get-caller-identity
   production:
-    needs: uat
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: production
     steps:
