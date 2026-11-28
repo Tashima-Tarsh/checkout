@@ -17,7 +17,7 @@ from urllib.parse import quote, urlencode
 
 import qrcode
 from fastapi import FastAPI, Header, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, text
@@ -72,6 +72,10 @@ async def lifespan(app):
 
 
 app = FastAPI(title="PDEP research checkout", lifespan=lifespan)
+REACT_DIST = ROOT / "frontend" / "dist"
+if REACT_DIST.is_dir():
+    app.mount("/react-ui/assets", StaticFiles(directory=REACT_DIST / "assets"), name="react_assets")
+
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 # Isolated opt-in research lab. Existing checkout routes are unchanged.
 app.mount("/pdep-lab", StaticFiles(directory=ROOT / "static" / "pdep-lab", html=True), name="pdep-lab")
@@ -196,8 +200,25 @@ def view(row):
                 synthetic_enabled=DEMO)
 
 
+PUBLIC_SITE_HOST = "disha8-2.thenitishkr.in"
+PUBLIC_SITE_PATHS = ("/about", "/why-disha", "/how-it-works", "/payment-safety", "/compare-and-save", "/contact", "/privacy", "/terms", "/cookie-preferences")
+
+
+def public_site(request: Request):
+    if request.url.hostname != PUBLIC_SITE_HOST or not (REACT_DIST / "index.html").is_file():
+        raise HTTPException(404, "Public website unavailable")
+    return FileResponse(REACT_DIST / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+for public_path in PUBLIC_SITE_PATHS:
+    app.add_api_route(public_path, public_site, methods=["GET"], include_in_schema=False)
+    app.add_api_route(public_path + "/", public_site, methods=["GET"], include_in_schema=False)
+
+
 @app.get("/", response_class=HTMLResponse)
-def home():
+def home(request: Request):
+    if request.url.hostname == PUBLIC_SITE_HOST and (REACT_DIST / "index.html").is_file():
+        return public_site(request)
     return (ROOT / "static" / "payment.html").read_text(encoding="utf-8")
 
 @app.get("/admin", response_class=HTMLResponse)
