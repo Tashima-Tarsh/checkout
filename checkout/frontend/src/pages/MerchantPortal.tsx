@@ -11,9 +11,10 @@ export const MerchantPortal: React.FC = () => {
   const loadData = async () => {
     try {
       const [sessionsRes, limitRes] = await Promise.all([
-        fetch('http://localhost:8000/api/sessions'),
-        fetch('http://localhost:8000/api/admin/daily-limit')
+        fetch('/api/sessions'),
+        fetch('/api/admin/daily-limit')
       ])
+      if (!sessionsRes.ok || !limitRes.ok) throw new Error('Merchant data unavailable')
       const sessionsData = await sessionsRes.json()
       const limitData = await limitRes.json()
       setSessions(sessionsData.sessions || [])
@@ -40,8 +41,8 @@ export const MerchantPortal: React.FC = () => {
         </div>
         <div className="stat-card">
           <div className="stat-label">Daily Collected</div>
-          <div className="stat-value">₹{(dailyLimit?.collected_today_paise || 0)/100}.toFixed(2)</div>
-          <div className="stat-trend neutral">₹{((dailyLimit?.daily_limit_paise || 7000000) - (dailyLimit?.collected_today_paise || 0))/100}.toFixed(2) remaining</div>
+          <div className="stat-value">{dailyLimit?.collected_today_paise != null ? '₹' + (dailyLimit.collected_today_paise/100).toFixed(2) : 'Unavailable'}</div>
+          <div className="stat-trend neutral">{dailyLimit?.daily_limit_paise != null && dailyLimit?.collected_today_paise != null ? '₹' + ((dailyLimit.daily_limit_paise - dailyLimit.collected_today_paise)/100).toFixed(2) + ' remaining' : 'Unavailable'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Active Checkouts</div>
@@ -50,13 +51,13 @@ export const MerchantPortal: React.FC = () => {
         </div>
         <div className="stat-card">
           <div className="stat-label">Daily Limit</div>
-          <div className="stat-value">₹{(dailyLimit?.daily_limit_paise || 7000000)/100}.toFixed(2)</div>
+          <div className="stat-value">{dailyLimit?.daily_limit_paise != null ? '₹' + (dailyLimit.daily_limit_paise/100).toFixed(2) : 'Unavailable'}</div>
           <div className="stat-trend neutral">P2P cap per device</div>
         </div>
       </div>
 
       <div className="table-wrap" style={{"marginTop":"2rem"}}>
-        <div className="table">
+        <table className="table">
           <thead>
             <tr>
               <th>Order ID</th><th>Amount</th><th>Mode</th><th>Status</th><th>Time</th><th>Action</th>
