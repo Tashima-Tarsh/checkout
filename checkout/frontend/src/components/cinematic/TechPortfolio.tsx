@@ -36,12 +36,7 @@ export const TechPortfolio: React.FC = () => {
   ]
 
   return (
-    <section id="portfolio" className="py-24 bg-[#1E293B] relative overflow-hidden text-white">
-      {/* Background Grid & Subtle Lighting */}
-      <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
-      <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-[#07865C]/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-[#D7B77B]/10 rounded-full blur-[140px] pointer-events-none" />
-
+    <section id="portfolio" className="py-28 bg-[#0F172A] relative overflow-hidden text-white border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header: DishaNitish Technologies Ecosystem */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -49,14 +44,14 @@ export const TechPortfolio: React.FC = () => {
             <Lock className="w-3.5 h-3.5" />
             <span>Product Portfolio</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
             DishaNitish Technologies{' '}
-            <span className="bg-gradient-to-r from-[#D7B77B] to-[#B5F5D8] bg-clip-text text-transparent">
-              Ecosystem
+            <span className="text-[#B5F5D8]">
+              Ecosystem.
             </span>
           </h2>
           <p className="mt-4 text-base sm:text-lg text-slate-300 leading-relaxed">
-            Three disciplined, mission-critical technology solutions developed by DishaNitish Technologies.
+            Three disciplined, mission-critical technology solutions engineered by DishaNitish Technologies.
           </p>
         </div>
 

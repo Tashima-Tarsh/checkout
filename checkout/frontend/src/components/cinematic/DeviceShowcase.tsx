@@ -5,28 +5,28 @@ export const DeviceShowcase: React.FC = () => {
   const [activeDevice, setActiveDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
 
   return (
-    <section id="ecosystem" className="py-24 bg-[#FAF8F3] relative overflow-hidden border-t border-[#DCE2E7]">
+    <section id="ecosystem" className="py-28 bg-[#F4F1EA] relative overflow-hidden border-b border-[#E5DFD5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07865C]/10 border border-[#07865C]/30 text-[#07865C] text-xs font-bold tracking-wide uppercase mb-4">
             <Monitor className="w-3.5 h-3.5" />
-            <span>The Product Experience &bull; Live in Action</span>
+            <span>Hardware & Workstation Fleet</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#262626] tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-5xl font-black text-[#12161A] tracking-tight leading-tight">
             Integrated Across Your Entire{' '}
-            <span className="bg-gradient-to-r from-[#07865C] to-[#D7B77B] bg-clip-text text-transparent">
-              Business Fleet
+            <span className="text-[#07865C]">
+              Commercial Fleet.
             </span>
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#525252] leading-relaxed">
+          <p className="mt-4 text-base sm:text-lg text-[#555E68] leading-relaxed">
             Experience Agentic Pay running seamlessly across enterprise desktop command centers, counter tablets, and merchant smartphones.
           </p>
         </div>
 
         {/* Device Switcher Tabs */}
         <div className="flex justify-center mb-12">
-          <div className="inline-flex p-1.5 rounded-2xl bg-white border border-[#D7B77B]/30 shadow-md gap-2">
+          <div className="inline-flex p-1.5 rounded-2xl bg-white border border-[#E5DFD5] shadow-sm gap-2">
             <button
               onClick={() => setActiveDevice('desktop')}
               className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${

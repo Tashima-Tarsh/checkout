@@ -1,17 +1,19 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
 import {
   ArrowRight,
   Play,
   Pause,
   ShieldCheck,
   CheckCircle2,
-  Sparkles,
   Zap,
   LogIn,
   TrendingUp,
+  Cpu,
+  Activity,
 } from 'lucide-react'
 
-// Import official DISHA 8.2 high-resolution photograph background
+// Official DISHA 8.2 high-resolution photograph background
 import heroImage from '../../assets/disha8-2-hero.jpg'
 
 interface HeroCinematicProps {
@@ -24,9 +26,77 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
   onToggleAudio,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const heroContentRef = useRef<HTMLDivElement>(null)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   // -------------------------------------------------------------
-  // Photorealistic Motion Layer: Volumetric Clouds & Energy Pulse
+  // GSAP ENTRANCE SEQUENCE
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+
+      tl.from('.hero-badge', {
+        y: -20,
+        opacity: 0,
+        duration: 0.8,
+        delay: 0.2,
+      })
+        .from(
+          '.hero-title',
+          {
+            y: 35,
+            opacity: 0,
+            duration: 1.0,
+          },
+          '-=0.4'
+        )
+        .from(
+          '.hero-tagline',
+          {
+            y: 20,
+            opacity: 0,
+            duration: 0.8,
+          },
+          '-=0.6'
+        )
+        .from(
+          '.hero-description',
+          {
+            y: 20,
+            opacity: 0,
+            duration: 0.8,
+          },
+          '-=0.5'
+        )
+        .from(
+          '.hero-metrics',
+          {
+            y: 20,
+            opacity: 0,
+            stagger: 0.1,
+            duration: 0.7,
+          },
+          '-=0.5'
+        )
+        .from(
+          '.hero-ctas',
+          {
+            y: 20,
+            opacity: 0,
+            duration: 0.7,
+          },
+          '-=0.4'
+        )
+    }, heroContentRef)
+
+    return () => ctx.revert()
+  }, [])
+
+  // -------------------------------------------------------------
+  // PHOTOREALISTIC MOTION CANVAS: Volumetric Clouds, Energy Rail
   // -------------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current
@@ -48,7 +118,7 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
     }
     window.addEventListener('resize', handleResize)
 
-    // Cloud Puffs for realistic volumetric cloud flow
+    // Cloud Mist for volumetric atmospheric depth
     const clouds: Array<{
       x: number
       y: number
@@ -57,13 +127,13 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
       alpha: number
     }> = []
 
-    for (let i = 0; i < 32; i++) {
+    for (let i = 0; i < 30; i++) {
       clouds.push({
         x: Math.random() * width,
-        y: height * 0.4 + (Math.random() - 0.2) * (height * 0.45),
-        radius: 140 + Math.random() * 200,
+        y: height * 0.42 + (Math.random() - 0.2) * (height * 0.45),
+        radius: 140 + Math.random() * 220,
         speed: 0.15 + Math.random() * 0.35,
-        alpha: 0.07 + Math.random() * 0.12,
+        alpha: 0.06 + Math.random() * 0.1,
       })
     }
 
@@ -75,18 +145,18 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
       speedY: number
       speedX: number
       opacity: number
-      hue: string
+      color: string
     }> = []
 
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < 40; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        size: 1 + Math.random() * 2.5,
-        speedY: -0.15 - Math.random() * 0.35,
-        speedX: 0.1 + Math.random() * 0.25,
-        opacity: 0.2 + Math.random() * 0.7,
-        hue: Math.random() > 0.4 ? '#D7B77B' : '#B5F5D8',
+        size: 1 + Math.random() * 2.2,
+        speedY: -0.15 - Math.random() * 0.3,
+        speedX: 0.1 + Math.random() * 0.2,
+        opacity: 0.2 + Math.random() * 0.6,
+        color: Math.random() > 0.4 ? '#D7B77B' : '#B5F5D8',
       })
     }
 
@@ -101,7 +171,7 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
         cloud.x -= cloud.speed
         if (cloud.x < -cloud.radius * 2) {
           cloud.x = width + cloud.radius
-          cloud.y = height * 0.4 + (Math.random() - 0.2) * (height * 0.45)
+          cloud.y = height * 0.42 + (Math.random() - 0.2) * (height * 0.45)
         }
 
         const gradient = ctx.createRadialGradient(
@@ -113,7 +183,7 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
           cloud.radius
         )
         gradient.addColorStop(0, `rgba(255, 248, 235, ${cloud.alpha})`)
-        gradient.addColorStop(0.5, `rgba(245, 230, 210, ${cloud.alpha * 0.5})`)
+        gradient.addColorStop(0.5, `rgba(245, 232, 215, ${cloud.alpha * 0.45})`)
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
 
         ctx.fillStyle = gradient
@@ -123,31 +193,31 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
       }
 
       // 2. High-Speed Luminous Rail Pulse along the Viaduct
-      pulseOffset += 0.025
-      const railStartX = width * 0.18
-      const railStartY = height * 0.85
-      const railEndX = width * 0.46
-      const railEndY = height * 0.58
+      pulseOffset += 0.022
+      const railStartX = width * 0.16
+      const railStartY = height * 0.86
+      const railEndX = width * 0.48
+      const railEndY = height * 0.56
 
-      const pulseProgress = (Math.sin(pulseOffset * 1.5) + 1) / 2
+      const pulseProgress = (Math.sin(pulseOffset * 1.6) + 1) / 2
       const currentPulseX = railStartX + (railEndX - railStartX) * (1 - pulseProgress)
       const currentPulseY = railStartY + (railEndY - railStartY) * (1 - pulseProgress)
 
       const railBeam = ctx.createRadialGradient(
         currentPulseX,
         currentPulseY,
-        4,
+        3,
         currentPulseX,
         currentPulseY,
-        65
+        60
       )
-      railBeam.addColorStop(0, 'rgba(181, 245, 216, 0.75)')
-      railBeam.addColorStop(0.4, 'rgba(7, 134, 92, 0.45)')
+      railBeam.addColorStop(0, 'rgba(181, 245, 216, 0.8)')
+      railBeam.addColorStop(0.4, 'rgba(7, 134, 92, 0.4)')
       railBeam.addColorStop(1, 'rgba(7, 134, 92, 0)')
 
       ctx.fillStyle = railBeam
       ctx.beginPath()
-      ctx.arc(currentPulseX, currentPulseY, 65, 0, Math.PI * 2)
+      ctx.arc(currentPulseX, currentPulseY, 60, 0, Math.PI * 2)
       ctx.fill()
 
       // 3. Golden Dust Particles
@@ -159,7 +229,7 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
           p.x = Math.random() * width
         }
 
-        ctx.fillStyle = p.hue
+        ctx.fillStyle = p.color
         ctx.globalAlpha = p.opacity
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
@@ -177,25 +247,25 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
   }, [])
 
   return (
-    <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden pt-28 pb-20">
+    <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden pt-32 pb-24 border-b border-[#E5DFD5]">
       {/* ------------------------------------------------------------- */}
-      {/* 1. CINEMATIC BACKGROUND IMAGE (Official DISHA 8.2 Artwork)     */}
+      {/* 1. CINEMATIC BACKGROUND IMAGE (Official DISHA 8.2 Train Art)   */}
       {/* ------------------------------------------------------------- */}
       <div
-        className="absolute inset-0 bg-cover bg-center sm:bg-[center_top] transition-transform duration-1000 ease-out will-change-transform"
+        className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 ease-out will-change-transform"
         style={{
           backgroundImage: `url(${heroImage})`,
-          animation: 'subtleBreathe 14s ease-in-out infinite alternate',
+          animation: 'subtleBreathe 16s ease-in-out infinite alternate',
         }}
         aria-hidden="true"
       />
 
-      {/* Atmospheric lighting gradient overlay for high readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/30 to-black/10 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+      {/* Atmospheric lighting gradients for uncompromising text readability */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/35 pointer-events-none" />
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. REALISTIC MOTION CANVAS (Clouds, Energy, Sunlight, Dust)   */}
+      {/* 2. REALISTIC MOTION CANVAS (Clouds, Energy Pulse, Sunlight)   */}
       {/* ------------------------------------------------------------- */}
       <canvas
         ref={canvasRef}
@@ -204,15 +274,18 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
       />
 
       {/* ------------------------------------------------------------- */}
-      {/* 3. HERO CONTENT: CLEAN, LUXURY PRESENTATION (NO LOGIN BOX)     */}
+      {/* 3. HERO CONTENT: CRISP, ARCHITECTURAL LUXURY (NO GENERIC GRADIENTS) */}
       {/* ------------------------------------------------------------- */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-left text-white drop-shadow-md">
-        <div className="max-w-3xl space-y-6">
-          {/* Flagship Badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/40 shadow-sm animate-fade-in">
+      <div
+        ref={heroContentRef}
+        className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-left text-white"
+      >
+        <div className="max-w-3xl space-y-7">
+          {/* Flagship Brand Eyebrow */}
+          <div className="hero-badge inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-2xl border border-white/30 shadow-sm">
             <span className="w-2.5 h-2.5 rounded-full bg-[#B5F5D8] animate-ping" />
-            <span className="text-xs font-black tracking-wider uppercase text-white">
-              Flagship: DISHA 8.2
+            <span className="text-xs font-black tracking-wider uppercase text-white font-mono">
+              DISHA 8.2
             </span>
             <span className="text-white/40">|</span>
             <span className="text-xs font-bold tracking-wide text-[#B5F5D8]">
@@ -220,48 +293,53 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
             </span>
           </div>
 
-          {/* Primary Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.06] text-white">
+          {/* Primary Headline: High-Contrast Solid Typography */}
+          <h1 className="hero-title text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.04] text-white">
             The Next Direction of{' '}
-            <span className="bg-gradient-to-r from-[#B5F5D8] via-[#D7B77B] to-white bg-clip-text text-transparent">
-              Indian Payments.
-            </span>
+            <span className="text-[#B5F5D8]">Indian Payments.</span>
           </h1>
 
           {/* Signature Tagline */}
-          <p className="text-xl sm:text-2xl font-bold tracking-tight text-[#FAF8F3]">
+          <p className="hero-tagline text-xl sm:text-2xl font-bold tracking-tight text-[#FAF8F5]">
             Your Business, Entirely in Your Control.
           </p>
 
           {/* Business Value Description */}
-          <p className="text-base sm:text-lg text-white/90 max-w-2xl font-normal leading-relaxed">
+          <p className="hero-description text-base sm:text-lg text-white/90 max-w-2xl font-normal leading-relaxed">
             Autonomous, zero-custody UPI payment orchestration that deposits customer funds directly
             into your commercial bank account. Zero intermediary escrow, zero gateway toll deductions,
             and immediate T+0 settlement.
           </p>
 
-          {/* Quick Value Badges */}
-          <div className="flex flex-wrap gap-2.5 pt-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+          {/* Value Badges (Brushed Titanium, Zero Generic Gradient Blobs) */}
+          <div className="hero-metrics flex flex-wrap gap-3 pt-1">
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.12] backdrop-blur-xl border border-white/25 text-xs font-semibold text-white">
               <CheckCircle2 className="w-4 h-4 text-[#B5F5D8]" />
               <span>Direct Bank Credit</span>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.12] backdrop-blur-xl border border-white/25 text-xs font-semibold text-white">
               <ShieldCheck className="w-4 h-4 text-[#D7B77B]" />
               <span>Zero Escrow Float</span>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.12] backdrop-blur-xl border border-white/25 text-xs font-semibold text-white">
               <Zap className="w-4 h-4 text-[#B5F5D8]" />
               <span>Instant Settlement (T+0)</span>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.12] backdrop-blur-xl border border-white/25 text-xs font-semibold text-white">
+              <Activity className="w-4 h-4 text-[#00C888]" />
+              <span>10,000+ Peak TPS</span>
             </div>
           </div>
 
           {/* Action CTAs */}
-          <div className="flex flex-wrap items-center gap-4 pt-4">
-            {/* Merchant Login CTA button directing to dedicated login page */}
+          <div className="hero-ctas flex flex-wrap items-center gap-4 pt-3">
+            {/* Merchant Login CTA button directing to dedicated unboxed login page */}
             <a
               href="/merchant-login"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] shadow-xl shadow-[#07865C]/30 transition-all group"
+              className="inline-flex items-center gap-2.5 px-6 py-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider text-white bg-[#07865C] hover:bg-[#065440] shadow-xl shadow-[#07865C]/40 border border-[#B5F5D8]/40 transition-all group"
             >
               <LogIn className="w-4 h-4" />
               <span>Merchant Login</span>
@@ -270,7 +348,7 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
 
             <a
               href="#calculator"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-[#1a1a1a] bg-gradient-to-r from-[#D7B77B] via-[#eed9ab] to-[#D7B77B] hover:brightness-105 shadow-xl transition-all"
+              className="inline-flex items-center gap-2.5 px-6 py-4 rounded-xl text-xs sm:text-sm font-bold text-[#1a1a1a] bg-[#D7B77B] hover:bg-[#e4c48a] shadow-lg transition-all"
             >
               <span>Calculate Merchant Savings</span>
               <TrendingUp className="w-4 h-4 text-[#07865C]" />
@@ -279,10 +357,10 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
             {/* Audio Narration Toggle */}
             <button
               onClick={onToggleAudio}
-              className={`inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-bold border backdrop-blur-xl transition-all ${
+              className={`inline-flex items-center gap-2.5 px-5 py-4 rounded-xl text-xs font-bold border backdrop-blur-xl transition-all ${
                 isAudioPlaying
                   ? 'bg-[#07865C]/80 border-[#B5F5D8] text-white shadow-lg shadow-[#07865C]/40'
-                  : 'bg-white/20 border-white/40 text-white hover:bg-white/30'
+                  : 'bg-white/15 border-white/30 text-white hover:bg-white/25'
               }`}
             >
               {isAudioPlaying ? (
@@ -300,10 +378,10 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
           </div>
 
           {/* Corporate Attribution Footnote */}
-          <div className="pt-6">
+          <div className="pt-4 border-t border-white/15">
             <span className="text-xs font-medium text-white/75">
               Powered by{' '}
-              <span className="text-white font-bold">
+              <span className="text-white font-bold tracking-wide">
                 Dishanitish Technologies
               </span>
             </span>

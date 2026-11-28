@@ -30,26 +30,22 @@ export const EmpoweredMarketplace: React.FC = () => {
   ]
 
   return (
-    <section className="py-24 bg-gradient-to-b from-white via-[#FAF8F3] to-[#FAF8F3] relative overflow-hidden border-t border-[#DCE2E7]">
-      {/* Subterranean emerald energy lines */}
-      <div className="absolute bottom-10 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#07865C]/40 to-transparent blur-sm pointer-events-none" />
-      <div className="absolute bottom-10 left-10 right-10 h-0.5 bg-gradient-to-r from-transparent via-[#B5F5D8] to-transparent pointer-events-none" />
-
+    <section className="py-28 bg-[#FAF8F5] relative overflow-hidden border-b border-[#E5DFD5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07865C]/10 border border-[#07865C]/30 text-[#07865C] text-xs font-bold tracking-wide uppercase mb-4">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>The Empowered Indian Merchant</span>
+            <span>Commercial Freedom</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#262626] tracking-tight leading-tight">
-            Indian Commercial Streets,{' '}
-            <span className="bg-gradient-to-r from-[#07865C] to-[#D7B77B] bg-clip-text text-transparent">
-              Bathed in Clarity
+          <h2 className="text-3xl sm:text-5xl font-black text-[#12161A] tracking-tight leading-tight">
+            Indian Commercial Hubs,{' '}
+            <span className="text-[#07865C]">
+              Operating with Complete Clarity.
             </span>
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#525252] leading-relaxed">
-            Confidence, liquidity, and direct control. Connected by invisible emerald payment rails running beneath every business counter.
+          <p className="mt-4 text-base sm:text-lg text-[#555E68] leading-relaxed">
+            Confidence, liquidity, and direct control. Direct bank rail settlement running beneath every counter.
           </p>
         </div>
 

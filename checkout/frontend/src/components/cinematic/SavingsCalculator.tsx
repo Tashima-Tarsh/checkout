@@ -149,7 +149,7 @@ export const SavingsCalculator: React.FC = () => {
   }
 
   return (
-    <section id="calculator" className="py-24 bg-gradient-to-b from-[#FAF8F3] via-white to-[#FAF8F3] relative overflow-hidden border-t border-[#DCE2E7]">
+    <section id="calculator" className="py-28 bg-[#FAF8F5] relative overflow-hidden border-b border-[#E5DFD5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Heading */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -157,28 +157,28 @@ export const SavingsCalculator: React.FC = () => {
             <Calculator className="w-3.5 h-3.5" />
             <span>Interactive 3D Savings Calculator</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#262626] tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-5xl font-black text-[#12161A] tracking-tight leading-tight">
             Calculate How Much Capital{' '}
-            <span className="bg-gradient-to-r from-[#07865C] to-[#D7B77B] bg-clip-text text-transparent">
-              You Retain
+            <span className="text-[#07865C]">
+              You Retain.
             </span>
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#525252] leading-relaxed">
+          <p className="mt-4 text-base sm:text-lg text-[#555E68] leading-relaxed">
             Move the sliders below to see the exact capital you stop paying to gateway intermediaries every month and year.
           </p>
         </div>
 
         {/* Main Calculator Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl p-6 sm:p-10 border border-[#D7B77B]/40 shadow-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl p-6 sm:p-10 border border-[#E5DFD5] shadow-sm">
           {/* Controls Column (7 cols) */}
           <div className="lg:col-span-7 space-y-8">
             {/* Slider 1: Monthly Transaction Volume */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-[#262626]">
+                <label className="text-sm font-bold text-[#12161A]">
                   Monthly Transaction Volume
                 </label>
-                <span className="text-lg font-extrabold text-[#07865C] font-mono">
+                <span className="text-lg font-black text-[#07865C] font-mono">
                   {formatINR(monthlyVolume)}
                 </span>
               </div>
@@ -189,9 +189,9 @@ export const SavingsCalculator: React.FC = () => {
                 step={500000}
                 value={monthlyVolume}
                 onChange={(e) => setMonthlyVolume(Number(e.target.value))}
-                className="w-full h-2.5 bg-[#DCE2E7] rounded-lg appearance-none cursor-pointer accent-[#07865C]"
+                className="w-full h-2.5 bg-[#E5DFD5] rounded-lg appearance-none cursor-pointer accent-[#07865C]"
               />
-              <div className="flex justify-between text-[11px] text-[#737373] mt-1.5 font-medium">
+              <div className="flex justify-between text-[11px] text-[#6E7781] mt-1.5 font-medium">
                 <span>₹5 Lakh</span>
                 <span>₹1 Crore</span>
                 <span>₹5 Crore+</span>
@@ -201,10 +201,10 @@ export const SavingsCalculator: React.FC = () => {
             {/* Slider 2: Current Aggregator MDR Rate */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-[#262626]">
+                <label className="text-sm font-bold text-[#12161A]">
                   Current Payment Gateway MDR (+18% GST)
                 </label>
-                <span className="text-lg font-extrabold text-red-600 font-mono">
+                <span className="text-lg font-black text-red-600 font-mono">
                   {mdrRate.toFixed(1)}%
                 </span>
               </div>
@@ -215,9 +215,9 @@ export const SavingsCalculator: React.FC = () => {
                 step={0.1}
                 value={mdrRate}
                 onChange={(e) => setMdrRate(Number(e.target.value))}
-                className="w-full h-2.5 bg-[#DCE2E7] rounded-lg appearance-none cursor-pointer accent-red-600"
+                className="w-full h-2.5 bg-[#E5DFD5] rounded-lg appearance-none cursor-pointer accent-red-600"
               />
-              <div className="flex justify-between text-[11px] text-[#737373] mt-1.5 font-medium">
+              <div className="flex justify-between text-[11px] text-[#6E7781] mt-1.5 font-medium">
                 <span>1.2% (Standard)</span>
                 <span>2.0% (Average)</span>
                 <span>3.0% (High-Tier / Amex)</span>
@@ -227,10 +227,10 @@ export const SavingsCalculator: React.FC = () => {
             {/* Slider 3: Average Ticket Size */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-[#262626]">
+                <label className="text-sm font-bold text-[#12161A]">
                   Average Order / Ticket Value
                 </label>
-                <span className="text-lg font-extrabold text-[#262626] font-mono">
+                <span className="text-lg font-black text-[#12161A] font-mono">
                   ₹{avgTicket.toLocaleString('en-IN')}
                 </span>
               </div>
@@ -241,9 +241,9 @@ export const SavingsCalculator: React.FC = () => {
                 step={100}
                 value={avgTicket}
                 onChange={(e) => setAvgTicket(Number(e.target.value))}
-                className="w-full h-2.5 bg-[#DCE2E7] rounded-lg appearance-none cursor-pointer accent-[#D7B77B]"
+                className="w-full h-2.5 bg-[#E5DFD5] rounded-lg appearance-none cursor-pointer accent-[#C4A265]"
               />
-              <div className="flex justify-between text-[11px] text-[#737373] mt-1.5 font-medium">
+              <div className="flex justify-between text-[11px] text-[#6E7781] mt-1.5 font-medium">
                 <span>₹100 (Micro)</span>
                 <span>₹1,500 (Retail)</span>
                 <span>₹10,000+ (High Value)</span>
@@ -251,10 +251,10 @@ export const SavingsCalculator: React.FC = () => {
             </div>
 
             {/* Summary Highlights */}
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#DCE2E7]">
-              <div className="p-4 rounded-2xl bg-red-50/60 border border-red-200">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#E5DFD5]">
+              <div className="p-4 rounded-2xl bg-red-50/70 border border-red-200">
                 <div className="text-[11px] font-bold text-red-700 uppercase">Current Annual Loss</div>
-                <div className="text-xl sm:text-2xl font-extrabold text-red-600 mt-1">
+                <div className="text-xl sm:text-2xl font-black text-red-600 mt-1 font-mono">
                   {formatINR(currentAnnualCost)}
                 </div>
                 <div className="text-[10px] text-red-500 mt-0.5">MDR + 18% GST Intermediary Fee</div>
@@ -262,16 +262,16 @@ export const SavingsCalculator: React.FC = () => {
 
               <div className="p-4 rounded-2xl bg-[#07865C]/10 border border-[#07865C]/30">
                 <div className="text-[11px] font-bold text-[#07865C] uppercase">Agentic Pay Software Fee</div>
-                <div className="text-xl sm:text-2xl font-extrabold text-[#07865C] mt-1">
+                <div className="text-xl sm:text-2xl font-black text-[#07865C] mt-1 font-mono">
                   {formatINR(agenticPayAnnualCost)}
                 </div>
-                <div className="text-[10px] text-[#07865C] mt-0.5">Flat Non-Custodial License</div>
+                <div className="text-[10px] text-[#07865C] mt-0.5">Flat Non-Custodial Software License</div>
               </div>
             </div>
           </div>
 
           {/* Interactive Output Column with 3D Canvas (5 cols) */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-[#262626] to-[#171717] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl flex flex-col justify-between">
+          <div className="lg:col-span-5 bg-[#12161A] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl flex flex-col justify-between border border-[#07865C]/30">
             {/* 3D Golden Sphere Canvas */}
             <div
               ref={canvasRef}
@@ -283,28 +283,28 @@ export const SavingsCalculator: React.FC = () => {
               <span className="text-[11px] font-mono uppercase tracking-widest text-[#B5F5D8]">
                 ANNUAL CAPITAL RETAINED
               </span>
-              <div className="text-3xl sm:text-4xl font-extrabold text-white mt-1.5 tracking-tight">
+              <div className="text-3xl sm:text-4xl font-black text-white mt-1.5 tracking-tight font-mono">
                 {formatINR(netRetained)}
               </div>
-              <p className="text-xs text-gray-300 mt-1">
+              <p className="text-xs text-white/70 mt-1">
                 Direct bottom-line margin returned to your business
               </p>
             </div>
 
             <div className="mt-6 pt-5 border-t border-white/10 space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">Working Capital Freed (3 Days Float):</span>
+                <span className="text-white/60">Working Capital Freed (3 Days Float):</span>
                 <span className="font-bold text-[#D7B77B] font-mono">{formatINR(workingCapitalFreed)}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">Monthly Net Savings:</span>
+                <span className="text-white/60">Monthly Net Savings:</span>
                 <span className="font-bold text-[#B5F5D8] font-mono">{formatINR(netRetained / 12)} / mo</span>
               </div>
             </div>
 
             <button
               onClick={triggerCelebration}
-              className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] text-white text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="mt-6 w-full py-3.5 rounded-xl bg-[#07865C] hover:bg-[#065440] text-white text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               <Sparkles className="w-4 h-4 text-[#B5F5D8]" />
               <span>Celebrate Retained Capital</span>

@@ -1,4 +1,8 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import Lenis from 'lenis'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
 import { HeroCinematic } from '../components/cinematic/HeroCinematic'
 import { MerchantBurden } from '../components/cinematic/MerchantBurden'
 import { TrainArrival } from '../components/cinematic/TrainArrival'
@@ -9,40 +13,97 @@ import { EmpoweredMarketplace } from '../components/cinematic/EmpoweredMarketpla
 import { TechPortfolio } from '../components/cinematic/TechPortfolio'
 import { TrustAndModals } from '../components/cinematic/TrustAndModals'
 
+// Register GSAP ScrollTrigger
+gsap.registerPlugin(ScrollTrigger)
+
 interface HomeProps {
   isAudioPlaying: boolean
   onToggleAudio: () => void
 }
 
 export const Home: React.FC<HomeProps> = ({ isAudioPlaying, onToggleAudio }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // -------------------------------------------------------------
+  // LENIS SMOOTH SCROLL & GSAP SCROLLTRIGGER ORCHESTRATION
+  // -------------------------------------------------------------
+  useEffect(() => {
+    // Respect user's reduced motion settings
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return
+    }
+
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.5,
+    })
+
+    // Synchronize Lenis with GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update)
+
+    const updateLenis = (time: number) => {
+      lenis.raf(time * 1000)
+    }
+
+    gsap.ticker.add(updateLenis)
+    gsap.ticker.lagSmoothing(0)
+
+    // Smooth scroll for internal anchor links (e.g. #calculator, #discover)
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('a')
+      if (!target) return
+      const href = target.getAttribute('href')
+      if (href && href.startsWith('#') && href.length > 1) {
+        const elem = document.querySelector(href)
+        if (elem) {
+          e.preventDefault()
+          lenis.scrollTo(elem, { offset: -60, duration: 1.2 })
+        }
+      }
+    }
+    document.addEventListener('click', handleAnchorClick)
+
+    return () => {
+      document.removeEventListener('click', handleAnchorClick)
+      gsap.ticker.remove(updateLenis)
+      lenis.destroy()
+      ScrollTrigger.getAll().forEach((t) => t.kill())
+    }
+  }, [])
+
   return (
-    <main className="w-full overflow-hidden bg-[#FAF8F3]">
-      {/* 01. Opening Cinematic 3D Hero Scene with Bullet Train & Ambient Lighting */}
+    <div ref={containerRef} className="w-full overflow-x-hidden bg-[#FAF8F5] text-[#12161A] antialiased selection:bg-[#07865C] selection:text-white">
+      {/* 01. Opening Cinematic Hero Scene with Real-Time Motion & Photograph Background */}
       <HeroCinematic isAudioPlaying={isAudioPlaying} onToggleAudio={onToggleAudio} />
 
-      {/* 02. The Traditional Payment Burden (4 Indian Merchant Archetypes & Fee Breakdown) */}
+      {/* 02. The Reality of Indian Commerce: Merchant Statements & Escrow Loss Audit */}
       <MerchantBurden />
 
-      {/* 03. The Arrival of DISHA 8.2 (High-Speed Elevated Rails & Dissolving Fee Statements) */}
+      {/* 03. Direct Rail Architecture: Bypassing Intermediary Payment Tolls */}
       <TrainArrival />
 
-      {/* 04. Financial Transformation (Traditional Aggregator Model vs Agentic Pay Direct Model) */}
+      {/* 04. Financial Transformation: Legacy Aggregator vs Agentic Pay Direct Model */}
       <FinancialTransformation />
 
-      {/* 05. Interactive 3D Savings Calculator (Dynamic Golden Sphere + Lakhs/Crores Math) */}
+      {/* 05. Interactive 3D Savings Calculator with Real-Time Math & Confetti */}
       <SavingsCalculator />
 
-      {/* 06. The Product Experience in Action (3D Workstation: Desktop, Tablet POS, Mobile) */}
+      {/* 06. Sovereign Hardware & Workstation Simulator (Desktop, POS, Mobile) */}
       <DeviceShowcase />
 
-      {/* 07. The Return to the Empowered Marketplace (Confidence, Clarity & Emerald Subterranean Rails) */}
+      {/* 07. The Empowered Marketplace: Real-World Settlement Confidence */}
       <EmpoweredMarketplace />
 
-      {/* 08. Focused Technology Portfolio (DISHA 6.6, DISHA 7.2, DISHA 8.2) */}
+      {/* 08. DishaNitish Technologies Ecosystem: Disciplined Technology Portfolio */}
       <TechPortfolio />
 
-      {/* 09. Trust, Compliance & Legal Foundation (Non-Custodial Integrity & Interactive Modals) */}
+      {/* 09. Trust, RBI Compliance & Non-Custodial Integrity */}
       <TrustAndModals />
-    </main>
+    </div>
   )
 }
