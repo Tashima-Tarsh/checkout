@@ -48,3 +48,54 @@ jobs:
           name: react-public-landing
           path: checkout/frontend/dist/
           if-no-files-found: error
+
+  deploy-public-website:
+    name: Deploy official website to AWS
+    if: github.repository == 'Tashima-Tarsh/checkout' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: official-website-production
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      WEBSITE_BUCKET: disha8-2-official-website-602322433189
+      WEBSITE_DISTRIBUTION: EU4MI1375P7CE
+      WEBSITE_URL: https://disha8-2.thenitishkr.in
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: react-public-landing
+          path: public-landing
+      - name: Check artifact
+        run: |
+          test -s public-landing/index.html
+          grep -q '/react-ui/assets/' public-landing/index.html
+          test -n "$(find public-landing/assets -name '*.js' -print -quit)"
+          test -n "$(find public-landing/assets -name '*.css' -print -quit)"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::602322433189:role/DISHA8-2-GitHub-production
+          aws-region: ap-southeast-2
+      - name: Publish hashed assets and homepage
+        run: |
+          aws s3 cp public-landing/assets/ "s3://$WEBSITE_BUCKET/react-ui/assets/" \
+            --recursive --cache-control 'public,max-age=31536000,immutable' --only-show-errors
+          aws s3 cp public-landing/index.html "s3://$WEBSITE_BUCKET/index.html" \
+            --content-type 'text/html; charset=utf-8' --cache-control 'no-cache,max-age=0' \
+            --metadata "release=$GITHUB_SHA" --only-show-errors
+      - name: Invalidate homepage and verify production
+        run: |
+          invalidation=$(aws cloudfront create-invalidation --distribution-id "$WEBSITE_DISTRIBUTION" \
+            --paths / /index.html --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$WEBSITE_DISTRIBUTION" --id "$invalidation"
+          curl --fail --silent --show-error --retry 3 "$WEBSITE_URL/" --output "$RUNNER_TEMP/live-index.html"
+          cmp public-landing/index.html "$RUNNER_TEMP/live-index.html"
+          while IFS= read -r -d '' file; do
+            asset=${file#public-landing/assets/}
+            curl --fail --silent --show-error --retry 3 "$WEBSITE_URL/react-ui/assets/$asset" --output "$RUNNER_TEMP/live-asset"
+            cmp "$file" "$RUNNER_TEMP/live-asset"
+          done < <(find public-landing/assets -type f -print0)
