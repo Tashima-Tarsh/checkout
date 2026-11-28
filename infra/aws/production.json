@@ -56,6 +56,15 @@
       "Default": "",
       "AllowedPattern": "^$|^[a-z0-9][a-z0-9._/-]+$",
       "Description": "Optional existing immutable ECR repository for Workflow."
+    },
+    "PrivateInterfaceEndpoints": {
+      "Type": "String",
+      "Default": "Enabled",
+      "AllowedValues": [
+        "Enabled",
+        "Deferred"
+      ],
+      "Description": "Defer interface endpoints while a prior deployment releases its private DNS records. Enable before starting application tasks."
     }
   },
   "Rules": {
@@ -150,6 +159,14 @@
           "Ref": "ExistingWorkflowRepository"
         },
         ""
+      ]
+    },
+    "HasPrivateInterfaceEndpoints": {
+      "Fn::Equals": [
+        {
+          "Ref": "PrivateInterfaceEndpoints"
+        },
+        "Enabled"
       ]
     }
   },
@@ -275,7 +292,8 @@
             }
           }
         ]
-      }
+      },
+      "Condition": "HasPrivateInterfaceEndpoints"
     },
     "EcrApi": {
       "Type": "AWS::EC2::VPCEndpoint",
@@ -307,7 +325,8 @@
           }
         ],
         "PrivateDnsEnabled": true
-      }
+      },
+      "Condition": "HasPrivateInterfaceEndpoints"
     },
     "EcrDocker": {
       "Type": "AWS::EC2::VPCEndpoint",
@@ -339,7 +358,8 @@
           }
         ],
         "PrivateDnsEnabled": true
-      }
+      },
+      "Condition": "HasPrivateInterfaceEndpoints"
     },
     "LogsEndpoint": {
       "Type": "AWS::EC2::VPCEndpoint",
@@ -371,7 +391,8 @@
           }
         ],
         "PrivateDnsEnabled": true
-      }
+      },
+      "Condition": "HasPrivateInterfaceEndpoints"
     },
     "SecretsEndpoint": {
       "Type": "AWS::EC2::VPCEndpoint",
@@ -403,7 +424,8 @@
           }
         ],
         "PrivateDnsEnabled": true
-      }
+      },
+      "Condition": "HasPrivateInterfaceEndpoints"
     },
     "S3Endpoint": {
       "Type": "AWS::EC2::VPCEndpoint",
