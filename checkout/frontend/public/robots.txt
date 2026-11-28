@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://disha8-2.thenitishkr.in/sitemap.xml
+
+# Disallow private checkout sessions and administrative areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /superadmin/
+Disallow: /merchant-portal/
+Disallow: /agent-portal/
+Disallow: /owner-dashboard/
+Disallow: /api/admin/
