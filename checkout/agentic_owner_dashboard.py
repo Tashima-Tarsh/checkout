@@ -5,7 +5,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select, text
 
-from checkout.agentic_api import require_owner
+from checkout.agentic_api import router, require_owner
+from checkout.agentic_login import configure, require_session, router as login_router
 from checkout.agentic_storage import (
     accounts, agent_sessions, audit, jobs, merchants, orders,
     receipt_observations, settlement_states, evidence_consumption,

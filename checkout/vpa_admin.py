@@ -62,8 +62,8 @@ def enforce_optional_session_allowlist(request: Request):
 
 
 def require_admin(request: Request):
-    secret = os.environ.get("PDEP_ADMIN_TOKEN", "")
-    allowed = _networks("PDEP_ADMIN_IP_ALLOWLIST")
+    secret = os.environ.get("ADMIN_TOKEN", "")
+    allowed = _networks("ADMIN_IP_ALLOWLIST")
     if len(secret) < 32 or not allowed:
         raise HTTPException(503, "Admin access is disabled until explicitly configured")
     address = _client_ip(request)

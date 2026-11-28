@@ -98,6 +98,17 @@ def device_bearer(request: Request, authorization: Token = None):
     return row
 
 
+def require_owner(request: Request, authorization: Token = None):
+    """Super Admin bearer token check."""
+    if authorization is None or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Super Admin bearer token required")
+    token = authorization.split(" ", 1)[1]
+    expected = os.getenv("ADMIN_TOKEN", "") or os.getenv("PDEP_ADMIN_TOKEN", "")
+    if not token or not secrets.compare_digest(token, expected):
+        raise HTTPException(403, "Invalid Super Admin token")
+    return token
+
+
 Merchant = Annotated[str, Depends(merchant_id)]
 
 

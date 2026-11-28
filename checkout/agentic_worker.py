@@ -26,7 +26,7 @@ class N8nProvider:
     def __init__(self, url, token):
         endpoint = urlsplit(url)
         hostname = endpoint.hostname or ""
-        private_endpoint = hostname.endswith(".railway.internal") or (
+        private_endpoint = (
             hostname in {"workflow.dev.disha.internal", "workflow.uat.disha.internal"}
             and endpoint.port == 5678
         )
