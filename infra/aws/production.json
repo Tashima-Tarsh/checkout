@@ -65,6 +65,15 @@
         "Deferred"
       ],
       "Description": "Defer interface endpoints while a prior deployment releases its private DNS records. Enable before starting application tasks."
+    },
+    "DatabaseMultiAZ": {
+      "Type": "String",
+      "Default": "Enabled",
+      "AllowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "Description": "Use Disabled on AWS Free accounts, which permit only single-AZ RDS instances."
     }
   },
   "Rules": {
@@ -165,6 +174,14 @@
       "Fn::Equals": [
         {
           "Ref": "PrivateInterfaceEndpoints"
+        },
+        "Enabled"
+      ]
+    },
+    "HasMultiAzDatabase": {
+      "Fn::Equals": [
+        {
+          "Ref": "DatabaseMultiAZ"
         },
         "Enabled"
       ]
@@ -480,7 +497,13 @@
         "MaxAllocatedStorage": 100,
         "StorageType": "gp3",
         "StorageEncrypted": true,
-        "MultiAZ": true,
+        "MultiAZ": {
+          "Fn::If": [
+            "HasMultiAzDatabase",
+            true,
+            false
+          ]
+        },
         "PubliclyAccessible": false,
         "BackupRetentionPeriod": {
           "Ref": "BackupRetentionDays"
