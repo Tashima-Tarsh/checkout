@@ -198,7 +198,7 @@ def view(row):
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    return (ROOT / "static" / "payment.html").read_text(encoding="utf-8")
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_page():
