@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from checkout.agentic_api import ORDER_ID, digest, now, router, Token, DEVICE_STATE_ONLINE, HEARTBEAT_OFFLINE_TIMEOUT
+from checkout.agentic_api import ORDER_ID, digest, now, router, Token, DEVICE_STATE_ONLINE, HEARTBEAT_OFFLINE_TIMEOUT, require_owner
 from checkout.agentic_login import configure, require_session, router as login_router
 from checkout.agentic_live_vision_api import router as live_vision_router
 from checkout.agentic_storage import amount_reservations, initialize, make_engine, merchants, orders, expire_previous_uat_links, ensure_schema, devices, device_heartbeats
@@ -196,6 +196,7 @@ def android_workspace():
 
 @app.get("/api/android/workspace/status")
 def android_workspace_status(request: Request, authorization: Token = None):
+    require_owner(request, authorization)
     # Try session-based merchant identity first
     try:
         login = require_session(request)

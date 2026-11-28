@@ -12,7 +12,22 @@ permissions:
   contents: read
 
 jobs:
+  validate-probe:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate probe source and command line
+        run: |
+          python -m py_compile ops/production_probe.py
+          python ops/production_probe.py --help
+
   verify-public-checkout:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:

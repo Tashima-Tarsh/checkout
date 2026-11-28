@@ -1,7 +1,6 @@
-"""Independent, read-only public checkout uptime probe.
+"""Independent, read-only public website and checkout uptime probe.
 
-Runs from GitHub Actions to test public internet access, not just a successful
-Railway deployment indicator. Never sends payment requests or credentials.
+Runs from GitHub Actions without sending payment requests or credentials.
 """
 from __future__ import annotations
 
@@ -15,12 +14,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-ALLOWED_PATHS = ("/healthz", "/api/appearance", "/")
-EXPECTED = "disha8-2.thenitishkr.in"
+WEBSITE_HOST = "disha8-2.thenitishkr.in"
+CHECKOUT_HOST = "checkout.disha8-2.thenitishkr.in"
+ENDPOINTS = (
+    (WEBSITE_HOST, "/"),
+    (CHECKOUT_HOST, "/healthz"),
+    (CHECKOUT_HOST, "/api/appearance"),
+    (CHECKOUT_HOST, "/"),
+)
 
 
-def check(path: str) -> dict:
-    url = "https://" + EXPECTED + path
+def check(host: str, path: str) -> dict:
+    url = f"https://{host}{path}"
     result = {"url": url, "ok": False}
     try:
         request = Request(url, headers={"Accept": "application/json" if path != "/" else "text/html",
@@ -33,7 +38,12 @@ def check(path: str) -> dict:
             content_type = resp.headers.get("content-type", "")
             if resp.url != url:
                 result["redirected_to"] = resp.url
-            if path == "/healthz":
+            if urlsplit(resp.url).hostname != host:
+                result["error"] = "Redirected to a different hostname"
+                return result
+            if host == WEBSITE_HOST:
+                result["ok"] = resp.status == 200 and b'id="hero-canvas"' in body
+            elif path == "/healthz":
                 data = json.loads(body)
                 result["ok"] = resp.status == 200 and data.get("ok") is True
                 result["synthetic_enabled"] = data.get("synthetic_enabled")
@@ -63,17 +73,21 @@ def check(path: str) -> dict:
     return result
 
 
+def resolve(host: str) -> dict:
+    try:
+        addresses = sorted({item[4][0] for item in socket.getaddrinfo(host, 443)})
+        return {"host": host, "addresses": addresses, "ok": bool(addresses)}
+    except socket.gaierror as exc:
+        return {"host": host, "ok": False, "error": str(exc)}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json-out", default="production-probe.json")
     args = parser.parse_args()
-    try:
-        addresses = sorted({item[4][0] for item in socket.getaddrinfo(EXPECTED, 443)})
-        dns = {"host": EXPECTED, "addresses": addresses, "ok": True}
-    except socket.gaierror as exc:
-        dns = {"host": EXPECTED, "ok": False, "error": str(exc)}
-    checks = [check(path) for path in ALLOWED_PATHS]
-    report = {"dns": dns, "checks": checks, "ok": dns["ok"] and all(x["ok"] for x in checks)}
+    dns = [resolve(host) for host in (WEBSITE_HOST, CHECKOUT_HOST)]
+    checks = [check(host, path) for host, path in ENDPOINTS]
+    report = {"dns": dns, "checks": checks, "ok": all(item["ok"] for item in dns + checks)}
     with open(args.json_out, "w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2)
         handle.write("\n")
@@ -83,3 +97,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

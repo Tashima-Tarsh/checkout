@@ -34,6 +34,7 @@ class WorkerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val token = credentialStore?.getCredential() ?: return START_STICKY
         val deviceId = DeviceConfig.deviceId
+        if (workerFutures.isNotEmpty()) return START_STICKY
 
         // Schedule each worker index (0-14) to poll for work every 5 seconds
         for (i in 0 until 15) {
@@ -84,7 +85,7 @@ class WorkerService : Service() {
                                 if (secondsRemaining <= 0) continue // expired
 
                                 // Auto-verify this checkout
-                                processVerification(orderId, upiId, amountMinor, token)
+                                processVerification(orderId, upiId, amountMinor, token, expiresAt)
                             }
                         }
                     } catch (e: Exception) {
@@ -98,7 +99,7 @@ class WorkerService : Service() {
         }
     }
 
-    private fun processVerification(orderId: String, upiId: String, amountMinor: Long, token: String) {
+    private fun processVerification(orderId: String, upiId: String, amountMinor: Long, token: String, expiresAt: Long) {
         ApiClient.getCheckout(orderId, token) { result ->
             when (result) {
                 is ApiClient.Result.Success -> {
@@ -114,15 +115,12 @@ class WorkerService : Service() {
                             ApiClient.upiResult(token, upiId, true, orderId) { res ->
                                 // fire-and-forget
                             }
-                        } else if (status == "EXPIRED" || System.currentTimeMillis() / 1000 > /* expires */ 0) {
+                        } else if (status == "EXPIRED" && expiresAt > 0 && System.currentTimeMillis() / 1000 >= expiresAt) {
                             // Report failure - auto refund
                             ApiClient.upiResult(token, upiId, false, orderId) { res ->
                                 // fire-and-forget
                             }
-                            // Auto refund
-                            ApiClient.refund(orderId, "120s expired, no verification", token) { res ->
-                                // fire-and-forget
-                            }
+                            // Automatic refunds disabled: expiry alone does not prove funds were received.
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Verification parse error", e)
