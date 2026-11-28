@@ -36,3 +36,15 @@ jobs:
             checkout/frontend/dist/
             checkout/frontend/package-lock.json
           if-no-files-found: error
+      - name: Build isolated S3 public landing
+        run: VITE_PUBLIC_LANDING_ONLY=true npm run build
+      - name: Validate isolated public bundle
+        run: |
+          test -s dist/index.html
+          grep -q '/react-ui/assets/' dist/index.html
+          if grep -R -l 'localhost:8000' dist/assets; then exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: react-public-landing
+          path: checkout/frontend/dist/
+          if-no-files-found: error

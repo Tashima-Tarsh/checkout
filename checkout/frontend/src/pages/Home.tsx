@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import * as THREE from 'three'
 
 function PaymentScene() {
@@ -67,7 +66,7 @@ export const Home: React.FC = () => <main className="public-hero">
     <p className="public-kicker">A new direction for Indian commerce</p>
     <h1>Your business.<br/>Your money.<br/><span>Your direction.</span></h1>
     <p className="public-intro">DISHA 8.2 helps businesses manage payment operations without taking custody of their money.</p>
-    <div className="public-actions"><Link className="btn-primary" to="/how-it-works">Discover DISHA 8.2</Link><Link className="btn-secondary" to="/compare-and-save">Calculate your payment costs</Link></div>
+    <div className="public-actions"><a className="btn-primary" href="/how-it-works/">Discover DISHA 8.2</a><a className="btn-secondary" href="/payment-cost-calculator/">Calculate your payment costs</a></div>
     <p className="public-note">Non-custodial payment software</p>
   </div>
   <div className="public-hero-art"><PaymentScene/><div className="public-float public-float-top">Payment software<strong>Built for business</strong></div><div className="public-float public-float-bottom">Your payments<strong>Your control</strong></div></div>
