@@ -19,6 +19,7 @@ class SetupActivity : Activity() {
     private lateinit var loginButton: Button
     private lateinit var registerButton: Button
     private lateinit var setupCompleteText: TextView
+    private lateinit var backButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,7 +101,7 @@ class SetupActivity : Activity() {
         }
         layout.addView(registerButton)
 
-        val backButton = Button(this).apply { text = "Skip & Go to Dashboard" }
+        backButton = Button(this).apply { text = "Skip & Go to Dashboard" }
         layout.addView(backButton)
 
         setContentView(layout)
