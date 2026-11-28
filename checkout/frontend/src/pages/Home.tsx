@@ -3,32 +3,31 @@ import Lenis from 'lenis'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import { HeroCinematic } from '../components/cinematic/HeroCinematic'
-import { MerchantBurden } from '../components/cinematic/MerchantBurden'
-import { TrainArrival } from '../components/cinematic/TrainArrival'
-import { FinancialTransformation } from '../components/cinematic/FinancialTransformation'
-import { SavingsCalculator } from '../components/cinematic/SavingsCalculator'
-import { DeviceShowcase } from '../components/cinematic/DeviceShowcase'
-import { EmpoweredMarketplace } from '../components/cinematic/EmpoweredMarketplace'
-import { TechPortfolio } from '../components/cinematic/TechPortfolio'
-import { TrustAndModals } from '../components/cinematic/TrustAndModals'
+// Editorial Master Brand Components
+import { CinematicExperience } from '../components/editorial/CinematicExperience'
+import { PhilosophySection } from '../components/editorial/PhilosophySection'
+import { OwnershipSection } from '../components/editorial/OwnershipSection'
+import { EconomicsSection } from '../components/editorial/EconomicsSection'
+import { IntelligenceSection } from '../components/editorial/IntelligenceSection'
+import { EnterpriseEnvironment } from '../components/editorial/EnterpriseEnvironment'
+import { CommercialApproach } from '../components/editorial/CommercialApproach'
+import { VisionFooter } from '../components/editorial/VisionFooter'
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger)
 
 interface HomeProps {
-  isAudioPlaying: boolean
-  onToggleAudio: () => void
+  isAudioPlaying?: boolean
+  onToggleAudio?: () => void
 }
 
-export const Home: React.FC<HomeProps> = ({ isAudioPlaying, onToggleAudio }) => {
+export const Home: React.FC<HomeProps> = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // -------------------------------------------------------------
-  // LENIS SMOOTH SCROLL & GSAP SCROLLTRIGGER ORCHESTRATION
+  // LENIS SMOOTH SCROLL & SCROLL ORCHESTRATION
   // -------------------------------------------------------------
   useEffect(() => {
-    // Respect user's reduced motion settings
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return
     }
@@ -43,7 +42,6 @@ export const Home: React.FC<HomeProps> = ({ isAudioPlaying, onToggleAudio }) => 
       touchMultiplier: 1.5,
     })
 
-    // Synchronize Lenis with GSAP ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update)
 
     const updateLenis = (time: number) => {
@@ -53,7 +51,6 @@ export const Home: React.FC<HomeProps> = ({ isAudioPlaying, onToggleAudio }) => 
     gsap.ticker.add(updateLenis)
     gsap.ticker.lagSmoothing(0)
 
-    // Smooth scroll for internal anchor links (e.g. #calculator, #discover)
     const handleAnchorClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('a')
       if (!target) return
@@ -77,33 +74,33 @@ export const Home: React.FC<HomeProps> = ({ isAudioPlaying, onToggleAudio }) => 
   }, [])
 
   return (
-    <div ref={containerRef} className="w-full overflow-x-hidden bg-[#FAF8F5] text-[#12161A] antialiased selection:bg-[#07865C] selection:text-white">
-      {/* 01. Opening Cinematic Hero Scene with Real-Time Motion & Photograph Background */}
-      <HeroCinematic isAudioPlaying={isAudioPlaying} onToggleAudio={onToggleAudio} />
+    <div
+      ref={containerRef}
+      className="w-full overflow-x-hidden bg-[#F7F5EF] text-[#242722] antialiased selection:bg-[#245C49] selection:text-white"
+    >
+      {/* 01. Five-Scene Cinematic Narrative Sequence (Photorealistic Indian Visuals & Master Tagline) */}
+      <CinematicExperience />
 
-      {/* 02. The Reality of Indian Commerce: Merchant Statements & Escrow Loss Audit */}
-      <MerchantBurden />
+      {/* 02. Institutional Editorial Philosophy: Foundations of Indian Commerce */}
+      <PhilosophySection />
 
-      {/* 03. Direct Rail Architecture: Bypassing Intermediary Payment Tolls */}
-      <TrainArrival />
+      {/* 03. Financial Ownership & Zero-Custody Direct Settlement Architecture */}
+      <OwnershipSection />
 
-      {/* 04. Financial Transformation: Legacy Aggregator vs Agentic Pay Direct Model */}
-      <FinancialTransformation />
+      {/* 04. Economics of Modern Payments & Full-Width Interactive Ownership Calculator */}
+      <EconomicsSection />
 
-      {/* 05. Interactive 3D Savings Calculator with Real-Time Math & Confetti */}
-      <SavingsCalculator />
+      {/* 05. Intelligent Multi-Agent Verification Architecture (4 Coordinated Verification Channels) */}
+      <IntelligenceSection />
 
-      {/* 06. Sovereign Hardware & Workstation Simulator (Desktop, POS, Mobile) */}
-      <DeviceShowcase />
+      {/* 06. Contemporary Indian Enterprise Environments & Interactive Workstation Simulation */}
+      <EnterpriseEnvironment />
 
-      {/* 07. The Empowered Marketplace: Real-World Settlement Confidence */}
-      <EmpoweredMarketplace />
+      {/* 07. Commercial Approach, Self-Hosted Deployment Options & Enterprise Consultation Briefing */}
+      <CommercialApproach />
 
-      {/* 08. DishaNitish Technologies Ecosystem: Disciplined Technology Portfolio */}
-      <TechPortfolio />
-
-      {/* 09. Trust, RBI Compliance & Non-Custodial Integrity */}
-      <TrustAndModals />
+      {/* 08. Closing Vision & Institutional Regulatory Footer (Powered by Disha Nitish Technologies) */}
+      <VisionFooter />
     </div>
   )
 }

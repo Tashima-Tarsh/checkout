@@ -161,7 +161,7 @@ function AppContent() {
           <Route path="/cookie-preferences" element={<CookiePreferences />} />
         </Routes>
       </main>
-      <Footer />
+      {location.pathname !== '/' && <Footer />}
     </div>
   )
 }
