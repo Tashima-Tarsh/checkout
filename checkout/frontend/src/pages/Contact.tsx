@@ -60,8 +60,8 @@ export const Contact: React.FC = () => {
         </button>
       </form>
       {submitted && (
-        <div className="alert alert-success" style={{"marginTop":"1.5rem"}}>
-          Thank you! Our team will review your inquiry and get in touch soon.
+        <div className="alert" style={{"marginTop":"1.5rem"}}>
+          Inquiry not sent: online submission is not connected yet. Please use the published contact channels.
         </div>
       )}
     </section>

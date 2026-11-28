@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 
 export const Receipt: React.FC = () => {
   const [session, setSession] = useState<any>(null)
@@ -7,20 +7,20 @@ export const Receipt: React.FC = () => {
     const params = new URLSearchParams(window.location.search)
     const orderId = params.get('order')
     if (orderId) {
-      fetch(`http://localhost:8000/api/sessions/${orderId}`)
-        .then(r => r.json())
-        .then(data => setSession(data))
+      fetch(`/api/sessions/${orderId}`)
+        .then(r => { if (!r.ok) throw new Error('Receipt unavailable'); return r.json() })
+        .then(data => setSession(data)).catch(() => setSession(null))
     }
   }, [])
 
-  if (!session) {
+  if (!session || session.financially_verified !== true) {
     return (
       <section className="prism-glass-strong" style={{"padding":"4rem 1rem","maxWidth":"600px","margin":"2rem auto","textAlign":"center"}}>
         <div className="empty-state" style={{"textAlign":"center","padding":"3rem 1rem"}}>
           <div className="empty-icon">🧾</div>
           <h3>Receipt Not Found</h3>
           <p>The requested transaction receipt could not be found.</p>
-          <button className="btn-primary" onclick={() => window.location.href='/'}>Return to Checkout</button>
+          <button className="btn-primary" onClick={() => window.location.href='/'}>Return to Checkout</button>
         </div>
       </section>
     )
@@ -48,7 +48,7 @@ export const Receipt: React.FC = () => {
             </div>
             <div style={{"textAlign":"right"}}>
               <div className="meta-small" style={{"fontSize":"0.75rem","color":"var(--disha-muted)"}}>Date</div>
-              <div className="meta-value" style={{"fontSize":"0.875rem","color":"var(--disha-ink)","fontFamily":"monospace","fontWeight":"700"}}>{new Date((session.created || Date.now()/1000)*1000).toLocaleDateString('en-IN')} {new Date((session.created || Date.now()/1000)*1000).toLocaleTimeString('en-IN')}</div>
+              <div className="meta-value" style={{"fontSize":"0.875rem","color":"var(--disha-ink)","fontFamily":"monospace","fontWeight":"700"}}>{new Date((session.created || 0)*1000).toLocaleDateString('en-IN')} {new Date((session.created || 0)*1000).toLocaleTimeString('en-IN')}</div>
             </div>
           </div>
         </div>
@@ -71,11 +71,11 @@ export const Receipt: React.FC = () => {
           </div>
           <div className="detail-row" style={{"display":"flex","justifyContent":"space-between","padding":"0.75rem 0","borderBottom":"1px solid rgba(25,61,48,0.06)"}}>
             <div className="detail-label" style={{"color":"var(--disha-muted)","fontSize":"0.875rem"}}>Transaction reference (UTR)</div>
-            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-ink)","fontFamily":"monospace"}}>{session.utr || 'UTR-' + session.id?.slice(-8)}</div>
+            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-ink)","fontFamily":"monospace"}}>{session.utr || 'Unavailable'}</div>
           </div>
           <div className="detail-row" style={{"display":"flex","justifyContent":"space-between","padding":"0.75rem 0","borderBottom":"1px solid rgba(25,61,48,0.06)"}}>
             <div className="detail-label" style={{"color":"var(--disha-muted)","fontSize":"0.875rem"}}>Bank reference (RRN)</div>
-            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-ink)","fontFamily":"monospace"}}>RRN-{session.id?.slice(-8) || '——'}</div>
+            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-ink)","fontFamily":"monospace"}}>{session.rrn || 'Unavailable'}</div>
           </div>
           <div className="detail-row" style={{"display":"flex","justifyContent":"space-between","padding":"0.75rem 0","borderBottom":"1px solid rgba(25,61,48,0.06)"}}>
             <div className="detail-label" style={{"color":"var(--disha-muted)","fontSize":"0.875rem"}}>Internal transaction ID</div>
@@ -83,7 +83,7 @@ export const Receipt: React.FC = () => {
           </div>
           <div className="detail-row" style={{"display":"flex","justifyContent":"space-between","padding":"0.75rem 0"}}>
             <div className="detail-label" style={{"color":"var(--disha-muted)","fontSize":"0.875rem"}}>Verification time</div>
-            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-emerald-500)","fontFamily":"monospace"}}>{new Date((session.created || Date.now()/1000)*1000).toLocaleTimeString('en-IN')}</div>
+            <div className="detail-value" style={{"fontWeight":"700","color":"var(--disha-emerald-500)","fontFamily":"monospace"}}>{new Date((session.created || 0)*1000).toLocaleTimeString('en-IN')}</div>
           </div>
         </div>
 
@@ -101,17 +101,18 @@ export const Receipt: React.FC = () => {
         </div>
 
         <div className="receipt-actions" style={{"marginTop":"24px","display":"flex","gap":"1rem"}}>
-          <button className="btn-primary" onclick={() => {
+          <button className="btn-primary" onClick={() => {
             const element = document.querySelector('.receipt-paper');
             if (element) {
               window.print();
             }
           }}>Download PDF</button>
-          <button className="btn-secondary" onclick={() => {
-            const utr = session.utr || session.id;
+          <button className="btn-secondary" onClick={() => {
+            const utr = session.utr;
+            if (!utr) return;
             navigator.clipboard.writeText(utr).then(() => alert('UTR copied to clipboard'));
           }} style={{"flex":"1"}}>Copy UTR</button>
-          <button className="btn-secondary" style={{"flex":"1"}} onclick={() => window.location.href='/'}>New Checkout</button>
+          <button className="btn-secondary" style={{"flex":"1"}} onClick={() => window.location.href='/'}>New Checkout</button>
         </div>
       </div>
     </section>

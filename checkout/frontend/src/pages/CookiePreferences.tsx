@@ -11,19 +11,19 @@ export const CookiePreferences: React.FC = () => {
         <div className="field">
           <div style={{"display":"flex","alignItems":"flex-start","gap":"0.5rem"}}>
             <input type="checkbox" id="essential-cookies" checked disabled className="field input" style={{width:'auto',marginTop:'0.25rem'}} />
-            <label style={{fontSize: '0.875rem',color:var(--prism-text-secondary)}}>Essential cookies - Required for the website to function properly.</label>
+            <label style={{fontSize: '0.875rem',color:'var(--prism-text-secondary)'}}>Essential cookies - Required for the website to function properly.</label>
           </div>
         </div>
         <div className="field">
           <div style={{"display":"flex","alignItems":"flex-start","gap":"0.5rem"}}>
             <input type="checkbox" id="analytics-cookies" className="field input" style={{width:'auto',marginTop:'0.25rem'}} />
-            <label style={{fontSize: '0.875rem',color:var(--prism-text-secondary)}}>Analytics cookies - Help us understand how visitors interact with our website.</label>
+            <label style={{fontSize: '0.875rem',color:'var(--prism-text-secondary)'}}>Analytics cookies - Help us understand how visitors interact with our website.</label>
           </div>
         </div>
         <div className="field">
           <div style={{"display":"flex","alignItems":"flex-start","gap":"0.5rem"}}>
             <input type="checkbox" id="marketing-cookies" className="field input" style={{width:'auto',marginTop:'0.25rem'}} />
-            <label style={{fontSize: '0.875rem',color:var(--prism-text-secondary)}}>Marketing cookies - Used to deliver relevant advertisements and measure campaign effectiveness.</label>
+            <label style={{fontSize: '0.875rem',color:'var(--prism-text-secondary)'}}>Marketing cookies - Used to deliver relevant advertisements and measure campaign effectiveness.</label>
           </div>
         </div>
       </div>
