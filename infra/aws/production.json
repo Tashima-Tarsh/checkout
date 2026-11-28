@@ -38,6 +38,24 @@
       "MinValue": 0,
       "MaxValue": 35,
       "Description": "Retention for PostgreSQL and Redis automated backups. Set to zero only for deployments configured without automated backups."
+    },
+    "ExistingCheckoutRepository": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-z0-9][a-z0-9._/-]+$",
+      "Description": "Optional existing immutable ECR repository for Checkout."
+    },
+    "ExistingAgenticRepository": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-z0-9][a-z0-9._/-]+$",
+      "Description": "Optional existing immutable ECR repository for Agentic."
+    },
+    "ExistingWorkflowRepository": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-z0-9][a-z0-9._/-]+$",
+      "Description": "Optional existing immutable ECR repository for Workflow."
     }
   },
   "Rules": {
@@ -108,6 +126,30 @@
             0
           ]
         }
+      ]
+    },
+    "CreateCheckoutRepository": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingCheckoutRepository"
+        },
+        ""
+      ]
+    },
+    "CreateAgenticRepository": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingAgenticRepository"
+        },
+        ""
+      ]
+    },
+    "CreateWorkflowRepository": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingWorkflowRepository"
+        },
+        ""
       ]
     }
   },
@@ -641,7 +683,8 @@
         }
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateCheckoutRepository"
     },
     "CheckoutLogs": {
       "Type": "AWS::Logs::LogGroup",
@@ -668,7 +711,25 @@
           {
             "Name": "checkout",
             "Image": {
-              "Fn::Sub": "${CheckoutImages.RepositoryUri}:release"
+              "Fn::Sub": [
+                "${RepositoryUri}:release",
+                {
+                  "RepositoryUri": {
+                    "Fn::If": [
+                      "CreateCheckoutRepository",
+                      {
+                        "Fn::GetAtt": [
+                          "CheckoutImages",
+                          "RepositoryUri"
+                        ]
+                      },
+                      {
+                        "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingCheckoutRepository}"
+                      }
+                    ]
+                  }
+                }
+              ]
             },
             "Essential": true,
             "PortMappings": [
@@ -745,7 +806,8 @@
         }
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateAgenticRepository"
     },
     "AgenticLogs": {
       "Type": "AWS::Logs::LogGroup",
@@ -772,7 +834,25 @@
           {
             "Name": "agentic",
             "Image": {
-              "Fn::Sub": "${AgenticImages.RepositoryUri}:release"
+              "Fn::Sub": [
+                "${RepositoryUri}:release",
+                {
+                  "RepositoryUri": {
+                    "Fn::If": [
+                      "CreateAgenticRepository",
+                      {
+                        "Fn::GetAtt": [
+                          "AgenticImages",
+                          "RepositoryUri"
+                        ]
+                      },
+                      {
+                        "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingAgenticRepository}"
+                      }
+                    ]
+                  }
+                }
+              ]
             },
             "Essential": true,
             "PortMappings": [
@@ -849,7 +929,8 @@
         }
       },
       "DeletionPolicy": "Retain",
-      "UpdateReplacePolicy": "Retain"
+      "UpdateReplacePolicy": "Retain",
+      "Condition": "CreateWorkflowRepository"
     },
     "WorkflowLogs": {
       "Type": "AWS::Logs::LogGroup",
@@ -876,7 +957,25 @@
           {
             "Name": "workflow",
             "Image": {
-              "Fn::Sub": "${WorkflowImages.RepositoryUri}:release"
+              "Fn::Sub": [
+                "${RepositoryUri}:release",
+                {
+                  "RepositoryUri": {
+                    "Fn::If": [
+                      "CreateWorkflowRepository",
+                      {
+                        "Fn::GetAtt": [
+                          "WorkflowImages",
+                          "RepositoryUri"
+                        ]
+                      },
+                      {
+                        "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingWorkflowRepository}"
+                      }
+                    ]
+                  }
+                }
+              ]
             },
             "Essential": true,
             "PortMappings": [
@@ -1274,25 +1373,49 @@
     },
     "CheckoutRepository": {
       "Value": {
-        "Fn::GetAtt": [
-          "CheckoutImages",
-          "RepositoryUri"
+        "Fn::If": [
+          "CreateCheckoutRepository",
+          {
+            "Fn::GetAtt": [
+              "CheckoutImages",
+              "RepositoryUri"
+            ]
+          },
+          {
+            "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingCheckoutRepository}"
+          }
         ]
       }
     },
     "AgenticRepository": {
       "Value": {
-        "Fn::GetAtt": [
-          "AgenticImages",
-          "RepositoryUri"
+        "Fn::If": [
+          "CreateAgenticRepository",
+          {
+            "Fn::GetAtt": [
+              "AgenticImages",
+              "RepositoryUri"
+            ]
+          },
+          {
+            "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingAgenticRepository}"
+          }
         ]
       }
     },
     "WorkflowRepository": {
       "Value": {
-        "Fn::GetAtt": [
-          "WorkflowImages",
-          "RepositoryUri"
+        "Fn::If": [
+          "CreateWorkflowRepository",
+          {
+            "Fn::GetAtt": [
+              "WorkflowImages",
+              "RepositoryUri"
+            ]
+          },
+          {
+            "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ExistingWorkflowRepository}"
+          }
         ]
       }
     }
