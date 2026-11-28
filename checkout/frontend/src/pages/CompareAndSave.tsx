@@ -37,7 +37,7 @@ export const CompareAndSave: React.FC = () => {
                 <td>{p.name === 'DISHA 8.2' ? (
                   <button className="btn-primary" style={{"padding":"0.4rem 0.8rem"}}>Contact Us</button>
                 ) : (
-                  <button className="btn-secondary" style={{"padding":"0.4rem 0.8rem"}} onClick={() => window.location.href='/payment-cost-calculator/'>Use in Calculator</button>
+                  <button className="btn-secondary" style={{"padding":"0.4rem 0.8rem"}} onClick={() => window.location.href='/payment-cost-calculator/'}>Use in Calculator</button>
                 )}</td>
               </tr>
             ))}
