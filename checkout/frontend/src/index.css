@@ -592,3 +592,40 @@ a:hover {
 @media(max-width:800px){.public-hero{grid-template-columns:1fr;gap:1rem;padding:3rem 1.4rem}.public-hero-art{max-width:600px;width:100%;margin:auto}.public-float{padding:.7rem 1rem}.public-actions a{min-height:44px}}
 
 @media(max-width:480px){.public-hero h1{font-size:clamp(2.4rem,10vw,3.3rem)}.public-hero .public-actions{flex-direction:column;align-items:stretch}.public-float{max-width:60%;font-size:.72rem}.public-float strong{font-size:.86rem}}
+
+/* Subtle Cinematic Breathe Keyframes */
+@keyframes subtleBreathe {
+  0% {
+    transform: scale(1.0);
+  }
+  100% {
+    transform: scale(1.035);
+  }
+}
+
+/* Clerk Glass Container Styling */
+.clerk-glass-container .cl-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.clerk-glass-container .cl-headerTitle {
+  color: #ffffff !important;
+}
+
+.clerk-glass-container .cl-headerSubtitle {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.clerk-glass-container .cl-socialButtonsBlockButton {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+}
+
+.clerk-glass-container .cl-formButtonPrimary {
+  background: linear-gradient(135deg, #07865C, #0a9b6b) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 25px rgba(7, 134, 92, 0.35) !important;
+}

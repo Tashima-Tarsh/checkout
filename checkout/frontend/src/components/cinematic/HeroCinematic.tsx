@@ -1,6 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
-import { ArrowRight, Play, Pause, TrendingUp, ShieldCheck, Sparkles, Move3d } from 'lucide-react'
+import {
+  SignIn,
+  SignedIn,
+  SignedOut,
+  UserButton,
+  useUser,
+  useClerk,
+} from '@clerk/clerk-react'
+import {
+  ArrowRight,
+  Play,
+  Pause,
+  ShieldCheck,
+  CheckCircle2,
+  Sparkles,
+  Lock,
+  Building2,
+  Send,
+  Zap,
+  KeyRound,
+  ExternalLink,
+} from 'lucide-react'
+
+// Import the official high-resolution photograph background
+import heroImage from '../../assets/disha8-2-hero.jpg'
 
 interface HeroCinematicProps {
   isAudioPlaying: boolean
@@ -11,449 +34,518 @@ export const HeroCinematic: React.FC<HeroCinematicProps> = ({
   isAudioPlaying,
   onToggleAudio,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [hasWebGL, setHasWebGL] = useState(true)
+  const { user } = useUser()
+  const clerk = useClerk()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  // Tab State in the Right Glass Container: 'login' | 'request'
+  const [authTab, setAuthTab] = useState<'login' | 'request'>('login')
+
+  // Request Access form state
+  const [reqBusinessName, setReqBusinessName] = useState('')
+  const [reqContact, setReqContact] = useState('')
+  const [reqVolume, setReqVolume] = useState('₹50 Lakhs – ₹1 Crore')
+  const [reqSubmitted, setReqSubmitted] = useState(false)
+
+  // -------------------------------------------------------------
+  // Photorealistic Motion Layer: Floating Clouds & Energy Pulse
+  // -------------------------------------------------------------
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const canvas = canvasRef.current
+    if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return
     }
 
-    let renderer: THREE.WebGLRenderer
-    try {
-      renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true,
-        powerPreference: 'high-performance',
-      })
-    } catch (e) {
-      setHasWebGL(false)
-      return
-    }
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(container.clientWidth, container.clientHeight)
-    renderer.setClearColor(0x000000, 0)
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.15
-    container.appendChild(renderer.domElement)
-
-    // Scene & Perspective Camera
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(
-      38,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      100
-    )
-    camera.position.set(0, 1.8, 6.8)
-
-    // -------------------------------------------------------------
-    // Cinematic Lighting — Warm Indian Golden Hour & Emerald Glow
-    // -------------------------------------------------------------
-    const ambientLight = new THREE.AmbientLight(0xfff5ea, 1.6)
-    scene.add(ambientLight)
-
-    const sunLight = new THREE.DirectionalLight(0xffdfa8, 3.2)
-    sunLight.position.set(7, 9, 6)
-    sunLight.castShadow = true
-    scene.add(sunLight)
-
-    const rimLight = new THREE.DirectionalLight(0xb5f5d8, 1.8)
-    rimLight.position.set(-6, 3, -4)
-    scene.add(rimLight)
-
-    const emeraldGlow = new THREE.PointLight(0x07865c, 3.5, 14)
-    emeraldGlow.position.set(0, -0.4, 2.5)
-    scene.add(emeraldGlow)
-
-    // -------------------------------------------------------------
-    // DISHA 8.2 Precision High-Speed Train
-    // Champagne Gold (#D7B77B) & Brushed Titanium (#DCE2E7)
-    // -------------------------------------------------------------
-    const trainGroup = new THREE.Group()
-
-    // Materials
-    const goldMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xd7b77b,
-      metalness: 0.88,
-      roughness: 0.22,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.15,
-      reflectivity: 0.9,
-    })
-
-    const titaniumMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xdce2e7,
-      metalness: 0.92,
-      roughness: 0.2,
-      clearcoat: 0.4,
-    })
-
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x1f2937,
-      metalness: 0.95,
-      roughness: 0.08,
-      transmission: 0.7,
-      thickness: 0.5,
-      transparent: true,
-      opacity: 0.9,
-    })
-
-    const emeraldEmissive = new THREE.MeshStandardMaterial({
-      color: 0xb5f5d8,
-      emissive: 0x07865c,
-      emissiveIntensity: 2.8,
-      roughness: 0.1,
-    })
-
-    // 1. Sleek Streamlined Fuselage
-    const mainBodyGeo = new THREE.CylinderGeometry(0.65, 0.72, 4.8, 48, 1, false, 0, Math.PI)
-    mainBodyGeo.rotateZ(Math.PI / 2)
-    const mainBody = new THREE.Mesh(mainBodyGeo, titaniumMaterial)
-    mainBody.position.set(-0.3, 0.18, 0)
-    mainBody.castShadow = true
-    trainGroup.add(mainBody)
-
-    // 2. Aerodynamic Bullet Nose (Champagne Gold)
-    const noseGeo = new THREE.ConeGeometry(0.65, 2.2, 48, 1, false, 0, Math.PI)
-    noseGeo.rotateZ(-Math.PI / 2)
-    const nose = new THREE.Mesh(noseGeo, goldMaterial)
-    nose.position.set(2.8, 0.18, 0)
-    nose.castShadow = true
-    trainGroup.add(nose)
-
-    // 3. Panoramic Aerodynamic Windscreen
-    const windshieldGeo = new THREE.CylinderGeometry(0.63, 0.64, 1.2, 24, 1, false, 0, Math.PI)
-    windshieldGeo.rotateZ(Math.PI / 2)
-    const windshield = new THREE.Mesh(windshieldGeo, glassMaterial)
-    windshield.position.set(1.9, 0.32, 0)
-    trainGroup.add(windshield)
-
-    // 4. Lateral Emerald Energy Illumination Rails
-    const railStripeGeo = new THREE.BoxGeometry(5.2, 0.045, 0.04)
-    const leftStripe = new THREE.Mesh(railStripeGeo, emeraldEmissive)
-    leftStripe.position.set(0.4, 0.16, 0.68)
-    trainGroup.add(leftStripe)
-
-    const rightStripe = new THREE.Mesh(railStripeGeo, emeraldEmissive)
-    rightStripe.position.set(0.4, 0.16, -0.68)
-    trainGroup.add(rightStripe)
-
-    // 5. Roof Aero Fairing & Metallic Crown
-    const fairingGeo = new THREE.BoxGeometry(3.6, 0.12, 0.45)
-    const fairing = new THREE.Mesh(fairingGeo, goldMaterial)
-    fairing.position.set(-0.2, 0.82, 0)
-    trainGroup.add(fairing)
-
-    trainGroup.position.set(0, -0.35, 0)
-    scene.add(trainGroup)
-
-    // -------------------------------------------------------------
-    // Elevated Payment Tracks (Polished Gold Rails & Ties)
-    // -------------------------------------------------------------
-    const tracksGroup = new THREE.Group()
-
-    const trackRailGeo = new THREE.CylinderGeometry(0.04, 0.04, 16, 16)
-    trackRailGeo.rotateZ(Math.PI / 2)
-    const trackRailMat = new THREE.MeshStandardMaterial({
-      color: 0xd7b77b,
-      metalness: 0.9,
-      roughness: 0.25,
-      emissive: 0x473919,
-      emissiveIntensity: 0.2,
-    })
-
-    const trackLeft = new THREE.Mesh(trackRailGeo, trackRailMat)
-    trackLeft.position.set(0, -0.88, 0.62)
-    tracksGroup.add(trackLeft)
-
-    const trackRight = new THREE.Mesh(trackRailGeo, trackRailMat)
-    trackRight.position.set(0, -0.88, -0.62)
-    tracksGroup.add(trackRight)
-
-    // Magnetic Ties
-    const crossTieGeo = new THREE.BoxGeometry(0.14, 0.06, 1.65)
-    const crossTieMat = new THREE.MeshStandardMaterial({
-      color: 0x334155,
-      metalness: 0.6,
-      roughness: 0.5,
-    })
-    for (let x = -8; x <= 8; x += 0.8) {
-      const tie = new THREE.Mesh(crossTieGeo, crossTieMat)
-      tie.position.set(x, -0.92, 0)
-      tracksGroup.add(tie)
-    }
-
-    scene.add(tracksGroup)
-
-    // -------------------------------------------------------------
-    // High-Speed Payment Data Streams & Shimmering Dust
-    // -------------------------------------------------------------
-    const particleCount = 260
-    const particleGeo = new THREE.BufferGeometry()
-    const pCoords = new Float32Array(particleCount * 3)
-    const pColors = new Float32Array(particleCount * 3)
-
-    const goldCol = new THREE.Color(0xd7b77b)
-    const emeraldCol = new THREE.Color(0x07865c)
-    const mintCol = new THREE.Color(0xb5f5d8)
-
-    for (let i = 0; i < particleCount; i++) {
-      pCoords[i * 3] = (Math.random() - 0.5) * 16
-      pCoords[i * 3 + 1] = (Math.random() - 0.5) * 4
-      pCoords[i * 3 + 2] = (Math.random() - 0.5) * 4.5
-
-      const c = Math.random() < 0.45 ? emeraldCol : Math.random() < 0.8 ? goldCol : mintCol
-      pColors[i * 3] = c.r
-      pColors[i * 3 + 1] = c.g
-      pColors[i * 3 + 2] = c.b
-    }
-
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(pCoords, 3))
-    particleGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3))
-
-    const particleMat = new THREE.PointsMaterial({
-      size: 0.06,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-    })
-    const particleStream = new THREE.Points(particleGeo, particleMat)
-    scene.add(particleStream)
-
-    // -------------------------------------------------------------
-    // Smooth Interactive Mouse Rotation & Inertia
-    // -------------------------------------------------------------
-    let mouseX = 0
-    let mouseY = 0
-    let targetRotY = 0
-    let targetRotX = 0
-
-    const onPointerMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect()
-      mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2
-      mouseY = -((e.clientY - rect.top) / rect.height - 0.5) * 2
-    }
-    container.addEventListener('mousemove', onPointerMove)
-
-    const onResize = () => {
-      if (!container) return
-      camera.aspect = container.clientWidth / container.clientHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(container.clientWidth, container.clientHeight)
-    }
-    const observer = new ResizeObserver(onResize)
-    observer.observe(container)
-
-    // Animation Loop
     let animId = 0
-    const clock = new THREE.Clock()
+    let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth)
+    let height = (canvas.height = canvas.parentElement?.clientHeight || window.innerHeight)
 
-    const animate = () => {
-      animId = requestAnimationFrame(animate)
-      const t = clock.getElapsedTime()
+    const handleResize = () => {
+      if (!canvas.parentElement) return
+      width = canvas.width = canvas.parentElement.clientWidth
+      height = canvas.height = canvas.parentElement.clientHeight
+    }
+    window.addEventListener('resize', handleResize)
 
-      // Interactive subtle damping
-      targetRotY += (mouseX * 0.45 - targetRotY) * 0.05
-      targetRotX += (mouseY * 0.2 - targetRotX) * 0.05
+    // Cloud Puffs for realistic volumetric cloud flow
+    const clouds: Array<{
+      x: number
+      y: number
+      radius: number
+      speed: number
+      alpha: number
+      alphaSpeed: number
+    }> = []
 
-      trainGroup.rotation.y = targetRotY * 0.6
-      trainGroup.rotation.x = -targetRotX * 0.4
-      trainGroup.position.y = -0.35 + Math.sin(t * 2.2) * 0.03
-
-      // Pulse emerald energy
-      emeraldGlow.intensity = 2.8 + Math.sin(t * 3.5) * 1.0
-
-      // High-speed particle propulsion
-      const pos = particleGeo.attributes.position.array as Float32Array
-      for (let i = 0; i < particleCount; i++) {
-        pos[i * 3] -= 0.09
-        if (pos[i * 3] < -8) {
-          pos[i * 3] = 8
-          pos[i * 3 + 1] = (Math.random() - 0.5) * 4
-          pos[i * 3 + 2] = (Math.random() - 0.5) * 4.5
-        }
-      }
-      particleGeo.attributes.position.needsUpdate = true
-
-      renderer.render(scene, camera)
+    for (let i = 0; i < 28; i++) {
+      clouds.push({
+        x: Math.random() * width,
+        y: height * 0.45 + (Math.random() - 0.2) * (height * 0.45),
+        radius: 120 + Math.random() * 180,
+        speed: 0.15 + Math.random() * 0.35,
+        alpha: 0.08 + Math.random() * 0.14,
+        alphaSpeed: 0.003 + Math.random() * 0.004,
+      })
     }
 
-    animate()
+    // Shimmering Golden Dust Motes
+    const particles: Array<{
+      x: number
+      y: number
+      size: number
+      speedY: number
+      speedX: number
+      opacity: number
+      hue: string
+    }> = []
+
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: 1 + Math.random() * 2.5,
+        speedY: -0.15 - Math.random() * 0.35,
+        speedX: 0.1 + Math.random() * 0.25,
+        opacity: 0.2 + Math.random() * 0.7,
+        hue: Math.random() > 0.4 ? '#D7B77B' : '#B5F5D8',
+      })
+    }
+
+    let pulseOffset = 0
+
+    const render = () => {
+      animId = requestAnimationFrame(render)
+      ctx.clearRect(0, 0, width, height)
+
+      // 1. Drifting Soft Cloud Fog Layers (Right-side billowing clouds)
+      for (const cloud of clouds) {
+        cloud.x -= cloud.speed
+        if (cloud.x < -cloud.radius * 2) {
+          cloud.x = width + cloud.radius
+          cloud.y = height * 0.45 + (Math.random() - 0.2) * (height * 0.45)
+        }
+
+        // Breathing cloud alpha
+        cloud.alpha += Math.sin(pulseOffset * 0.5) * 0.0003
+
+        const gradient = ctx.createRadialGradient(
+          cloud.x,
+          cloud.y,
+          cloud.radius * 0.1,
+          cloud.x,
+          cloud.y,
+          cloud.radius
+        )
+        gradient.addColorStop(0, `rgba(255, 248, 235, ${cloud.alpha})`)
+        gradient.addColorStop(0.5, `rgba(245, 230, 210, ${cloud.alpha * 0.5})`)
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+
+        ctx.fillStyle = gradient
+        ctx.beginPath()
+        ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // 2. High-Speed Luminous Rail Pulse along the Viaduct
+      pulseOffset += 0.025
+      const railStartX = width * 0.18
+      const railStartY = height * 0.85
+      const railEndX = width * 0.46
+      const railEndY = height * 0.58
+
+      const pulseProgress = (Math.sin(pulseOffset * 1.5) + 1) / 2
+      const currentPulseX = railStartX + (railEndX - railStartX) * (1 - pulseProgress)
+      const currentPulseY = railStartY + (railEndY - railStartY) * (1 - pulseProgress)
+
+      const railBeam = ctx.createRadialGradient(
+        currentPulseX,
+        currentPulseY,
+        4,
+        currentPulseX,
+        currentPulseY,
+        60
+      )
+      railBeam.addColorStop(0, 'rgba(181, 245, 216, 0.75)')
+      railBeam.addColorStop(0.4, 'rgba(7, 134, 92, 0.45)')
+      railBeam.addColorStop(1, 'rgba(7, 134, 92, 0)')
+
+      ctx.fillStyle = railBeam
+      ctx.beginPath()
+      ctx.arc(currentPulseX, currentPulseY, 60, 0, Math.PI * 2)
+      ctx.fill()
+
+      // 3. Golden Dust Particles
+      for (const p of particles) {
+        p.y += p.speedY
+        p.x += p.speedX
+        if (p.y < 0) {
+          p.y = height + 10
+          p.x = Math.random() * width
+        }
+
+        ctx.fillStyle = p.hue
+        ctx.globalAlpha = p.opacity
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.globalAlpha = 1.0
+      }
+    }
+
+    render()
 
     return () => {
       cancelAnimationFrame(animId)
-      container.removeEventListener('mousemove', onPointerMove)
-      observer.disconnect()
-      renderer.dispose()
-      scene.clear()
-      if (renderer.domElement.parentNode) {
-        renderer.domElement.parentNode.removeChild(renderer.domElement)
-      }
+      window.removeEventListener('resize', handleResize)
     }
   }, [])
 
+  const handleRequestSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reqBusinessName || !reqContact) return
+    setReqSubmitted(true)
+  }
+
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#FDF9F2] via-[#FAF6EE] to-[#F1F8F4] pt-28 pb-20 border-b border-[#D7B77B]/20">
-      {/* Rich Multi-Layer Cinematic Background Gradient & Ambient Glows */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(215,183,123,0.24)_0%,transparent_60%)] pointer-events-none" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[720px] h-[720px] bg-gradient-to-tr from-[#07865C]/10 via-[#D7B77B]/15 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute -bottom-10 left-10 w-96 h-96 bg-[#07865C]/8 rounded-full blur-[100px] pointer-events-none" />
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-16">
+      {/* ------------------------------------------------------------- */}
+      {/* 1. CINEMATIC BACKGROUND IMAGE (Official DISHA 8.2 Artwork)     */}
+      {/* ------------------------------------------------------------- */}
+      <div
+        className="absolute inset-0 bg-cover bg-center sm:bg-[center_top] transition-transform duration-1000 ease-out will-change-transform"
+        style={{
+          backgroundImage: `url(${heroImage})`,
+          animation: 'subtleBreathe 14s ease-in-out infinite alternate',
+        }}
+        aria-hidden="true"
+      />
 
-      {/* Main Foreground Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Brand & Product Pill (NO PROD BADGE) */}
-        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#D7B77B]/40 shadow-sm mb-6 animate-fade-in">
-          <span className="w-2 h-2 rounded-full bg-[#07865C] animate-ping" />
-          <span className="text-xs font-bold tracking-wider uppercase text-[#262626]">
-            Flagship Brand: DISHA 8.2
-          </span>
-          <span className="text-gray-300">|</span>
-          <span className="text-xs font-bold tracking-wide text-[#07865C]">
-            Product: Agentic Pay
-          </span>
-        </div>
+      {/* Subtle atmospheric vignette & sunrise warmth gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/25 pointer-events-none" />
 
-        {/* Primary Positioning Heading */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-[#262626] max-w-4xl mx-auto leading-[1.08] mb-6">
-          The Next Direction of{' '}
-          <span className="bg-gradient-to-r from-[#07865C] via-[#099969] to-[#D7B77B] bg-clip-text text-transparent">
-            Indian Payments.
-          </span>
-        </h1>
+      {/* ------------------------------------------------------------- */}
+      {/* 2. REALISTIC MOTION CANVAS (Clouds, Energy, Sunlight, Dust)   */}
+      {/* ------------------------------------------------------------- */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 pointer-events-none z-10"
+        aria-hidden="true"
+      />
 
-        {/* Signature Tagline */}
-        <p className="text-xl sm:text-2xl font-bold text-[#333333] max-w-2xl mx-auto mb-4 tracking-tight">
-          Your Business, Entirely in Your Control.
-        </p>
-
-        {/* Professional Business Description (NO ENGINEERING JARGON) */}
-        <p className="text-base sm:text-lg text-[#525252] max-w-2xl mx-auto mb-8 font-normal leading-relaxed">
-          Autonomous, zero-custody UPI payment orchestration that eliminates intermediary escrow,
-          bypasses aggregator fee deductions, and deposits customer payments directly into your registered bank account.
-        </p>
-
-        {/* Primary Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-          <a
-            href="#discover"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] shadow-lg shadow-[#07865C]/20 hover:shadow-xl hover:shadow-[#07865C]/30 transition-all"
-          >
-            <span>Discover DISHA 8.2</span>
-            <ArrowRight className="w-4 h-4" />
-          </a>
-
-          <a
-            href="#calculator"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-bold text-[#262626] bg-white/95 hover:bg-white border border-[#DCE2E7] hover:border-[#D7B77B] shadow-sm hover:shadow transition-all"
-          >
-            <span>Calculate Merchant Savings</span>
-            <TrendingUp className="w-4 h-4 text-[#07865C]" />
-          </a>
-
-          {/* Voiceover Narration Control */}
-          <button
-            onClick={onToggleAudio}
-            className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-semibold border backdrop-blur-md transition-all ${
-              isAudioPlaying
-                ? 'bg-[#07865C]/15 border-[#07865C] text-[#07865C]'
-                : 'bg-white/80 border-[#DCE2E7] text-[#525252] hover:border-[#D7B77B]'
-            }`}
-          >
-            {isAudioPlaying ? (
-              <>
-                <Pause className="w-4 h-4 text-[#07865C]" />
-                <span>Pause Voiceover</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 text-[#D7B77B]" />
-                <span>Listen to Story (15s)</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* DEDICATED CINEMATIC 3D WEBGL STAGE (NO OVERLAPPING TEXT)          */}
-        {/* ------------------------------------------------------------------ */}
-        <div className="relative max-w-5xl mx-auto rounded-3xl bg-gradient-to-b from-white/90 to-[#FAF6EE]/80 p-3 sm:p-5 border border-[#D7B77B]/40 shadow-2xl backdrop-blur-md">
-          {/* Stage Top Bar */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#D7B77B]/20 mb-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#07865C] animate-pulse" />
-              <span className="font-extrabold tracking-wider text-[#262626] uppercase">
-                DISHA 8.2 Interactive 3D Rail Experience
+      {/* ------------------------------------------------------------- */}
+      {/* 3. HERO CONTENT: 2-COLUMN LUXURY GLASS EXPERIENCE             */}
+      {/* ------------------------------------------------------------- */}
+      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* LEFT COLUMN: Narrative & Brand Identity */}
+          <div className="lg:col-span-7 text-left text-white drop-shadow-md space-y-6">
+            {/* Flagship Badge */}
+            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/40 shadow-sm animate-fade-in">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#B5F5D8] animate-ping" />
+              <span className="text-xs font-black tracking-wider uppercase text-white">
+                Flagship: DISHA 8.2
+              </span>
+              <span className="text-white/40">|</span>
+              <span className="text-xs font-bold tracking-wide text-[#B5F5D8]">
+                Agentic Pay
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[#8F6E36] font-semibold text-[11px]">
-              <Move3d className="w-3.5 h-3.5" />
-              <span>Drag or Move Cursor to Inspect 3D Model</span>
+
+            {/* Primary Headline */}
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.06] text-white">
+              The Next Direction of{' '}
+              <span className="bg-gradient-to-r from-[#B5F5D8] via-[#D7B77B] to-white bg-clip-text text-transparent">
+                Indian Payments.
+              </span>
+            </h1>
+
+            {/* Signature Tagline */}
+            <p className="text-xl sm:text-2xl font-bold tracking-tight text-[#FAF8F3]">
+              Your Business, Entirely in Your Control.
+            </p>
+
+            {/* Business Positioning Description */}
+            <p className="text-sm sm:text-base text-white/90 max-w-xl font-normal leading-relaxed">
+              Autonomous, zero-custody UPI payment orchestration that deposits customer funds directly
+              into your commercial bank account. Zero intermediary escrow, zero gateway toll deductions,
+              and immediate T+0 settlement.
+            </p>
+
+            {/* Quick Action Badges */}
+            <div className="flex flex-wrap gap-2.5 pt-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+                <CheckCircle2 className="w-4 h-4 text-[#B5F5D8]" />
+                <span>Direct Bank Credit</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+                <ShieldCheck className="w-4 h-4 text-[#D7B77B]" />
+                <span>Zero Escrow Float</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/30 text-xs font-semibold text-white">
+                <Zap className="w-4 h-4 text-[#B5F5D8]" />
+                <span>Instant Settlement (T+0)</span>
+              </div>
+            </div>
+
+            {/* Action Buttons & Audio Narration */}
+            <div className="flex flex-wrap items-center gap-4 pt-4">
+              <a
+                href="#calculator"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-[#1a1a1a] bg-gradient-to-r from-[#D7B77B] via-[#eed9ab] to-[#D7B77B] hover:brightness-105 shadow-xl transition-all"
+              >
+                <span>Calculate Merchant Savings</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+
+              {/* Audio Narration Toggle */}
+              <button
+                onClick={onToggleAudio}
+                className={`inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-bold border backdrop-blur-xl transition-all ${
+                  isAudioPlaying
+                    ? 'bg-[#07865C]/80 border-[#B5F5D8] text-white shadow-lg shadow-[#07865C]/40'
+                    : 'bg-white/20 border-white/40 text-white hover:bg-white/30'
+                }`}
+              >
+                {isAudioPlaying ? (
+                  <>
+                    <Pause className="w-4 h-4 text-[#B5F5D8] animate-pulse" />
+                    <span>Narration Playing (Pause)</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 text-[#D7B77B]" />
+                    <span>Listen to Story (15s)</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* 3D WebGL Canvas Viewport */}
-          <div
-            ref={containerRef}
-            className="w-full h-[360px] sm:h-[440px] rounded-2xl overflow-hidden cursor-grab active:cursor-grabbing relative"
-            aria-label="DISHA 8.2 3D Train Simulation"
-          >
-            {!hasWebGL && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#FAF8F3] text-sm text-[#737373]">
-                3D WebGL Viewport (Hardware acceleration required)
+          {/* --------------------------------------------------------- */}
+          {/* RIGHT COLUMN: SEAMLESS LIQUID GLASS CLERK AUTH & ACCESS    */}
+          {/* Positioned inside the glowing aura on the right of artwork*/}
+          {/* --------------------------------------------------------- */}
+          <div className="lg:col-span-5 relative">
+            {/* Seamless, Borderless Frosted Glass Panel ("no box") */}
+            <div className="relative rounded-[32px] p-6 sm:p-8 backdrop-blur-2xl bg-white/25 border border-white/45 shadow-[0_25px_60px_rgba(0,0,0,0.2)] transition-all">
+              {/* Subtle Golden Edge Highlight */}
+              <div className="absolute inset-0 rounded-[32px] bg-gradient-to-tr from-white/20 via-transparent to-[#D7B77B]/25 pointer-events-none" />
+
+              {/* Tabs Switcher: Merchant Login (Clerk) vs Request Access */}
+              <div className="relative z-10 flex items-center justify-between p-1 rounded-2xl bg-black/20 backdrop-blur-md border border-white/20 mb-6">
+                <button
+                  onClick={() => setAuthTab('login')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    authTab === 'login'
+                      ? 'bg-white text-[#262626] shadow-md'
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Merchant Login</span>
+                </button>
+
+                <button
+                  onClick={() => setAuthTab('request')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    authTab === 'request'
+                      ? 'bg-white text-[#262626] shadow-md'
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Request Access</span>
+                </button>
               </div>
-            )}
+
+              {/* TAB 1: CLERK MERCHANT AUTHENTICATION */}
+              {authTab === 'login' && (
+                <div className="relative z-10 animate-fade-in space-y-4">
+                  {/* Signed In State */}
+                  <SignedIn>
+                    <div className="text-center py-4 space-y-4">
+                      <div className="flex justify-center">
+                        <div className="p-1 rounded-full bg-white/40 border border-white/60">
+                          <UserButton afterSignOutUrl="/" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-extrabold text-white">
+                          Welcome, {user?.firstName || user?.username || 'Merchant'}
+                        </div>
+                        <div className="text-xs text-[#B5F5D8] font-medium mt-0.5">
+                          {user?.primaryEmailAddress?.emailAddress || 'Verified Merchant Session'}
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <a
+                          href="https://merchant.disha8-2.thenitishkr.in/"
+                          className="w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] shadow-lg shadow-[#07865C]/30 flex items-center justify-center gap-2 transition-all"
+                        >
+                          <span>Open Merchant Terminal</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </a>
+                      </div>
+
+                      <div className="text-[11px] text-white/70">
+                        Direct connection to DISHA 8.2 Payment Rails
+                      </div>
+                    </div>
+                  </SignedIn>
+
+                  {/* Signed Out State — Clerk Form */}
+                  <SignedOut>
+                    <div className="clerk-glass-container">
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-black text-white tracking-tight">
+                          Sign In with Clerk
+                        </h3>
+                        <p className="text-xs text-white/80 mt-0.5">
+                          Authenticate your registered Indian merchant portal
+                        </p>
+                      </div>
+
+                      {/* Embedded Clerk Component with transparent theme */}
+                      <SignIn
+                        routing="hash"
+                        fallbackRedirectUrl="https://merchant.disha8-2.thenitishkr.in/"
+                        appearance={{
+                          elements: {
+                            rootBox: 'w-full',
+                            card: 'bg-transparent shadow-none border-none p-0',
+                            header: 'hidden',
+                            footer: 'text-white/80 text-xs',
+                            socialButtonsBlockButton:
+                              'bg-white/90 hover:bg-white text-[#262626] font-bold text-xs rounded-xl shadow-sm border border-white/50 transition-all',
+                            formButtonPrimary:
+                              'bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all py-3',
+                            formFieldInput:
+                              'bg-white/90 border border-white/60 focus:border-[#07865C] text-xs rounded-xl text-[#262626]',
+                            formFieldLabel: 'text-xs font-bold text-white',
+                            footerActionLink: 'text-[#B5F5D8] font-bold hover:underline',
+                            dividerText: 'text-[11px] text-white/70 font-semibold',
+                            dividerLine: 'bg-white/30',
+                          },
+                        }}
+                      />
+
+                      {/* Fallback Direct Clerk Trigger Button if iframe hasn't loaded */}
+                      <div className="mt-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => clerk.openSignIn({})}
+                          className="text-xs font-bold text-white hover:text-[#B5F5D8] underline transition-colors"
+                        >
+                          Having trouble? Open Clerk Modal
+                        </button>
+                      </div>
+                    </div>
+                  </SignedOut>
+
+                  {/* Super Admin Access Footnote */}
+                  <div className="pt-3 border-t border-white/20 flex items-center justify-between text-[11px] text-white/75">
+                    <span>Administrative Authority?</span>
+                    <a
+                      href="https://superadmin.disha8-2.thenitishkr.in/"
+                      className="font-bold text-[#D7B77B] hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                      <span>Super Admin</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: REQUEST ACCESS FOR NEW ENTERPRISE MERCHANTS */}
+              {authTab === 'request' && (
+                <div className="relative z-10 animate-fade-in">
+                  {!reqSubmitted ? (
+                    <form onSubmit={handleRequestSubmit} className="space-y-3.5 text-left">
+                      <div>
+                        <label className="block text-xs font-bold text-white mb-1">
+                          Business / Legal Entity Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={reqBusinessName}
+                          onChange={(e) => setReqBusinessName(e.target.value)}
+                          placeholder="e.g. Royal Fresh Mart Pvt Ltd"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white/90 border border-white/50 text-xs text-[#262626] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#07865C]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-white mb-1">
+                          Email or WhatsApp Contact
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={reqContact}
+                          onChange={(e) => setReqContact(e.target.value)}
+                          placeholder="nitish@yourcompany.in or +91..."
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white/90 border border-white/50 text-xs text-[#262626] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#07865C]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-white mb-1">
+                          Estimated Monthly UPI Volume
+                        </label>
+                        <select
+                          value={reqVolume}
+                          onChange={(e) => setReqVolume(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white/90 border border-white/50 text-xs text-[#262626] focus:outline-none focus:ring-2 focus:ring-[#07865C]"
+                        >
+                          <option value="₹10 Lakhs – ₹50 Lakhs">₹10 Lakhs – ₹50 Lakhs / mo</option>
+                          <option value="₹50 Lakhs – ₹1 Crore">₹50 Lakhs – ₹1 Crore / mo</option>
+                          <option value="₹1 Crore – ₹5 Crores">₹1 Crore – ₹5 Crores / mo</option>
+                          <option value="₹5 Crores+">₹5 Crores+ / mo (Enterprise Tier)</option>
+                        </select>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-r from-[#07865C] to-[#0a9b6b] hover:from-[#065440] hover:to-[#08785c] shadow-lg shadow-[#07865C]/30 flex items-center justify-center gap-2 transition-all mt-4"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Submit Access Request</span>
+                      </button>
+
+                      <p className="text-[10px] text-white/70 text-center mt-2">
+                        Zero setup fees. Qualified merchants receive credential provisioning within 24 hours.
+                      </p>
+                    </form>
+                  ) : (
+                    <div className="py-6 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-[#B5F5D8] text-[#07865C] flex items-center justify-center mx-auto shadow-lg">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-extrabold text-white">
+                        Access Request Received
+                      </h4>
+                      <p className="text-xs text-white/85 max-w-xs mx-auto leading-relaxed">
+                        Thank you, <span className="font-bold">{reqBusinessName}</span>. Our deployment team is reviewing your volume tier ({reqVolume}) and will contact {reqContact}.
+                      </p>
+                      <button
+                        onClick={() => setReqSubmitted(false)}
+                        className="text-xs text-[#B5F5D8] underline hover:text-white pt-2 font-semibold"
+                      >
+                        Submit another request
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Stage Bottom Features Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-[#D7B77B]/20 text-left">
-            <div className="px-3 py-2 rounded-xl bg-white/70 border border-[#DCE2E7] flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-[#07865C]/10 text-[#07865C]">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#262626]">Non-Custodial Architecture</div>
-                <div className="text-[10px] text-[#737373]">Zero money held in transit</div>
-              </div>
-            </div>
-
-            <div className="px-3 py-2 rounded-xl bg-white/70 border border-[#DCE2E7] flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-[#D7B77B]/20 text-[#8F6E36]">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#262626]">Zero Intermediary Fees</div>
-                <div className="text-[10px] text-[#737373]">100% of customer payment retained</div>
-              </div>
-            </div>
-
-            <div className="px-3 py-2 rounded-xl bg-white/70 border border-[#DCE2E7] flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-[#07865C]/10 text-[#07865C]">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#262626]">Immediate Settlement</div>
-                <div className="text-[10px] text-[#737373]">T+0 direct bank credit</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Corporate Attribution Footnote */}
-        <div className="mt-8">
-          <span className="text-xs font-medium text-[#737373]">
-            Powered by{' '}
-            <span className="text-[#262626] font-bold">
-              DishaNitish Technologies
-            </span>
-          </span>
         </div>
       </div>
     </section>
