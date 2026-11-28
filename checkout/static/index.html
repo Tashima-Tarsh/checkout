@@ -15,19 +15,13 @@
   <link rel="stylesheet" href="/static/prism.css?v=1.1">
   <link rel="stylesheet" href="/static/disha.css?v=1.0">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
-  <script src="/static/prism.js?v=1.1" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js" defer></script>
+
 </head>
 <body class="prism-body disha-body homepage">
   <div id="toast-container"></div>
 
   <!-- Loader -->
-  <div id="disha-loader" class="loader">
-    <div class="logo">DISHA 8.2</div>
-    <div class="spinner"></div>
-  </div>
+
 
   <!-- Header -->
   <header class="prism-topbar" role="banner">
@@ -394,15 +388,6 @@
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
 
-    // Hide loader after animation
-    window.addEventListener('load', () => {
-      const loader = $('#disha-loader');
-      setTimeout(() => {
-        loader.classList.add('hidden');
-        setTimeout(() => loader.remove(), 600);
-      }, 1500);
-    });
-
     // Mobile menu toggle
     function toggleMenu() {
       const menu = $('#mobile-menu');
@@ -415,7 +400,7 @@
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      toggleMenu();
+      $('#mobile-menu').classList.add('hidden');
     }
 
     // Calculator quick math
@@ -467,7 +452,10 @@
             throw new Error('Submission failed');
           }
         } catch (err) {
-          toast('Submission failed. Please try again.', 'error');
+          const notice = document.createElement('p');
+          notice.setAttribute('role', 'alert');
+          notice.textContent = 'Online inquiry is unavailable. Please contact us using the email or WhatsApp link below.';
+          form.appendChild(notice);
         } finally {
           btn.textContent = orig;
           btn.disabled = false;
@@ -494,8 +482,7 @@
     // Simple train animation placeholder using CSS transforms
     const train = document.createElement('div');
     train.innerHTML = 'DISHA 8.2';
-    train.style.cssText = 'position:fixed;bottom:60px;left:-200px;font-weight:800;letter-spacing:-0.055em;font-size:2rem;color:var(--disha-ink);z-index:5;white-space:no
-wrap;filter:drop-shadow(0 4px 12px rgba(61,37,107,0.2));';
+    train.style.cssText = 'position:fixed;bottom:60px;left:-200px;font-weight:800;letter-spacing:-0.055em;font-size:2rem;color:var(--disha-ink);z-index:5;white-space:nowrap;filter:drop-shadow(0 4px 12px rgba(61,37,107,0.2));';
     document.body.appendChild(train);
     let trainX = -200;
     function animateTrain() {
