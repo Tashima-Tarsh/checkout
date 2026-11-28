@@ -14,20 +14,51 @@
   <link rel="canonical" href="https://disha8-2.thenitishkr.in/">
   <link rel="stylesheet" href="/static/prism.css?v=1.1">
   <link rel="stylesheet" href="/static/disha.css?v=1.0">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
-  <script src="/static/prism.js?v=1.1" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media='all'">
+
+<style>
+/* Public website layout only; independent from application workspaces. */
+.homepage {color-scheme:light;overflow-x:hidden}
+.homepage .prism-topbar[role=banner]{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px clamp(20px,5vw,88px);background:#faf8f4;position:relative;z-index:10;border-bottom:1px solid #e8e3ec}
+.homepage .topbar-left,.homepage .topbar-right{display:flex;align-items:center;gap:16px}
+.homepage .disha-brand{display:grid;grid-template-columns:48px auto;column-gap:12px;align-items:center;cursor:pointer;white-space:nowrap}
+.homepage .brandmark{grid-row:span 2;display:inline-grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(145deg,#7851d8,#b978e6,#73dde6);color:white;font-size:28px;font-weight:800;box-shadow:0 6px 16px #7851d833}
+.homepage .brand-name{font-size:20px;font-weight:800;line-height:1.15}
+.homepage .brand-sub{font-size:11px;color:#6d6476;line-height:1.4}
+.homepage .search-input{border:1px solid #e3dce9;border-radius:24px;padding:10px 16px;width:210px;background:#fff9}
+.homepage :is(.btn-primary,.btn-secondary,.btn-ghost,.btn-icon){display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:12px 20px;font-weight:700;line-height:1.35;min-height:44px;text-decoration:none}
+.homepage .topbar-right .btn-ghost{padding:10px 8px}
+.homepage #mobile-menu.hidden{display:none!important}
+.homepage #mobile-menu{display:flex;position:absolute;top:88px;right:20px;flex-direction:column;gap:5px;z-index:20;background:#fff;padding:20px;width:min(320px,90vw);border-radius:20px;box-shadow:0 20px 50px #20182c22}
+.homepage .hero-section{isolation:isolate;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,5vw,88px);min-height: min(720px,82vh);padding:clamp(48px,7vw,110px) clamp(24px,7vw,120px);overflow:hidden;background:var(--background-disha)}
+.homepage .hero-content{position:relative;z-index:2;max-width:660px;grid-column:1;grid-row:1;padding:0;margin:0;text-align:left}
+.homepage .hero-h1{font-size:clamp(58px,7.2vw,118px);line-height:1;letter-spacing:-.07em;margin:22px 0}
+.homepage .hero-p{font-size:clamp(17px,1.5vw,22px);max-width:570px;line-height:1.7;margin:0 0 28px}
+.homepage .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+.homepage .rupee-badge{display:inline-flex;align-items:center;gap:8px;margin-top:25px;font-size:14px;color:#514665}
+.homepage .rupee-symbol{display:grid;place-items:center;width:34px;height:34px;background:#fff9;border:1px solid white;border-radius:50%;font-weight:800;color:#08785c}
+.homepage .hero-canvas{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:1.06;grid-column:2;grid-row:1;display:grid;place-items:center;pointer-events:none;perspective:1000px}
+.disha-orbit{width:85%;aspect-ratio:1;position:relative;display:grid;place-items:center}
+.disha-orbit:before,.disha-orbit:after{content:"";position:absolute;inset:9%;border:1px solid #fff;border-radius:50%;transform:rotateX(58deg) rotateZ(-30deg);box-shadow:0 0 35px #7851d82a}
+.disha-orbit:after{inset:0;transform:rotateX(64deg) rotateZ(25deg);border:2px solid #ffffffa0}
+.disha-coin{position:relative;z-index:1;width:58%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,#fff 0%,#e6d6f9 28%,#b7a0eb 49%,#81d9d9 76%,#e8fff2 100%);border:2px solid #fff9;box-shadow:inset 0 0 0 12px #ffffff54,inset -14px -18px 30px #52408b30,14px 25px 0 -6px #9f8cce80,25px 40px 65px #55428d40;transform:rotateY(-18deg) rotateX(12deg);animation:disha-float 6s ease-in-out infinite}
+.disha-coin span{font-size:clamp(90px,12vw,180px);font-weight:800;color:#fff;text-shadow:2px 4px 0 #7862b7,5px 8px 18px #49347755;line-height:1}
+.disha-float-card{position:absolute;z-index:2;display:flex;flex-direction:column;gap:4px;padding:16px 22px;background:#ffffffd9;border:1px solid white;border-radius:18px;box-shadow:0 18px 45px #3d256b19;font-size:13px;color:#6d6476;transform:rotate(-5deg)}
+.disha-float-card strong{font-size:19px;color:#20182c}.disha-float-card.first{left:-2%;top:12%}.disha-float-card.second{right:-2%;bottom:12%;transform:rotate(5deg)}
+@keyframes disha-float{50%{transform:translateY(-12px) rotateY(-11deg) rotateX(8deg)}}
+.homepage footer>div>div{flex-wrap:wrap}
+@media(max-width:1150px){.homepage .topbar-search{display:none}.homepage .topbar-right{gap:6px}}
+@media(max-width:760px){.homepage .prism-topbar[role=banner]{padding:14px 18px}.homepage .topbar-right>a,.homepage .topbar-right>.btn-primary{display:none}.homepage .hero-section{grid-template-columns:1fr;min-height:0;padding:48px 24px 30px;gap:10px}.homepage .hero-content{grid-column:1;grid-row:1}.homepage .hero-canvas{grid-column:1;grid-row:2;max-width:420px;margin:0 auto}.homepage .hero-h1{font-size:clamp(48px,12vw,78px)}.homepage .hero-actions{flex-direction:column;align-items:stretch}.homepage main>section:not(.hero-section){margin:18px 16px!important;padding:32px 22px!important}.disha-float-card{padding:10px 14px}.disha-float-card strong{font-size:15px}.disha-coin span{font-size:100px}}
+@media(prefers-reduced-motion:reduce){.disha-coin{animation:none}}
+</style>
+<link rel="stylesheet" href="/static/website.css?v=2">
 </head>
-<body class="prism-body disha-body homepage">
+<body class="prism-body disha-body homepage public-site">
   <div id="toast-container"></div>
 
   <!-- Loader -->
-  <div id="disha-loader" class="loader">
-    <div class="logo">DISHA 8.2</div>
-    <div class="spinner"></div>
-  </div>
+
 
   <!-- Header -->
   <header class="prism-topbar" role="banner">
@@ -68,7 +99,7 @@
   <main role="main">
     <!-- ===== CINEMATIC HERO ===== -->
     <section id="hero" class="hero-section">
-      <div class="hero-canvas" id="hero-canvas"></div>
+      <div class="hero-canvas" id="hero-canvas" aria-hidden="true"><div class="disha-orbit"><div class="disha-coin"><span>₹</span></div><div class="disha-float-card first">Payment software<strong>Built for business</strong></div><div class="disha-float-card second">Your payments<strong>Your control</strong></div></div></div>
       <div class="hero-content">
         <div class="hero-eyebrow">Introducing a new direction for Indian commerce</div>
         <h1 class="hero-h1" id="hero-title">DISHA 8.2</h1>
@@ -77,12 +108,12 @@
           operations without DISHA 8.2 holding their money.
         </p>
         <div class="hero-actions">
-          <button class="btn-primary" id="hero-cta-primary">Discover DISHA 8.2</button>
-          <button class="btn-secondary" id="hero-cta-secondary">Calculate your payment costs</button>
+          <button class="btn-primary" id="hero-cta-primary" onclick="location.href='/about/'">Discover DISHA 8.2</button>
+          <button class="btn-secondary" id="hero-cta-secondary" onclick="location.href='/payment-cost-calculator/'">Calculate your payment costs</button>
         </div>
         <div class="rupee-badge" id="rupee-badge">
           <span class="rupee-symbol">₹</span>
-          <span class="rupee-label">Verified payment software</span>
+          <span class="rupee-label">Non-custodial payment software</span>
         </div>
       </div>
     </section>
@@ -382,7 +413,7 @@
         </div>
         <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--prism-text-muted);line-height:1.5;">
       © 2026 DISHA 8.2. All rights reserved.<br>
-      <strong>Contact:</b> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
+      <strong>Contact:</strong> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
       DishaNitish Technologies
       </div>
       </div>
@@ -393,15 +424,6 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
-
-    // Hide loader after animation
-    window.addEventListener('load', () => {
-      const loader = $('#disha-loader');
-      setTimeout(() => {
-        loader.classList.add('hidden');
-        setTimeout(() => loader.remove(), 600);
-      }, 1500);
-    });
 
     // Mobile menu toggle
     function toggleMenu() {
@@ -415,7 +437,7 @@
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      toggleMenu();
+      $('#mobile-menu').classList.add('hidden');
     }
 
     // Calculator quick math
@@ -467,7 +489,10 @@
             throw new Error('Submission failed');
           }
         } catch (err) {
-          toast('Submission failed. Please try again.', 'error');
+          const notice = document.createElement('p');
+          notice.setAttribute('role', 'alert');
+          notice.textContent = 'Online inquiry is unavailable. Please contact us using the email or WhatsApp link below.';
+          form.appendChild(notice);
         } finally {
           btn.textContent = orig;
           btn.disabled = false;
@@ -475,39 +500,6 @@
       });
     }
 
-    // Reveal sections on scroll
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }
-      });
-    }, { threshold: 0.1 });
-    $$('.prism-glass, .prism-glass-soft, .stat-card').forEach(el => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(20px)';
-      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-      observer.observe(el);
-    });
-
-    // Simple train animation placeholder using CSS transforms
-    const train = document.createElement('div');
-    train.innerHTML = 'DISHA 8.2';
-    train.style.cssText = 'position:fixed;bottom:60px;left:-200px;font-weight:800;letter-spacing:-0.055em;font-size:2rem;color:var(--disha-ink);z-index:5;white-space:no
-wrap;filter:drop-shadow(0 4px 12px rgba(61,37,107,0.2));';
-    document.body.appendChild(train);
-    let trainX = -200;
-    function animateTrain() {
-      trainX += 2;
-      if (trainX > window.innerWidth + 200) trainX = -200;
-      train.style.transform = `translateX(${trainX}px)`;
-      requestAnimationFrame(animateTrain);
-    }
-    // Only animate train if not reduced motion
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      animateTrain();
-    }
   </script>
 </body>
 </html>

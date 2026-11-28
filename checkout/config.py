@@ -48,8 +48,8 @@ def subdomain(sub: str) -> str:
     """
     prefix = env_prefix()
     if prefix:
-        return f"{sub}.{prefix}.{BASE_DOMAIN}"
-    return f"{sub}.{BASE_DOMAIN}"
+        return ".".join(part for part in (sub, prefix, BASE_DOMAIN) if part)
+    return ".".join(part for part in (sub, BASE_DOMAIN) if part)
 
 
 def url(scheme: str, sub: str, path: str = "/") -> str:
@@ -79,8 +79,8 @@ def https_url(sub: str, path: str = "/") -> str:
 CANONICAL_URLS: Dict[str, str] = {}
 
 # Public Website
-CANONICAL_URLS["website_public"] = https_url("disha8-2.thenitishkr.in", "/")
-CANONICAL_URLS["website_home"] = https_url("", "/")
+CANONICAL_URLS["website_public"] = f"https://{BASE_DOMAIN}/"
+CANONICAL_URLS["website_home"] = CANONICAL_URLS["website_public"]
 
 # Super Admin Control Center
 CANONICAL_URLS["superadmin"] = https_url("superadmin", "/")
