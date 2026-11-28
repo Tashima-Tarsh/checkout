@@ -2,7 +2,7 @@ name: Agentic vision gate research
 on:
   pull_request:
   push:
-    branches: [main, dev, uat, 'uat/release']
+    branches: [main]
 permissions:
   contents: read
 jobs:
