@@ -2,7 +2,7 @@ name: PDEP local diagnostic research
 on:
   pull_request:
   push:
-    branches: [main, dev, uat]
+    branches: [main, dev, uat, 'uat/release']
 permissions:
   contents: read
 jobs:
