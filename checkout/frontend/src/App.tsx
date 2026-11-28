@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 import { Home } from './pages/Home'
@@ -19,29 +19,128 @@ import { Navbar } from './components/navigation/Navbar'
 import { Footer } from './components/layout/Footer'
 
 function App() {
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+
+  // Web Speech + Web Audio ambient synthesis for authentic cinematic narration
+  const handleToggleAudio = () => {
+    if (!('speechSynthesis' in window)) {
+      alert('Speech synthesis is not supported in this browser.')
+      return
+    }
+
+    if (isAudioPlaying) {
+      window.speechSynthesis.cancel()
+      if (audioContextRef.current && audioContextRef.current.state === 'running') {
+        audioContextRef.current.suspend()
+      }
+      setIsAudioPlaying(false)
+    } else {
+      window.speechSynthesis.cancel()
+
+      // 1. Play high-tech ambient acoustic chime
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+        if (AudioCtx) {
+          const ctx = audioContextRef.current || new AudioCtx()
+          audioContextRef.current = ctx
+          if (ctx.state === 'suspended') {
+            ctx.resume()
+          }
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = 'sine'
+          osc.frequency.setValueAtTime(528, ctx.currentTime) // Solfeggio frequency
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.8)
+          gain.gain.setValueAtTime(0.08, ctx.currentTime)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start()
+          osc.stop(ctx.currentTime + 1.2)
+        }
+      } catch (e) {
+        // audio context fallback
+      }
+
+      // 2. Official Narration from Section 06
+      const narrationText =
+        'For years, Indian businesses paid others to access their own money. ' +
+        'DISHA 8.2 changes the direction. ' +
+        'Agentic Pay brings payment operations directly into your control.'
+
+      const utter = new SpeechSynthesisUtterance(narrationText)
+      utter.rate = 0.95
+      utter.pitch = 1.0
+
+      // Try selecting an English Indian voice if available
+      const voices = window.speechSynthesis.getVoices()
+      const indianVoice = voices.find(
+        (v) => v.lang === 'en-IN' || v.name.includes('India') || v.name.includes('Indian')
+      )
+      if (indianVoice) {
+        utter.voice = indianVoice
+      }
+
+      utter.onend = () => {
+        setIsAudioPlaying(false)
+      }
+      utter.onerror = () => {
+        setIsAudioPlaying(false)
+      }
+
+      synthRef.current = utter
+      setIsAudioPlaying(true)
+      window.speechSynthesis.speak(utter)
+    }
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {})
+      }
+    }
+  }, [])
+
   return (
     <BrowserRouter>
-      <div className="disha-body">
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/why-disha" element={<About />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/payment-safety" element={<PaymentSafety />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/checkout/:orderId" element={<Checkout />} />
-          <Route path="/receipt/:orderId" element={<Receipt />} />
-          <Route path="/receipt" element={<Receipt />} />
-          <Route path="/merchant-portal" element={<MerchantPortal />} />
-          <Route path="/agent-portal" element={<AgentPortal />} />
-          <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-          <Route path="/compare-and-save" element={<CompareAndSave />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/cookie-preferences" element={<CookiePreferences />} />
-        </Routes>
+      <div className="min-h-screen flex flex-col bg-[#FAF8F3] text-[#262626]">
+        <Navbar isAudioPlaying={isAudioPlaying} onToggleAudio={handleToggleAudio} />
+        <div className="flex-grow">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <Home
+                  isAudioPlaying={isAudioPlaying}
+                  onToggleAudio={handleToggleAudio}
+                />
+              }
+            />
+            <Route path="/about" element={<About />} />
+            <Route path="/why-disha" element={<About />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/payment-safety" element={<PaymentSafety />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/:orderId" element={<Checkout />} />
+            <Route path="/receipt/:orderId" element={<Receipt />} />
+            <Route path="/receipt" element={<Receipt />} />
+            <Route path="/merchant-portal" element={<MerchantPortal />} />
+            <Route path="/agent-portal" element={<AgentPortal />} />
+            <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+            <Route path="/compare-and-save" element={<CompareAndSave />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/cookie-preferences" element={<CookiePreferences />} />
+          </Routes>
+        </div>
         <Footer />
       </div>
     </BrowserRouter>

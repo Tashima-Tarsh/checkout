@@ -1,67 +1,144 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { ArrowUpRight, ShieldCheck, Mail, Phone } from 'lucide-react'
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="border-t border-[var(--pdp-border)] bg-[var(--pdp-pearl-100)]">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--pdp-emerald-500)] text-white text-sm font-bold">
-              D
+    <footer className="bg-[#FAF8F3] border-t border-[#DCE2E7] pt-16 pb-12 text-[#525252]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+          {/* Col 1: Brand Info */}
+          <div className="md:col-span-1 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FAF8F3] to-[#DCE2E7] border border-[#D7B77B]/40 flex items-center justify-center font-bold text-lg text-[#07865C] shadow-sm">
+                D
+              </div>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-base text-[#262626]">DISHA 8.2</span>
+                <span className="text-xs font-semibold text-[#737373]">Agentic Pay</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-[var(--pdp-ink,var(--pdp-dark-text))]">DISHA 8.2</span>
-              <span className="text-xs text-[var(--pdp-muted,var(--pdp-dark-muted))]">Agentic UPI Payment Verification</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-4 text-sm text-[var(--pdp-muted,var(--pdp-dark-muted))]">
-            <p className="max-w-[300px]">
-              DISHA 8.2 is a non-custodial payment software product developed for Indian businesses seeking greater control over payment operations.
+            <p className="text-xs text-[#737373] leading-relaxed">
+              The Next Direction of Indian Payments. Non-custodial, direct bank-to-bank UPI payment orchestration for forward-thinking merchants.
             </p>
-            <div className="mt-4 flex items-center gap-3 text-sm">
-              <span className="text-[var(--pdp-emerald-500)]">✉</span>
-              <a href="mailto:nitish@thenitishkr.in" className="text-[var(--pdp-emerald-500)] hover:underline">nitish@thenitishkr.in</a>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-[var(--pdp-emerald-500)]">📱</span>
-              <a href="https://wa.me/919142197135" className="text-[var(--pdp-emerald-500)] hover:underline">+91-9142197135</a>
+            <div className="pt-2 text-xs font-semibold text-[#262626]">
+              Your Business, Entirely in Your Control.
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-bold text-[var(--pdp-ink,var(--pdp-dark-text))]">Platform</h4>
-            <ul className="flex flex-col gap-2 text-sm text-[var(--pdp-muted,var(--pdp-dark-muted))]">
-              <li><a href="/about" className="hover:text-[var(--pdp-emerald-500)]">About DISHA</a></li>
-              <li><a href="/how-it-works" className="hover:text-[var(--pdp-emerald-500)]">How It Works</a></li>
-              <li><a href="/payment-safety" className="hover:text-[var(--pdp-emerald-500)]">Payment Safety</a></li>
-              <li><a href="/compare-and-save" className="hover:text-[var(--pdp-emerald-500)]">Compare & Save</a></li>
+
+          {/* Col 2: Navigation */}
+          <div>
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
+              Navigation
+            </h4>
+            <ul className="space-y-2.5 text-xs">
+              <li>
+                <a href="#discover" className="hover:text-[#07865C] transition-colors">
+                  Discover DISHA 8.2
+                </a>
+              </li>
+              <li>
+                <a href="#benefits" className="hover:text-[#07865C] transition-colors">
+                  High-Speed Rails
+                </a>
+              </li>
+              <li>
+                <a href="#architecture" className="hover:text-[#07865C] transition-colors">
+                  Direct vs Aggregator Model
+                </a>
+              </li>
+              <li>
+                <a href="#calculator" className="hover:text-[#07865C] transition-colors">
+                  Calculate Merchant Savings
+                </a>
+              </li>
+              <li>
+                <a href="#ecosystem" className="hover:text-[#07865C] transition-colors">
+                  Device Ecosystem
+                </a>
+              </li>
             </ul>
           </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-bold text-[var(--pdp-ink,var(--pdp-dark-text))]">Markets</h4>
-            <ul className="flex flex-col gap-2 text-sm text-[var(--pdp-muted,var(--pdp-dark-muted))]">
-              <li><a href="/in" className="hover:text-[var(--pdp-emerald-500)]">India</a></li>
-              <li><a href="/ae" className="hover:text-[var(--pdp-emerald-500)]">Dubai & UAE</a></li>
-              <li><a href="/bh" className="hover:text-[var(--pdp-emerald-500)]">Bahrain</a></li>
+
+          {/* Col 3: Technology Portfolio */}
+          <div>
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
+              Technology Portfolio
+            </h4>
+            <ul className="space-y-2.5 text-xs">
+              <li>
+                <span className="text-[#262626] font-semibold">DISHA 6.6</span> &bull; Sovereign Protection
+              </li>
+              <li>
+                <span className="text-[#262626] font-semibold">DISHA 7.2</span> &bull; Quantum Signal Transport
+              </li>
+              <li>
+                <span className="text-[#07865C] font-semibold">DISHA 8.2</span> &bull; Intelligent UPI Rail
+              </li>
+              <li className="pt-2">
+                <a
+                  href="https://merchant.disha8-2.thenitishkr.in/"
+                  className="inline-flex items-center gap-1 text-[#07865C] font-bold hover:underline"
+                >
+                  <span>Merchant Portal Login</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://superadmin.disha8-2.thenitishkr.in/"
+                  className="inline-flex items-center gap-1 text-[#525252] font-semibold hover:text-[#262626]"
+                >
+                  <span>Super Admin Console</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
+              </li>
             </ul>
           </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-bold text-[var(--pdp-ink,var(--pdp-dark-text))]">Legal</h4>
-            <ul className="flex flex-col gap-2 text-sm text-[var(--pdp-muted,var(--pdp-dark-muted))]">
-              <li><a href="/privacy" className="hover:text-[var(--pdp-emerald-500)]">Privacy Policy</a></li>
-              <li><a href="/terms" className="hover:text-[var(--pdp-emerald-500)]">Terms of Service</a></li>
-              <li><a href="/cookie-preferences" className="hover:text-[var(--pdp-emerald-500)]">Cookie Preferences</a></li>
-            </ul>
+
+          {/* Col 4: Contact & Operations */}
+          <div>
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
+              Operations
+            </h4>
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#07865C]" />
+                <a href="mailto:nitish@thenitishkr.in" className="hover:underline text-[#262626]">
+                  nitish@thenitishkr.in
+                </a>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#07865C]" />
+                <a href="https://wa.me/919142197135" className="hover:underline text-[#262626]">
+                  +91-9142197135
+                </a>
+              </div>
+              <p className="text-[11px] text-[#737373] pt-2">
+                Indian Enterprise &amp; Merchant Support
+              </p>
+            </div>
           </div>
         </div>
-        <div className="mt-8 pt-8 border-t border-[var(--pdp-border)] flex flex-col lg:flex-row justify-between items-center gap-4 text-sm text-[var(--pdp-muted,var(--pdp-dark-muted))]">
-          <p>© 2026 DISHA 8.2. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-sm">
-            <a href="/" className="hover:text-[var(--pdp-emerald-500)]">Home</a>
-            <a href="/about/" className="hover:text-[var(--pdp-emerald-500)]">Why DISHA</a>
-            <a href="/contact/" className="hover:text-[var(--pdp-emerald-500)]">Contact</a>
-            <a href="/privacy/" className="hover:text-[var(--pdp-emerald-500)]">Privacy</a>
-            <a href="/terms/" className="hover:text-[var(--pdp-emerald-500)]">Terms</a>
+
+        {/* Corporate Attribution Banner */}
+        <div className="pt-8 border-t border-[#DCE2E7] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#737373]">
+          <div>
+            &copy; {new Date().getFullYear()} DISHA 8.2 &bull; Agentic Pay. All rights reserved.
+          </div>
+
+          <div className="text-center font-medium">
+            Powered by{' '}
+            <span className="font-bold text-[#262626]">
+              Disha Nitish Technology
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <a href="https://merchant.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Merchant</a>
+            <span>&bull;</span>
+            <a href="https://superadmin.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Super Admin</a>
+            <span>&bull;</span>
+            <a href="https://checkout.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Checkout</a>
           </div>
         </div>
       </div>

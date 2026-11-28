@@ -17,7 +17,7 @@ export const Checkout: React.FC = () => {
 
   const loadSession = async (orderId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${orderId}`)
+      const res = await fetch(`/api/sessions/${orderId}`)
       const data = await res.json()
       setSession(data)
       setStep(data.state === 'PAID' || data.settlement?.satisfied ? 'verified' : 'verify')
@@ -30,7 +30,7 @@ export const Checkout: React.FC = () => {
 
   const createCheckout = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/sessions', {
+      const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,7 +58,7 @@ export const Checkout: React.FC = () => {
         return
       }
       try {
-        const res = await fetch(`http://localhost:8000/api/sessions/${session.token}`, {
+        const res = await fetch(`/api/sessions/${session.token}`, {
           headers: { 'Authorization': 'Bearer ' + session.token }
         })
         const data = await res.json()
