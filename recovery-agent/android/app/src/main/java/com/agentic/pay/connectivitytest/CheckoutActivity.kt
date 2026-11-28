@@ -331,8 +331,9 @@ class CheckoutActivity : Activity() {
                     stopPolling()
                     // Report UPI result failure for expired checkout
                     val token = credentialStore.getCredential()
-                    if (token != null && routedUpi != null && orderId != null) {
-                        ApiClient.upiResult(token, routedUpi, false, orderId) { res ->
+                    val expiredUpi = routedUpi
+                    if (token != null && expiredUpi != null && orderId != null) {
+                        ApiClient.upiResult(token, expiredUpi, false, orderId) { res ->
                             // fire-and-forget
                         }
                     }

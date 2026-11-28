@@ -124,11 +124,10 @@ class UpiPoolActivity : Activity() {
                                     textSize = 14f
                                 }
                                 poolContainer.addView(empty)
-                                return
                             }
 
-                            for (i in 0 until arr.size()) {
-                                val upi = arr.get(i).asJsonObject
+                            for (i in 0 until (arr?.size() ?: 0)) {
+                                val upi = arr!!.get(i).asJsonObject
                                 val upiId = upi.get("upi_id").asString
                                 val available = upi.get("available").asBoolean
                                 val dailyCount = upi.get("daily_count").asInt

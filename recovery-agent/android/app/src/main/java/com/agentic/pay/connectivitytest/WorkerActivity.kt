@@ -12,7 +12,7 @@ import com.google.gson.JsonParser
 class WorkerActivity : Activity() {
 
     private lateinit var credentialStore: CredentialStore
-    private lateinit var workerRows: MutableList<TextView> = mutableListOf()
+    private val workerRows: MutableList<TextView> = mutableListOf()
     private lateinit var statusText: TextView
     private lateinit var startWorkersButton: Button
     private lateinit var stopWorkersButton: Button

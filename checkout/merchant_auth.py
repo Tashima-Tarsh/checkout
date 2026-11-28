@@ -10,13 +10,17 @@ import os
 import secrets
 import time
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from checkout.agentic_storage import (
-    engine, merchants, merchant_profiles, agent_sessions, make_engine, now
+    merchants, merchant_profiles, agent_sessions
 )
 
-router = APIRouter(tags=["merchant-auth"])
+def require_verified_onboarding():
+    raise HTTPException(503, "Merchant self-onboarding is unavailable pending identity verification")
+
+from fastapi import Depends
+router = APIRouter(tags=["merchant-auth"], dependencies=[Depends(require_verified_onboarding)])
 
 # Clerk backend SDK (optional - install with: pip install clerk-backend-api)
 try:
@@ -33,7 +37,7 @@ class ClerkTokenIn(BaseModel):
 
 class MerchantSignupIn(BaseModel):
     clerk_user_id: str
-    email: EmailStr
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     business_name: str = Field(min_length=2, max_length=150)
     gst_number: str | None = Field(None, min_length=2, max_length=15)
     tier: str = Field(default="starter")
@@ -66,13 +70,13 @@ def merchant_signup(item: MerchantSignupIn, request: Request):
     Creates merchant record, profile, API key, and device slot.
     Returns the API key ONCE — merchant must save it immediately.
     """
-    now_ts = now()
+    now_ts = int(time.time())
     merchant_id = f"merch_{secrets.token_hex(16)}"
     device_id = f"device_{secrets.token_hex(12)}"
     api_key_plain, api_key_hash, api_key_prefix = _generate_api_key()
     trial_ends = now_ts + 86400  # 1-day free trial
 
-    with make_engine().begin() as conn:
+    with request.app.state.engine.begin() as conn:
         # 1. Merchant record
         conn.execute(merchants.insert().values(
             id=merchant_id,
@@ -132,7 +136,7 @@ def clerk_callback(request: Request, body: ClerkTokenIn):
     if not clerk_user_id:
         raise HTTPException(400, "Clerk token missing user_id")
 
-    with make_engine().connect() as conn:
+    with request.app.state.engine.connect() as conn:
         profile = conn.execute(
             select(merchant_profiles).where(merchant_profiles.c.clerk_user_id == clerk_user_id)
         ).mappings().first()

@@ -19,7 +19,7 @@ class WorkerService : Service() {
     private val TAG = "WorkerService"
     private val gson = Gson()
     private val workerPool = Executors.newScheduledThreadPool(15)
-    private val workerFutures = mutableMapOf<Int, ScheduledFuture<?>>()
+    private val workerFutures = mutableMapOf<Int, ScheduledFuture<*>>()
     private var credentialStore: CredentialStore? = null
     private var isRunning = false
 

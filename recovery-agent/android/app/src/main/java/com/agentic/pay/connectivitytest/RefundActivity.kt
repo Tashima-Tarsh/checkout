@@ -51,14 +51,14 @@ class RefundActivity : Activity() {
         layout.addView(hint)
 
         orderIdInput = EditText(this).apply {
-            hint = "Order ID"
+            this.hint = "Order ID"
             textSize = 18f
             maxLines = 1
         }
         layout.addView(orderIdInput)
 
         reasonInput = EditText(this).apply {
-            hint = "Reason (failed payment, duplicate, technical error)"
+            this.hint = "Reason (failed payment, duplicate, technical error)"
             textSize = 18f
             maxLines = 2
         }
