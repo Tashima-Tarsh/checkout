@@ -1,21 +1,18 @@
 import React from 'react'
-import { ArrowUpRight, ShieldCheck, Mail, Phone } from 'lucide-react'
+import { ArrowUpRight, Mail, Phone } from 'lucide-react'
 
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-[#FAF8F3] border-t border-[#DCE2E7] pt-16 pb-12 text-[#525252]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
-          {/* Col 1: Brand Info */}
+          {/* Col 1: Brand Info (ONLY DISHA 8.2 typography, no other logo) */}
           <div className="md:col-span-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FAF8F3] to-[#DCE2E7] border border-[#D7B77B]/40 flex items-center justify-center font-bold text-lg text-[#07865C] shadow-sm">
-                D
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-base text-[#262626]">DISHA 8.2</span>
-                <span className="text-xs font-semibold text-[#737373]">Agentic Pay</span>
-              </div>
+            <div className="flex flex-col">
+              <span className="font-black text-2xl text-[#262626]">DISHA 8.2</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#737373] -mt-0.5">
+                Agentic Pay
+              </span>
             </div>
             <p className="text-xs text-[#737373] leading-relaxed">
               The Next Direction of Indian Payments. Non-custodial, direct bank-to-bank UPI payment orchestration for forward-thinking merchants.
@@ -30,7 +27,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
               Navigation
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2.5 text-xs font-medium">
               <li>
                 <a href="#discover" className="hover:text-[#07865C] transition-colors">
                   Discover DISHA 8.2
@@ -53,18 +50,18 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <a href="#ecosystem" className="hover:text-[#07865C] transition-colors">
-                  Device Ecosystem
+                  Product Fleet
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Col 3: Technology Portfolio */}
+          {/* Col 3: DishaNitish Technologies Ecosystem */}
           <div>
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
-              Technology Portfolio
+              DishaNitish Technologies Ecosystem
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2.5 text-xs font-medium">
               <li>
                 <span className="text-[#262626] font-semibold">DISHA 6.6</span> &bull; Sovereign Protection
               </li>
@@ -83,22 +80,13 @@ export const Footer: React.FC = () => {
                   <ArrowUpRight className="w-3 h-3" />
                 </a>
               </li>
-              <li>
-                <a
-                  href="https://superadmin.disha8-2.thenitishkr.in/"
-                  className="inline-flex items-center gap-1 text-[#525252] font-semibold hover:text-[#262626]"
-                >
-                  <span>Super Admin Console</span>
-                  <ArrowUpRight className="w-3 h-3" />
-                </a>
-              </li>
             </ul>
           </div>
 
-          {/* Col 4: Contact & Operations */}
+          {/* Col 4: Contact & Support */}
           <div>
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#262626] mb-4">
-              Operations
+              Merchant Operations
             </h4>
             <div className="space-y-3 text-xs">
               <div className="flex items-center gap-2">
@@ -114,7 +102,7 @@ export const Footer: React.FC = () => {
                 </a>
               </div>
               <p className="text-[11px] text-[#737373] pt-2">
-                Indian Enterprise &amp; Merchant Support
+                Indian Enterprise Merchant Infrastructure
               </p>
             </div>
           </div>
@@ -128,17 +116,19 @@ export const Footer: React.FC = () => {
 
           <div className="text-center font-medium">
             Powered by{' '}
-            <span className="font-bold text-[#262626]">
-              Disha Nitish Technology
+            <span className="font-extrabold text-[#262626]">
+              DishaNitish Technologies
             </span>
           </div>
 
           <div className="flex items-center gap-4">
-            <a href="https://merchant.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Merchant</a>
+            <a href="https://merchant.disha8-2.thenitishkr.in/" className="hover:text-[#07865C] font-semibold">
+              Merchant Portal
+            </a>
             <span>&bull;</span>
-            <a href="https://superadmin.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Super Admin</a>
-            <span>&bull;</span>
-            <a href="https://checkout.disha8-2.thenitishkr.in/" className="hover:text-[#07865C]">Checkout</a>
+            <a href="https://checkout.disha8-2.thenitishkr.in/" className="hover:text-[#07865C] font-semibold">
+              Checkout
+            </a>
           </div>
         </div>
       </div>

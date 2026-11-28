@@ -103,9 +103,9 @@ export const DeviceShowcase: React.FC = () => {
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
-                  <div className="text-[11px] font-mono text-slate-400">AVERAGE LATENCY</div>
-                  <div className="text-2xl font-extrabold text-blue-400 mt-1 font-mono">184ms</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Bank-to-Bank Autonomous Verification</div>
+                  <div className="text-[11px] font-mono text-slate-400">SETTLEMENT SPEED</div>
+                  <div className="text-2xl font-extrabold text-blue-400 mt-1 font-mono">&lt; 1.0s</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Direct Bank-to-Bank Confirmation</div>
                 </div>
               </div>
 

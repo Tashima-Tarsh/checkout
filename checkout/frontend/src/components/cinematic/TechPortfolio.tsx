@@ -6,32 +6,32 @@ export const TechPortfolio: React.FC = () => {
     {
       version: 'DISHA 6.6',
       name: 'Sovereign Protection',
-      subtitle: 'Defensive Perimeter & Surveillance Architecture',
-      desc: 'Automated perimeter monitoring, multi-sensor threat neutralization, and autonomous defensive response for high-value physical and sovereign assets.',
+      subtitle: 'Defensive Perimeter & Security Operations',
+      desc: 'Autonomous multi-perimeter monitoring and physical asset security designed for critical enterprise infrastructure.',
       icon: Shield,
       accent: '#D7B77B',
-      status: 'SOVEREIGN GRADE',
-      specs: ['Automated Threat Interception', 'Zero-Trust Perimeter Matrix', 'Hardened Physical Boundary Protection']
+      status: 'ENTERPRISE SECURITY',
+      specs: ['Autonomous Threat Neutralization', 'Zero-Trust Perimeter Matrix', 'Hardened Physical Boundary Protection']
     },
     {
       version: 'DISHA 7.2',
       name: 'Quantum Signal Transport',
-      subtitle: 'Encrypted Communication & Telemetry Transport',
-      desc: 'Ultra-low latency, post-quantum resilient cryptographic transport protocols ensuring continuous telemetry and telemetry verification over long-range networks.',
+      subtitle: 'Encrypted Telemetry & Mission Communications',
+      desc: 'High-security cryptographic transport protocols ensuring continuous encrypted telemetry across distributed operations.',
       icon: Radio,
       accent: '#94A3B8',
-      status: 'QUANTUM RESILIENT',
-      specs: ['Post-Quantum Encryption', 'Long-Range Secure Telemetry', 'Anti-Interception Transmission Wave']
+      status: 'SECURE COMMUNICATIONS',
+      specs: ['Post-Quantum Cryptography', 'Long-Range Telemetry Transport', 'Zero-Interception Data Protocol']
     },
     {
       version: 'DISHA 8.2',
       name: 'Intelligent UPI Rail (Agentic Pay)',
       subtitle: 'Autonomous Real-Time Payment Orchestration',
-      desc: 'Autonomous payment routing, zero-custody transaction processing, and deterministic bank-to-bank instant settlement for modern Indian enterprises.',
+      desc: 'Direct bank-to-bank UPI payment routing, zero-custody transaction settlement, and complete merchant financial sovereignty.',
       icon: Cpu,
       accent: '#07865C',
       status: 'FLAGSHIP COMMERCIAL',
-      specs: ['Zero Intermediary Escrow', 'Pure Non-Custodial Software', 'Sub-200ms Cryptographic Verification']
+      specs: ['Zero Intermediary Escrow', 'Pure Non-Custodial Software', 'Sub-200ms Instant Bank Credit']
     }
   ]
 
@@ -43,24 +43,24 @@ export const TechPortfolio: React.FC = () => {
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-[#D7B77B]/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Section Header */}
+        {/* Section Header: DishaNitish Technologies Ecosystem */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-[#D7B77B] text-xs font-bold tracking-wide uppercase mb-4">
             <Lock className="w-3.5 h-3.5" />
-            <span>Focused Engineering Portfolio</span>
+            <span>Product Portfolio</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-            The DISHA Technology{' '}
+            DishaNitish Technologies{' '}
             <span className="bg-gradient-to-r from-[#D7B77B] to-[#B5F5D8] bg-clip-text text-transparent">
               Ecosystem
             </span>
           </h2>
           <p className="mt-4 text-base sm:text-lg text-slate-300 leading-relaxed">
-            Three disciplined, mission-critical engineering architectures developed by Disha Nitish Technology.
+            Three disciplined, mission-critical technology solutions developed by DishaNitish Technologies.
           </p>
         </div>
 
-        {/* 3 Dark Architectural Modules */}
+        {/* 3 Architectural Modules */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {products.map((p, i) => {
             const Icon = p.icon
@@ -124,7 +124,7 @@ export const TechPortfolio: React.FC = () => {
                     </a>
                   ) : (
                     <div className="mt-6 text-center text-[11px] text-slate-500 font-mono py-2">
-                      Enterprise &amp; Sovereign Access Only
+                      Enterprise Access Only
                     </div>
                   )}
                 </div>

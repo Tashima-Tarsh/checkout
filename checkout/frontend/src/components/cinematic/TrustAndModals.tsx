@@ -9,7 +9,7 @@ export const TrustAndModals: React.FC = () => {
       title: 'Terms of Service — DISHA 8.2 (Agentic Pay)',
       content: (
         <div className="space-y-4 text-xs text-[#525252] leading-relaxed">
-          <p><strong>1. Non-Custodial Technology Model:</strong> DISHA 8.2 and Agentic Pay provide payment software automation and cryptographic verification infrastructure. At no point does Disha Nitish Technology take possession, custody, or control of merchant or customer funds. All monetary transfers are executed directly between regulated Reserve Bank of India (RBI) scheduled commercial banking entities.</p>
+          <p><strong>1. Non-Custodial Technology Model:</strong> DISHA 8.2 and Agentic Pay provide payment software automation and cryptographic verification infrastructure. At no point does DishaNitish Technologies take possession, custody, or control of merchant or customer funds. All monetary transfers are executed directly between regulated Reserve Bank of India (RBI) scheduled commercial banking entities.</p>
           <p><strong>2. Software Licensing:</strong> Licensees are granted a non-exclusive, non-transferable enterprise license to deploy Agentic Pay routing agents across authorized merchant terminal devices.</p>
           <p><strong>3. Uptime & SLA:</strong> Software architecture provides high-availability multi-region routing. Service telemetry is accessible in real-time through the Super Admin and Merchant consoles.</p>
           <p><strong>4. Governing Law:</strong> These terms are governed exclusively by the laws of India, with jurisdiction vested in the courts of New Delhi, India.</p>
