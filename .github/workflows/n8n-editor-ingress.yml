@@ -2,7 +2,7 @@ name: n8n editor ingress
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev, uat]
 permissions:
   contents: read
 jobs:
