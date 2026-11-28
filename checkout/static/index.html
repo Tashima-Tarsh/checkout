@@ -10,55 +10,46 @@
   <meta property="og:description" content="A software-led approach to managing business payments without DISHA 8.2 taking custody of merchant funds.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://disha8-2.thenitishkr.in/">
-  <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://disha8-2.thenitishkr.in/">
   <link rel="stylesheet" href="/static/prism.css?v=1.1">
   <link rel="stylesheet" href="/static/disha.css?v=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" media="print" onload="this.media='all'">
-
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
 <style>
-/* Public website layout only; independent from application workspaces. */
-.homepage {color-scheme:light;overflow-x:hidden}
-.homepage .prism-topbar[role=banner]{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px clamp(20px,5vw,88px);background:#faf8f4;position:relative;z-index:10;border-bottom:1px solid #e8e3ec}
-.homepage .topbar-left,.homepage .topbar-right{display:flex;align-items:center;gap:16px}
-.homepage .disha-brand{display:grid;grid-template-columns:48px auto;column-gap:12px;align-items:center;cursor:pointer;white-space:nowrap}
-.homepage .brandmark{grid-row:span 2;display:inline-grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(145deg,#7851d8,#b978e6,#73dde6);color:white;font-size:28px;font-weight:800;box-shadow:0 6px 16px #7851d833}
-.homepage .brand-name{font-size:20px;font-weight:800;line-height:1.15}
-.homepage .brand-sub{font-size:11px;color:#6d6476;line-height:1.4}
-.homepage .search-input{border:1px solid #e3dce9;border-radius:24px;padding:10px 16px;width:210px;background:#fff9}
-.homepage :is(.btn-primary,.btn-secondary,.btn-ghost,.btn-icon){display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:12px 20px;font-weight:700;line-height:1.35;min-height:44px;text-decoration:none}
-.homepage .topbar-right .btn-ghost{padding:10px 8px}
-.homepage #mobile-menu.hidden{display:none!important}
-.homepage #mobile-menu{display:flex;position:absolute;top:88px;right:20px;flex-direction:column;gap:5px;z-index:20;background:#fff;padding:20px;width:min(320px,90vw);border-radius:20px;box-shadow:0 20px 50px #20182c22}
-.homepage .hero-section{isolation:isolate;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,5vw,88px);min-height: min(720px,82vh);padding:clamp(48px,7vw,110px) clamp(24px,7vw,120px);overflow:hidden;background:var(--background-disha)}
-.homepage .hero-content{position:relative;z-index:2;max-width:660px;grid-column:1;grid-row:1;padding:0;margin:0;text-align:left}
-.homepage .hero-h1{font-size:clamp(58px,7.2vw,118px);line-height:1;letter-spacing:-.07em;margin:22px 0}
-.homepage .hero-p{font-size:clamp(17px,1.5vw,22px);max-width:570px;line-height:1.7;margin:0 0 28px}
-.homepage .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
-.homepage .rupee-badge{display:inline-flex;align-items:center;gap:8px;margin-top:25px;font-size:14px;color:#514665}
-.homepage .rupee-symbol{display:grid;place-items:center;width:34px;height:34px;background:#fff9;border:1px solid white;border-radius:50%;font-weight:800;color:#08785c}
-.homepage .hero-canvas{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:1.06;grid-column:2;grid-row:1;display:grid;place-items:center;pointer-events:none;perspective:1000px}
+.prism-topbar[role=banner]{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px clamp(20px,5vw,88px);background:#faf8f4;position:relative;z-index:10;border-bottom:1px solid #e8e3ec}
+.topbar-left,.topbar-right{display:flex;align-items:center;gap:16px}
+.prism-brand{display:grid;grid-template-columns:48px auto;column-gap:12px;align-items:center;cursor:pointer;white-space:nowrap}
+.brandmark{grid-row:span 2;display:inline-grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(145deg,#7851d8,#b978e6,#73dde6);color:white;font-size:28px;font-weight:800;box-shadow:0 6px 16px #7851d833}
+.brand-name{font-size:20px;font-weight:800;line-height:1.15}
+.brand-sub{font-size:11px;color:#6d6476;line-height:1.4}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.btn-primary{border-radius:12px;padding:10px 20px;font-weight:700;line-height:1.35;min-height:44px;text-decoration:none;background:#08785c;color:#fff}
+.btn-secondary{font-size:0.875rem;color:#6d6476;text-decoration:none}
+.btn-ghost{padding:10px 8px}
+.btn-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#6d6476;cursor:pointer;background:none;border:none}
+.hero-section{isolation:isolate;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,5vw,88px);min-height:min(720px,82vh);padding:clamp(48px,7vw,110px) clamp(24px,7vw,120px);overflow:hidden;background:var(--background-disha)}
+.hero-content{position:relative;z-index:2;max-width:660px;grid-column:1;grid-row:1;padding:0;margin:0;text-align:left}
+.hero-eyebrow{font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem}
+.hero-h1{font-size:clamp(58px,7.2vw,118px);line-height:1;letter-spacing:-.07em;margin:22px 0}
+.hero-p{font-size:clamp(17px,1.5vw,22px);max-width:570px;line-height:1.7;margin:0 0 28px}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+.rupee-badge{display:inline-flex;align-items:center;gap:8px;margin-top:25px;font-size:14px;color:#514665}
+.rupee-symbol{display:inline-grid;place-items:center;width:34px;height:34px;background:#fff9;border:1px solid white;border-radius:50%;font-weight:800;color:#08785c}
+.hero-canvas{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:1.06;grid-column:2;grid-row:1;display:grid;place-items:center;pointer-events:none;perspective:1000px}
 .disha-orbit{width:85%;aspect-ratio:1;position:relative;display:grid;place-items:center}
 .disha-orbit:before,.disha-orbit:after{content:"";position:absolute;inset:9%;border:1px solid #fff;border-radius:50%;transform:rotateX(58deg) rotateZ(-30deg);box-shadow:0 0 35px #7851d82a}
 .disha-orbit:after{inset:0;transform:rotateX(64deg) rotateZ(25deg);border:2px solid #ffffffa0}
-.disha-coin{position:relative;z-index:1;width:58%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,#fff 0%,#e6d6f9 28%,#b7a0eb 49%,#81d9d9 76%,#e8fff2 100%);border:2px solid #fff9;box-shadow:inset 0 0 0 12px #ffffff54,inset -14px -18px 30px #52408b30,14px 25px 0 -6px #9f8cce80,25px 40px 65px #55428d40;transform:rotateY(-18deg) rotateX(12deg);animation:disha-float 6s ease-in-out infinite}
+.disha-coin{position:relative;z-index:1;width:58%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,#fff 0%,#e6d6f9 28%,#b7a0eb 49%,#81d9d9 76%,#e8fff2 100%);border:2px solid #fff9;box-shadow:inset 0 0 0 12px #ffffff54,inset -14px -18px 30px #52408b30,14px 25px 30px #55428d40;transform:rotateY(-18deg) rotateX(12deg);animation:disha-float 6s ease-in-out infinite}
 .disha-coin span{font-size:clamp(90px,12vw,180px);font-weight:800;color:#fff;text-shadow:2px 4px 0 #7862b7,5px 8px 18px #49347755;line-height:1}
 .disha-float-card{position:absolute;z-index:2;display:flex;flex-direction:column;gap:4px;padding:16px 22px;background:#ffffffd9;border:1px solid white;border-radius:18px;box-shadow:0 18px 45px #3d256b19;font-size:13px;color:#6d6476;transform:rotate(-5deg)}
-.disha-float-card strong{font-size:19px;color:#20182c}.disha-float-card.first{left:-2%;top:12%}.disha-float-card.second{right:-2%;bottom:12%;transform:rotate(5deg)}
+.disha-float-card strong{font-size:19px;color:#20182c}
+.disha-float-card.first{left:-2%;top:12%}
+.disha-float-card.second{right:-2%;bottom:12%;transform:rotate(5deg)}
 @keyframes disha-float{50%{transform:translateY(-12px) rotateY(-11deg) rotateX(8deg)}}
-.homepage footer>div>div{flex-wrap:wrap}
-@media(max-width:1150px){.homepage .topbar-search{display:none}.homepage .topbar-right{gap:6px}}
-@media(max-width:760px){.homepage .prism-topbar[role=banner]{padding:14px 18px}.homepage .topbar-right>a,.homepage .topbar-right>.btn-primary{display:none}.homepage .hero-section{grid-template-columns:1fr;min-height:0;padding:48px 24px 30px;gap:10px}.homepage .hero-content{grid-column:1;grid-row:1}.homepage .hero-canvas{grid-column:1;grid-row:2;max-width:420px;margin:0 auto}.homepage .hero-h1{font-size:clamp(48px,12vw,78px)}.homepage .hero-actions{flex-direction:column;align-items:stretch}.homepage main>section:not(.hero-section){margin:18px 16px!important;padding:32px 22px!important}.disha-float-card{padding:10px 14px}.disha-float-card strong{font-size:15px}.disha-coin span{font-size:100px}}
-@media(prefers-reduced-motion:reduce){.disha-coin{animation:none}}
 </style>
-<link rel="stylesheet" href="/static/website.css?v=2">
 </head>
 <body class="prism-body disha-body homepage public-site">
   <div id="toast-container"></div>
-
-  <!-- Loader -->
-
 
   <!-- Header -->
   <header class="prism-topbar" role="banner">
@@ -66,16 +57,14 @@
       <div class="prism-brand disha-brand" onclick="location.href='/'">
         <span class="brandmark">D</span>
         <span class="brand-name">DISHA 8.2</span>
-        <span class="brand-sub">Payment Software for Business</span>
+        <span class="brand-sub">Payment Software</span>
       </div>
       <div class="topbar-search">
         <input type="text" class="search-input" placeholder="Search payment solutions…">
       </div>
     </div>
     <div class="topbar-right">
-      <a href="/in/" class="btn-ghost">India</a>
-      <a href="/ae/" class="btn-ghost">Dubai & UAE</a>
-      <a href="/bh/" class="btn-ghost">Bahrain</a>
+      <a href="/" class="btn-secondary">Home</a>
       <button class="btn-primary" onclick="showSection('inquiry')">Business Inquiry</button>
       <button class="btn-icon" aria-label="Menu" onclick="toggleMenu()">☰</button>
     </div>
@@ -119,7 +108,7 @@
     </section>
 
     <!-- ===== SECTION: A growing business ===== -->
-    <section class="prism-glass-soft" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto; border-radius: 32px;">
+    <section class="prism-glass-soft" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
       <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">A growing business deserves a better way to manage its payments.</div>
       <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Behind every payment is a business working to serve customers.</h2>
       <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
@@ -139,7 +128,7 @@
     </section>
 
     <!-- ===== SECTION: Why DISHA ===== -->
-    <section class="prism-glass" style="padding: 4rem 2rem; background: linear-gradient(135deg,#7851D8 0%,#B978E6 35%,#73DDE6 75%,#32B891 100%); color:#fff; border-radius: 32px; margin: 2rem auto; max-width: 1200px;">
+    <section class="prism-glass" style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto; background: linear-gradient(135deg,#7851D8 0%,#B978E6 35%,#73DDE6 75%,#32B891 100%); color:#fff;">
       <div class="section-eyebrow" style="color:#DCCAF7;">Why DISHA 8.2 exists</div>
       <h2 style="color:#fff;font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;">Because accepting payments should not become an unnecessary burden on business</h2>
       <p style="color:rgba(255,255,255,0.9);font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;max-width:570px;">
@@ -247,7 +236,7 @@
 
     <!-- ===== SECTION: Transaction confidence / Zero Fraud ===== -->
     <section style="padding: 4rem 2rem; max-width: 1000px; margin: 2rem auto;">
-      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Zero fraud objective</div>
+      <div class="section-eyebrow" style="font-size:0.875rem;font-weight:800;letter-spacing:0.16em;color:var(--disha-violet);text-transform:uppercase;display:block;margin-bottom:1rem;">Zero fraud evidence protocol</div>
       <h2 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Transaction confidence</h2>
       <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:570px;">
         Businesses depend on accurate payment information. An unclear transaction status can create uncertainty for the
@@ -374,7 +363,7 @@
           <label>Business requirements</label>
           <textarea id="inq-message" rows="4" placeholder="Tell us about your payment needs…" class="field input"></textarea>
         </div>
-        <div class="field" style="display:flex;align-items:center;gap:0.5rem;">
+        <div class="field" style="display:flex;align-items:flex-start;gap:0.5rem;">
           <input type="checkbox" id="inq-consent" required class="field input" style="width:auto;">
           <label style="font-size:0.875rem;color:var(--prism-text-secondary);">I consent to DISHA 8.2 contacting me about payment services.</label>
         </div>
@@ -387,7 +376,7 @@
 
     <!-- Footer -->
     <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
-      <div style="padding: 2rem 1rem; max-width: 1200px; margin: 0 auto;">
+      <div style="padding: 2rem 1rem; max-width: 1000px; margin: 0 auto;">
         <div style="display:flex;flex-direction:column;gap:1.5rem;align-items:flex-start;">
           <div class="prism-brand" style="flex-direction:row;align-items:center;">
             <span class="brandmark">D</span>
@@ -397,25 +386,20 @@
             Payment software for Indian businesses. DISHA 8.2 is a non-custodial software service that does not take
             custody of merchant funds.
           </p>
-          <div style="display:flex;gap:1.5rem;">
-            <a href="/in/" class="btn-ghost" style="padding:0.5rem 1rem;">India</a>
-            <a href="/ae/" class="btn-ghost" style="padding:0.5rem 1rem;">Dubai & UAE</a>
-            <a href="/bh/" class="btn-ghost" style="padding:0.5rem 1rem;">Bahrain</a>
+          <div style="display:flex;gap:2rem;">
+            <a href="/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Home</a>
+            <a href="/about/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Why DISHA</a>
+            <a href="/compare-and-save/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Compare</a>
+            <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
+            <a href="/privacy/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Privacy</a>
+            <a href="/terms/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Terms</a>
+          </div>
+          <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--prism-text-muted);line-height:1.5;">
+            © 2026 DISHA 8.2. All rights reserved.<br>
+            <strong>Contact:</b> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
+            DishaNitish Technologies
           </div>
         </div>
-        <div style="display:flex;gap:2rem;">
-          <a href="/about/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">About</a>
-          <a href="/why-disha/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Why DISHA</a>
-          <a href="/compare-and-save/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Compare</a>
-          <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
-          <a href="/privacy/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Privacy</a>
-          <a href="/terms/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Terms</a>
-        </div>
-        <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--prism-text-muted);line-height:1.5;">
-      © 2026 DISHA 8.2. All rights reserved.<br>
-      <strong>Contact:</strong> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
-      DishaNitish Technologies
-      </div>
       </div>
     </footer>
   </main>
@@ -425,13 +409,11 @@
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
 
-    // Mobile menu toggle
     function toggleMenu() {
       const menu = $('#mobile-menu');
       menu.classList.toggle('hidden');
     }
 
-    // Smooth section reveal
     function showSection(id) {
       const el = document.getElementById(id);
       if (el) {
@@ -499,7 +481,6 @@
         }
       });
     }
-
   </script>
 </body>
 </html>

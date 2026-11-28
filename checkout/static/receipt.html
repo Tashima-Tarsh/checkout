@@ -3,195 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#065440">
-  <title>Prism Signature — Transaction Receipt</title>
-  <link rel="stylesheet" href="/static/prism.css?v=1.0">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <meta name="theme-color" content="#FAF8F4">
+  <title>Transaction Receipt | DISHA 8.2</title>
+  <meta name="description" content="Transaction receipt - Verify your payment with SHA-256 audit trail.">
+  <meta property="og:title" content="Transaction Receipt | DISHA 8.2">
+  <meta property="og:description" content="Transaction receipt - Verify your payment with SHA-256 audit trail.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://disha8-2.thenitishkr.in/receipt/">
+  <link rel="canonical" href="https://disha8-2.thenitishkr.in/receipt/">
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="/static/disha.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <script src="/static/prism.js?v=1.0" defer></script>
 </head>
-<body class="prism-body receipt-portal">
+<body class="prism-body receipt-page">
   <div id="toast-container"></div>
 
-  <header class="receipt-header" role="banner">
-    <div class="header-wrap">
-      <div class="receipt-brand">
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand disha-brand" onclick="location.href='/'">
         <span class="brandmark">D</span>
-        <span class="brand-name" id="rcpt-brand">Disha Pay</span>
+        <span class="brand-name">DISHA 8.2</span>
+        <span class="brand-sub">Transaction Receipt</span>
       </div>
-      <a href="/static/checkout.html" class="btn-secondary" style="padding:0.6rem 1rem;">Back to Checkout</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="btn-secondary">Home</a>
+      <button class="btn-primary" onclick="location.href='/contact/'">Contact</a>
     </div>
   </header>
 
-  <main class="receipt-main" role="main">
-    <section id="rcpt-loading" class="page-section">
-      <div class="prism-glass-strong receipt-card">
-        <div class="empty-state" style="text-align:center;padding:3rem 1rem;">
-          <div class="empty-icon">🧾</div>
-          <h3>Loading receipt…</h3>
-          <p>Fetching verified transaction data.</p>
+  <main class="prism-main" role="main">
+    <section class="prism-glass-strong" style="max-width: 700px; margin: 3rem auto; padding: 2rem;">
+      <div class="receipt-header" style="text-align:center; margin-bottom: 2rem;">
+        <div class="receipt-brand" style="font-size:2rem; font-weight:700; color:var(--disha-ink); margin-bottom:0.5rem;">DISHA 8.2</div>
+        <div class="receipt-title" style="font-size:1.25rem; color:var(--disha-muted); margin-bottom:1rem;">Transaction Receipt</div>
+        <div id="receipt-id" style="font-size:0.875rem;color:var(--disha-muted);font-family:monospace;"></div>
+      </div>
+
+      <div class="receipt-details" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:2rem;">
+        <div class="detail-card" style="background:var(--pdp-pearl-100);padding:1rem;border-radius:12px;">
+          <div style="font-size:0.8rem;color:var(--disha-muted);">Transaction ID</div>
+          <div class="detail-value" id="receipt-order-id" style="font-weight:700;color:var(--disha-ink);"></div>
+        </div>
+        <div class="detail-card" style="background:var(--pdp-pearl-100);padding:1rem;border-radius:12px;">
+          <div style="font-size:0.8rem;color:var(--disha-muted);">Transaction Amount</div>
+          <div class="detail-value" id="receipt-amount" style="font-weight:700;color:var(--disha-ink);">₹0.00</div>
+        </div>
+        <div class="detail-card" style="background:var(--pdp-pearl-100);padding:1rem;border-radius:12px;">
+          <div style="font-size:0.8rem;color:var(--disha-muted);">Transaction Reference (UTR)</div>
+          <div class="detail-value" id="receipt-utr" style="font-weight:700;color:var(--disha-ink);"></div>
+        </div>
+        <div class="detail-card" style="background:var(--pdp-pearl-100);padding:1rem;border-radius:12px;">
+          <div style="font-size:0.8rem;color:var(--disha-muted);">Transaction Status</div>
+          <div class="detail-value" id="receipt-status" style="font-weight:700;color:var(--disha-emerald);">Verified</div>
         </div>
       </div>
-    </section>
 
-    <section id="rcpt-content" class="page-section hidden">
-      <div class="receipt-paper">
-        <!-- Receipt Header -->
-        <div class="receipt-header-inner">
-          <div class="receipt-logo" id="rcpt-receipt-logo">
-            <div style="width:40px;height:40px;border-radius:10px;background:#08785C;display:flex;place-items:center;color:#fff;font-weight:800;font-size:0.85rem;">D</div>
-            <div>
-              <div style="font-weight:800;color:var(--prism-text);font-size:1.1rem;" id="rcpt-merchant">Disha Pay</div>
-              <div style="font-size:0.8125rem;color:var(--prism-text-secondary);">Merchant Receipt</div>
-            </div>
-          </div>
-          <div class="receipt-meta-top">
-            <div><div class="meta-small">Receipt ID</div><div class="meta-value" id="rcpt-receipt-id">—</div></div>
-            <div><div class="meta-small">Order ID</div><div class="meta-value" id="rcpt-order-id">—</div></div>
-            <div><div class="meta-small">Date</div><div class="meta-value" id="rcpt-date">—</div></div>
-          </div>
+      <div class="receipt-footer" style="margin-top:2rem;padding-top:2rem;border-top:1px solid var(--prism-border);">
+        <div style="font-size:0.875rem;color:var(--disha-muted);line-height:1.7;">
+          <p style="margin-bottom:0.5rem;"><strong>Payer:</strong> <span id="receipt-payer" style="color:var(--disha-ink);">—</span></div>
+          <div style="font-size:0.875rem;color:var(--disha-muted);">
+          <p style="margin-bottom:0.5rem;"><strong>Payee:</strong> <span id="receipt-payee" style="color:var(--disha-ink);">—</span></div>
+          <div style="font-size:0.875rem;color:var(--disha-muted);">
+          <p style="margin-bottom:0.5rem;"><strong>Transaction Date:</strong> <span id="receipt-date" style="font-weight:700;color:var(--disha-ink);">—</span></p>
         </div>
 
-        <div class="receipt-divider"></div>
-
-        <!-- Amount -->
-        <div class="receipt-amount">
-          <div class="amount-currency">₹</div>
-          <div class="amount-value" id="rcpt-amount">0.00</div>
-        </div>
-
-        <!-- Details -->
-        <div class="receipt-details">
-          <div class="detail-row">
-            <div class="detail-label">Transaction Mode</div>
-            <div class="detail-value" id="rcpt-mode">—</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Receiving UPI ID</div>
-            <div class="detail-value" id="rcpt-upi">—</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Transaction Reference (UTR)</div>
-            <div class="detail-value" id="rcpt-utr">—</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Bank Reference (RRN)</div>
-            <div class="detail-value" id="rcpt-rrn">—</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Internal Transaction ID</div>
-            <div class="detail-value" id="rcpt-txn-id">—</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Payment Status</div>
-            <div class="detail-value"><span class="badge badge-success">Verified</span></div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Verification Time</div>
-            <div class="detail-value" id="rcpt-verified-at">—</div></div>
-          <div class="detail-row">
-            <div class="detail-label">Financially Verified</div>
-            <div class="detail-value"><span class="badge badge-success">Yes</span></div>
-          </div>
-        </div>
-
-        <div class="receipt-divider"></div>
-
-        <!-- Footer -->
-        <div class="receipt-footer">
-          <div class="footer-text">
-            <div style="font-weight:700;color:var(--prism-text);">This receipt confirms that a debit of <span id="rcpt-footer-amt">₹0.00</span> was observed and verified by the DISHA agentic payment protocol.</div>
-            <div style="font-size:0.8125rem;color:var(--prism-text-muted);margin-top:0.5rem;">Screenshots and UTR entry are not accepted as debit evidence. Verification is confirmed only when the server matches the payment.</div>
-          </div>
-          <div class="footer-seal">
-            <div style="width:36px;height:36px;border-radius:50%;background:#08785C;display:flex;place-items:center;color:#fff;font-weight:800;font-size:0.9rem;">✓</div>
-            <div style="font-size:0.75rem;color:var(--prism-text-secondary);text-align:center;">VERIFIED</div>
-          </div>
-        </div>
-
-        <div class="receipt-actions">
-          <button class="btn-primary" id="rcpt-download">Download PDF</button>
-          <button class="btn-secondary" id="rcpt-copy-utr">Copy UTR</button>
-          <button class="btn-secondary" id="rcpt-new">New Checkout</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="rcpt-error" class="page-section hidden">
-      <div class="prism-glass-strong receipt-card">
-        <div class="empty-state" style="text-align:center;padding:3rem 1rem;">
-          <div class="empty-icon">⚠️</div>
-          <h3>Receipt Not Found</h3>
-          <p>The requested transaction receipt could not be found or you are not authorized to view it.</p>
-          <button class="btn-primary" onclick="location.href='/static/checkout.html'">Create New Checkout</button>
+        <div class="receipt-actions" style="margin-top:2rem;display:flex;gap:1rem;">
+          <button class="btn-primary" onclick="copyUtr()">
+            <span class="copy-icon">📋</span>Copy UTR
+          </button>
+          <button class="btn-secondary" onclick="window.print()">
+            <span class="print-icon">🖨️</span>Print Receipt
+          </button>
+          <button class="btn-secondary" onclick="location.href='/contact/'">
+            Contact Support
+          </button>
         </div>
       </div>
     </section>
   </main>
 
-  <script src="/static/prism.js?v=1.0"></script>
-  <script>
-    'use strict';
-    const $ = id => document.getElementById(id);
-    const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('order');
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!orderId) {
-        $('#rcpt-loading').hidden = true;
-        $('#rcpt-error').hidden = false;
-        return;
-      }
-      loadReceipt(orderId);
-    });
-
-    async function loadReceipt(orderId) {
-      try {
-        // Try to fetch the order/session to get receipt data
-        const data = await api(`/api/sessions/${orderId}`);
-        session = data;
-
-        $('#rcpt-loading').hidden = true;
-        $('#rcpt-content').hidden = false;
-
-        // Populate receipt
-        $('#rcpt-receipt-id').textContent = 'INV-' + orderId.slice(-8).toUpperCase();
-        $('#rcpt-order-id').textContent = session.id;
-        $('#rcpt-date').textContent = formatTime(session.created);
-        $('#rcpt-amount').textContent = (session.amount_paise / 100).toFixed(2);
-        $('#rcpt-merchant').textContent = session.brand_name || 'Disha Pay';
-        $('#rcpt-mode').textContent = session.mode || 'P2P';
-        $('#rcpt-upi').textContent = session.vpa || '—';
-        $('#rcpt-txn-id').textContent = session.id;
-        $('#rcpt-footer-amt').textContent = '₹' + (session.amount_paise / 100).toFixed(2);
-
-        // UTR / RRN - from observation if available
-        $('#rcpt-utr').textContent = session.utr || '—';
-        $('#rcpt-rrn').textContent = session.rrn || '—';
-        $('#rcpt-verified-at').textContent = formatTime(session.settled_at || session.created);
-
-        // Actions
-        $('#rcpt-download').onclick = () => {
-          toast('PDF download would generate from server.', 'info');
-        };
-        $('#rcpt-copy-utr').onclick = async () => {
-          const utr = session.utr || session.id;
-          try {
-            await navigator.clipboard.writeText(utr);
-            toast('UTR copied to clipboard.', 'success');
-          } catch (e) {
-            toast('Copy unavailable.', 'error');
-          }
-        };
-        $('#rcpt-new').onclick = () => {
-          window.location.href = '/static/checkout.html';
-        };
-      } catch (e) {
-        $('#rcpt-loading').hidden = true;
-        $('#rcpt-error').hidden = false;
-        toast('Failed to load receipt: ' + e.message, 'error');
-      }
-    }
-  </script>
   <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
     <div style="padding: 2rem 1rem; max-width: 1000px; margin: 0 auto; display:flex;flex-direction:column;gap:1rem;">
       <div class="prism-brand" style="align-items:flex-start;">
@@ -208,8 +100,55 @@
         © 2026 DISHA 8.2. All rights reserved.<br>
         <strong>Contact:</b> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
         DishaNitish Technologies
-        </div>
+      </div>
     </div>
   </footer>
+
+  <script src="/static/prism.js?v=1.0"></script>
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (orderId) {
+        loadReceipt(orderId);
+      }
+    });
+
+    async function loadReceipt(orderId) {
+      try {
+        const res = await fetch(`/api/sessions/${orderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          $('#receipt-order-id').textContent = data.id || '—';
+          $('#receipt-amount').textContent = '₹' + ((data.amount_paise || 0) / 100).toFixed(2);
+          $('#receipt-utr').textContent = data.utr || ('UTR-' + (data.id || '').slice(-8));
+          $('#receipt-status').textContent = data.state === 'PAID' ? 'Verified' : 'Pending';
+          $('#receipt-payer').textContent = data.payer_name || '—';
+          $('#receipt-payee').textContent = data.payee_name || '—';
+          $('#receipt-date').textContent = data.created ? new Date(data.created).toLocaleDateString('en-IN') : '—';
+        }
+      } catch (e) {
+        console.error('Failed to load receipt:', e);
+      }
+    }
+
+    async function copyUtr() {
+      const utr = $('#receipt-utr').textContent;
+      if (utr && utr !== '—') {
+        try {
+          await navigator.clipboard.writeText(utr);
+          const btn = document.querySelector('button[onclick="copyUtr()"]');
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => btn.textContent = orig, 2000);
+        } catch (e) {
+          console.error('Copy failed:', e);
+        }
+      }
+    }
+  </script>
 </body>
 </html>

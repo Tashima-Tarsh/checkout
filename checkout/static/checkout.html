@@ -3,259 +3,258 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#065440">
-  <title>Prism Rupee — Checkout</title>
-  <link rel="stylesheet" href="/static/prism.css?v=1.0">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <meta name="theme-color" content="#FAF8F4">
+  <title>Copy UPI ID | DISHA 8.2</title>
+  <meta name="description" content="Customer checkout page - copy your UPI ID and complete your payment.">
+  <meta property="og:title" content="Copy UPI ID | DISHA 8.2">
+  <meta property="og:description" content="Customer checkout page - copy your UPI ID and complete your payment.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://disha8-2.thenitishkr.in/checkout/">
+  <link rel="canonical" href="https://disha8-2.thenitishkr.in/checkout/">
+  <link rel="stylesheet" href="/static/prism.css?v=1.1">
+  <link rel="stylesheet" href="/static/disha.css?v=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <script src="/static/prism.js?v=1.0" defer></script>
 </head>
-<body class="prism-body checkout-portal">
+<body class="prism-body checkout-page">
   <div id="toast-container"></div>
 
-  <!-- Header -->
-  <header class="checkout-header" role="banner">
-    <div class="header-content">
-      <div class="checkout-brand">
+  <header class="prism-topbar" role="banner">
+    <div class="topbar-left">
+      <div class="prism-brand disha-brand" onclick="location.href='/'">
         <span class="brandmark">D</span>
-        <span class="brand-name" id="ck-brand-name">Disha Pay</span>
+        <span class="brand-name">DISHA 8.2</span>
+        <span class="brand-sub">Customer Checkout</span>
       </div>
-      <span class="badge badge-success" id="ck-mode-badge">P2M</span>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="btn-secondary">Home</a>
+      <button class="btn-primary" onclick="location.href='/contact/'">Contact</a>
     </div>
   </header>
 
   <main class="checkout-main" role="main">
-    <!-- Step 1: Create / Payment Link Display -->
-    <section id="ck-create" class="page-section">
-      <div class="prism-glass-strong checkout-card">
-        <div class="section-eyebrow">Direct UPI &nbsp;/&nbsp; 01</div>
-        <h1 id="ck-headline">Copy UPI ID</h1>
-        <p id="ck-subhead">Pay from your UPI app, then return here.</p>
-
-        <div class="amount-display" id="ck-amount-display">
-          <span class="amount-currency">₹</span>
-          <span class="amount-value" id="ck-amount">0.00</span>
+    <section id="checkout-page" class="checkout-container">
+      <div class="checkout-card prism-glass-strong">
+        <div class="checkout-brand">
+          <span class="brandmark">D</span>
+          <span class="brand-info">
+            <span class="brand-name">DISHA 8.2</span>
+            <span class="brand-tagline">Prism Rupee Checkout</span>
+          </span>
         </div>
-
-        <div class="upi-display">
-          <div class="upi-label">Receiving UPI ID</div>
-          <div class="upi-value" id="ck-upi">name@upi</div>
-          <button class="btn-copy" id="ck-copy" title="Copy UPI ID">
-            <span class="copy-icon">📋</span><span class="copy-text">Copy UPI ID</span>
+        <div class="checkout-status" id="checkout-status">
+          <div class="status-chip checkout-status-pending">
+            <span class="dot"></span>
+            <span class="dot-text">Pending verification</span>
+          </div>
+        </div>
+        <div class="amount-section">
+          <div class="amount-label">Payable Amount</div>
+          <div class="amount-value">
+            <span class="currency">₹</span>
+            <span class="amount" id="checkout-amount">0.00</span>
+          </div>
+        </div>
+        <div class="copy-section">
+          <div class="copy-label">Copy UPI ID</div>
+          <div class="copy-input-container">
+            <input type="text" id="upi-id" class="copy-input" readonly value="checkout@upi">
+            <button class="copy-btn" id="copy-btn" onclick="copyUpiId()">
+              Copy UPI ID
+            </button>
+          </div>
+          <div class="copy-hint" id="copy-hint"></div>
+        </div>
+        <div class="checkout-actions">
+          <button class="btn-refresh" id="refresh-btn" onclick="refreshStatus()">
+            <span class="refresh-icon">↻</span>
+            <span class="refresh-text">Refresh Status</span>
           </button>
         </div>
-
-        <div class="checkout-note">
-          Sharing this link does not confirm payment. Verification occurs when the server matches the debit.
+        <div class="timer-section" id="timer-section" style="display:none;">
+          <div class="timer-label">Time Remaining</div>
+          <div class="timer-value" id="timer-value">120s</div>
         </div>
-
-        <div class="checkout-actions">
-          <button class="btn-secondary" id="ck-edit">← Edit Payment</button>
-          <button class="btn-primary" id="ck-pay">Pay Now (UPI App)</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 2: Payment Verification -->
-    <section id="ck-verify" class="page-section hidden">
-      <div class="prism-glass-strong checkout-card">
-        <div class="section-eyebrow">Verification &nbsp;/&nbsp; 02</div>
-        <h2 id="ck-verify-title">Payment Verification</h2>
-
-        <div class="verify-state" id="ck-verify-state">
-          <div class="verify-icon" id="ck-verify-icon">⏳</div>
-          <div class="verify-text">
-            <div class="verify-title" id="ck-verify-title-text">Waiting for payment…</div>
-            <div class="verify-sub" id="ck-verify-sub">Customer has not yet paid via UPI.</div>
-          </div>
-        </div>
-
-        <div class="timer-display" id="ck-timer">
-          <span class="timer-label">Time remaining</span>
-          <span class="timer-value" id="ck-timer-value">120s</span>
-        </div>
-
-        <div class="verify-actions">
-          <button class="btn-secondary" id="ck-refresh">Refresh Status</button>
-          <button class="btn-secondary" id="ck-copy-again">Copy UPI ID Again</button>
-        </div>
-
-        <div class="verify-note">
-          <strong>Important:</strong> Returning to this page, copying the UPI ID, or waiting does not confirm payment. Funds are verified only when the server matches the debit.
-        </div>
-      </div>
-    </section>
-
-    <!-- Success Animation -->
-    <section id="ck-success" class="page-section hidden">
-      <div class="prism-glass-strong checkout-card">
-        <div class="success-animation" id="ck-success-anim">
-          <div class="ripple-1"></div>
-          <div class="ripple-2"></div>
-          <div class="ripple-3"></div>
-          <div class="rupee-coin">₹</div>
-          <div class="verify-seal">
-            <span class="seal-check">✓</span>
-            <span class="seal-text">Verified</span>
-          </div>
-        </div>
-        <h2 id="ck-success-title">Payment Verified</h2>
-        <p id="ck-success-sub">Debit confirmed by server. Receipt generated.</p>
-        <div class="success-meta">
-          <div><span class="meta-label">Order ID</span><span class="meta-value" id="ck-success-order">—</span></div>
-          <div><span class="meta-label">Amount</span><span class="meta-value" id="ck-success-amt">₹0.00</span></div>
-          <div><span class="meta-label">UPI ID</span><span class="meta-value" id="ck-success-upi">—</span></div>
-          <div><span class="meta-label">Mode</span><span class="meta-value" id="ck-success-mode">—</span></div>
-        </div>
-        <div class="success-actions">
-          <button class="btn-primary" id="ck-receipt">View Receipt</button>
-          <button class="btn-secondary" id="ck-new-checkout">New Checkout</button>
+        <div class="copy-success" id="copy-success" style="display:none;">
+          <span class="success-icon">✓</span>
+          <span class="success-text">UPI ID copied to clipboard</span>
         </div>
       </div>
     </section>
   </main>
 
-  <script src="/static/prism.js?v=1.0"></script>
+  <footer class="prism-topbar" style="margin-top: 4rem; border-top: 1px solid var(--prism-border); background: var(--disha-ivory);">
+    <div style="padding: 2rem 1rem; max-width: 1000px; margin: 0 auto; display:flex;flex-direction:column;gap:1rem;">
+      <div class="prism-brand" style="align-items:flex-start;">
+        <span class="brandmark">D</span>
+        <span class="brand-name">DISHA 8.2</span>
+      </div>
+      <p style="font-size:0.875rem;color:var(--prism-text-muted);">Customer checkout page. DISHA 8.2 is a non-custodial software service that does not take custody of merchant funds.</p>
+      <div style="display:flex;gap:2rem;">
+        <a href="/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Home</a>
+        <a href="/about/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Why DISHA</a>
+        <a href="/contact/" style="color:var(--prism-text-secondary);text-decoration:none;font-size:0.875rem;">Contact</a>
+      </div>
+      <div style="margin-top:1rem;font-size:0.75rem;color:var(--prism-text-muted);line-height:1.5;">
+        © 2026 DISHA 8.2. All rights reserved.<br>
+        <strong>Contact:</b> nitish@thenitishkr.in &nbsp;|&nbsp; WhatsApp: <a href="https://wa.me/919142197135" style="color:var(--disha-emerald);text-decoration:none;">+91-9142197135</a><br>
+        DishaNitish Technologies
+      </div>
+    </div>
+  </footer>
+
   <script>
     'use strict';
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
 
-    // State
-    let session = null;
-    let poller = null;
-    let secondsRemaining = 0;
-    let orderExpiresAt = 0;
-
-    // DOM refs
-    const createSection = $('#ck-create');
-    const verifySection = $('#ck-verify');
-    const successSection = $('#ck-success');
-
     function showSection(id) {
-      createSection.hidden = id !== 'ck-create';
-      verifySection.hidden = id !== 'ck-verify';
-      successSection.hidden = id !== 'ck-success';
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function startTimer(expiresAt) {
-      orderExpiresAt = expiresAt;
-      secondsRemaining = Math.max(0, expiresAt - Math.floor(Date.now()/1000));
-      updateTimer();
-      if (poller) clearInterval(poller);
-      poller = setInterval(() => {
-        secondsRemaining = Math.max(0, orderExpiresAt - Math.floor(Date.now()/1000));
-        updateTimer();
-        if (secondsRemaining <= 0) {
-          $('#ck-verify-title-text').textContent = 'Checkout Expired';
-          $('#ck-verify-sub').textContent = 'No debit was verified within 120 seconds.';
-          $('#ck-verify-icon').textContent = '⏰';
-          if (poller) clearInterval(poller);
-        }
-      }, 1000);
-    }
+    const checkoutStatus = $('#checkout-status');
+    const checkoutStatusText = $('#checkout-status-text');
+    const copyBtn = $('#copy-btn');
+    const upiIdInput = $('#upi-id');
+    const copyHint = $('#copy-hint');
+    const timerSection = $('#timer-section');
+    const timerValue = $('#timer-value');
+    const copySuccess = $('#copy-success');
 
-    function updateTimer() {
-      const m = Math.floor(secondsRemaining / 60);
-      const s = secondsRemaining % 60;
-      $('#ck-timer-value').textContent = `${m}:${s.toString().padStart(2,'0')}`;
-    }
+    let checkoutData = null;
+    let timerInterval = null;
+    let remainingSeconds = 0;
 
-    function renderCheckout(data) {
-      session = data;
-      $('#ck-amount').textContent = (data.amount_paise / 100).toFixed(2);
-      $('#ck-upi').textContent = data.vpa || '—';
-      $('#ck-brand-name').textContent = data.brand_name || 'Disha Pay';
-      $('#ck-headline').textContent = data.headline || 'Copy UPI ID';
-      $('#ck-mode-badge').textContent = data.mode || 'P2P';
-      $('#ck-amount-display').style.display = 'block';
-      startTimer(data.expires);
-      showSection('ck-create');
-    }
+    function updateCheckoutUI() {
+      if (!checkoutData) return;
 
-    function renderVerify(data) {
-      $('#ck-verify-title-text').textContent = data.state.replaceAll('_', ' ');
-      $('#ck-verify-sub').textContent = data.state === 'PAID' ? 'Payment received — awaiting final confirmation.' : 'Waiting for customer payment…';
-      $('#ck-verify-icon').textContent = data.state === 'PAID' ? '✅' : '⏳';
-    }
+      const state = checkoutData.state || 'pending';
+      const amount = (checkoutData.amount_paise || 0) / 100;
+      const upiId = checkoutData.vpa || '';
 
-    async function createCheckout(payload) {
-      try {
-        const res = await api('/api/sessions', { method: 'POST', body: payload });
-        session = res;
-        $('#ck-copy').onclick = async () => {
-          await navigator.clipboard.writeText(res.vpa);
-          const btn = $('#ck-copy');
-          const orig = btn.innerHTML;
-          btn.innerHTML = '<span class="copy-icon">✓</span><span class="copy-text">Copied!</span>';
-          setTimeout(() => btn.innerHTML = orig, 1500);
-        };
-        $('#ck-pay').onclick = () => {
-          if (res.payment_uri) location.href = res.payment_uri;
-        };
-        $('#ck-refresh').onclick = refresh;
-        $('#ck-copy-again').onclick = $('#ck-copy').onclick;
-        $('#ck-edit').onclick = () => { showSection('ck-create'); };
-        $('#ck-new-checkout').onclick = () => location.reload();
-        $('#ck-receipt').onclick = () => {
-          // Open receipt with order id
-          window.location.href = `/static/receipt.html?order=${res.id}`;
-        };
-        renderCheckout(res);
-      } catch (e) {
-        toast(e.message, 'error');
-      }
-    }
+      $('#checkout-amount').textContent = amount.toFixed(2);
+      upiIdInput.value = upiId;
 
-    async function refresh() {
-      if (!session) return;
-      try {
-        const data = await api(`/api/sessions/${session.session_id}`, { token: session.token });
-        session = data;
-        renderVerify(data);
-        if (data.state === 'PAID' || (data.settlement && data.settlement.satisfied)) {
-          showSection('ck-success');
-          $('#ck-success-order').textContent = session.id;
-          $('#ck-success-amt').textContent = '₹' + (session.amount_paise / 100).toFixed(2);
-          $('#ck-success-upi').textContent = session.vpa || '—';
-          $('#ck-success-mode').textContent = session.mode || 'P2P';
-          if (poller) clearInterval(poller);
-        }
-      } catch (e) {
-        toast('Refresh failed: ' + e.message, 'error');
-      }
-    }
+      // Update status badge
+      const statusChip = checkoutStatus.querySelector('.checkout-status-pending');
+      const dot = statusChip.querySelector('.dot');
+      const dotText = statusChip.querySelector('.dot-text');
 
-    // Initialize - try to load existing session or show create form
-    document.addEventListener('DOMContentLoaded', () => {
-      // Check for order id in URL (shared link)
-      const params = new URLSearchParams(window.location.search);
-      const orderId = params.get('order');
-
-      if (orderId) {
-        // Load existing checkout
-        api(`/api/sessions/${orderId}`).then(data => {
-          session = data;
-          renderCheckout(data);
-          renderVerify(data);
-          if (data.state === 'PAID' || (data.settlement && data.settlement.satisfied)) {
-            showSection('ck-success');
-            $('#ck-success-order').textContent = session.id;
-            $('#ck-success-amt').textContent = '₹' + (session.amount_paise / 100).toFixed(2);
-            $('#ck-success-upi').textContent = session.vpa || '—';
-            $('#ck-success-mode').textContent = session.mode || 'P2P';
-            if (poller) clearInterval(poller);
-          }
-        }).catch(() => {
-          toast('Checkout not found or expired.', 'error');
-        });
+      if (state === 'PAID' || session?.settlement?.satisfied) {
+        checkoutStatus.innerHTML = '<div class="status-chip checkout-status-verified"><span class="dot verified"></span><span class="dot-text">Payment Verified</span></div>';
+      } else if (state === 'FAILED' || state === 'REJECTED' || state === 'EXPIRED') {
+        checkoutStatus.innerHTML = '<div class="status-chip checkout-status-failed"><span class="dot failed"></span><span class="dot-text">Payment Failed</span></div>';
       } else {
-        // No order - show empty create state
-        $('#ck-amount-display').style.display = 'none';
-        $('#ck-upi').textContent = '—';
-        $('#ck-copy').disabled = true;
-        $('#ck-copy').style.opacity = '0.5';
-        showSection('ck-create');
+        checkoutStatus.innerHTML = '<div class="status-chip checkout-status-pending"><span class="dot pending"></span><span class="dot-text">Waiting for payment</span></div>';
       }
+
+      // Timer logic
+      if (checkoutData.expires_at) {
+        const expiryTime = new Date(checkoutData.expires_at).getTime();
+        const currentTime = Date.now();
+        remainingSeconds = Math.max(0, Math.floor((expiryTime - currentTime) / 1000));
+        
+        if (remainingSeconds > 0) {
+          timerSection.style.display = 'block';
+          updateTimerDisplay();
+          if (!timerInterval) {
+            timerInterval = setInterval(() => {
+              remainingSeconds--;
+              updateTimerDisplay();
+              if (remainingSeconds <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                timerValue.textContent = '00s';
+                checkoutStatus.innerHTML = '<div class="status-chip checkout-status-failed"><span class="dot failed"></span><span class="dot-text">Payment Expired</span></div>';
+              }
+            }, 1000);
+          }
+        } else {
+          timerSection.style.display = 'none';
+        }
+      }
+    }
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+      timerValue.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    async function copyUpiId() {
+      const upiId = upiIdInput.value;
+      if (!upiId) return;
+
+      try {
+        await navigator.clipboard.writeText(upiId);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        copyHint.textContent = 'UPI ID copied to clipboard';
+        copyHint.style.display = 'block';
+        
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy UPI ID';
+          copyBtn.classList.remove('copied');
+          copyHint.style.display = 'none';
+        }, 2000);
+      } catch (err) {
+        // Fallback for older browsers
+        upiIdInput.select();
+        document.execCommand('copy');
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        copyHint.textContent = 'UPI ID copied to clipboard';
+        copyHint.style.display = 'block';
+        
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy UPI ID';
+          copyBtn.classList.remove('copied');
+          copyHint.style.display = 'none';
+        }, 2000);
+      }
+    }
+
+    async function refreshStatus() {
+      if (!checkoutData) return;
+      
+      const btn = $('#refresh-btn');
+      const btnText = btn.querySelector('.refresh-text');
+      const btnIcon = btn.querySelector('.refresh-icon');
+      
+      btn.disabled = true;
+      btnIcon.textContent = '⟳';
+      btnIcon.style.animation = 'spin 1s linear infinite';
+      btnText.textContent = 'Refreshing...';
+
+      try {
+        const res = await fetch(`/api/sessions/${checkoutData.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          checkoutData = data;
+          updateCheckoutUI();
+        }
+      } catch (e) {
+        console.error('Failed to refresh:', e);
+      } finally {
+        btn.disabled = false;
+        btnIcon.style.animation = 'none';
+        btnText.textContent = 'Refresh Status';
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize with demo data for demonstration
+      checkoutData = {
+        id: 'demo-checkout-001',
+        amount_paise: 150000,
+        vpa: 'merchant@upi',
+        state: 'pending',
+        expires_at: new Date(Date.now() + 120000).toISOString()
+      };
+      updateCheckoutUI();
     });
   </script>
 </body>
