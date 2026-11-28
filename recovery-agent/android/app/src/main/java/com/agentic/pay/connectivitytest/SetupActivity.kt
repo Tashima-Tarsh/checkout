@@ -65,7 +65,7 @@ class SetupActivity : Activity() {
         layout.addView(setupCompleteText)
 
         emailInput = EditText(this).apply {
-            hint = "Email address (Clerk account)"
+            this.hint = "Email address (Clerk account)"
             textSize = 18f
             maxLines = 1
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
@@ -73,7 +73,7 @@ class SetupActivity : Activity() {
         layout.addView(emailInput)
 
         passwordInput = EditText(this).apply {
-            hint = "Password"
+            this.hint = "Password"
             textSize = 18f
             maxLines = 1
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -207,23 +207,8 @@ class SetupActivity : Activity() {
         loginButton.isEnabled = false
         statusText.text = "Logging in…"
 
-        // Clerk OAuth integration point — replace with Clerk SDK signIn flow
-        android.os.Handler(Looper.getMainLooper()).postDelayed({
-            // Simulate successful Clerk OAuth login
-            val deviceToken = "clerk_device_" + email.hashCode().toString().removePrefix("-")
-            credentialStore.saveCredential(deviceToken)
-            credentialStore.saveAccountId("acct_${email.hashCode().toString().removePrefix("-")}")
-            DeviceConfig.saveUpiRegistration(email, email) // placeholder mobile
-            runOnUiThread {
-                statusText.text = "Login successful. Device enrolled."
-                loginButton.isEnabled = false
-                registerButton.isEnabled = true
-                emailInput.isEnabled = false
-                passwordInput.isEnabled = false
-                setupCompleteText.text = "Device enrolled. Register your UPI IDs to complete setup."
-                setupCompleteText.setTextColor(0xFF0F172A.toInt())
-            }
-        }, 1000)
+        statusText.text = "Use the existing secure device pairing flow. Email sign-in is unavailable."
+        loginButton.isEnabled = true
     }
 
     private fun checkEsimStatusPublic() {

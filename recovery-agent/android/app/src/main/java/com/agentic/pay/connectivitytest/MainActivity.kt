@@ -77,11 +77,11 @@ class MainActivity : Activity() {
         }
         layout.addView(deviceId)
 
-        val version = TextView(this).apply {
+        versionText = TextView(this).apply {
             text = "Version: ${DeviceConfig.APP_VERSION_NAME} (${DeviceConfig.APP_VERSION_CODE})"
             textSize = 14f
         }
-        layout.addView(version)
+        layout.addView(versionText)
 
         statusText = TextView(this).apply {
             text = "Status: Checking…"
@@ -193,7 +193,7 @@ class MainActivity : Activity() {
         }
         layout.addView(msg)
 
-        setContentView(layout)
+        setContentView(ScrollView(this).apply { addView(layout) })
 
         pairButton.setOnClickListener {
             val intent = android.content.Intent(this, PairingActivity::class.java)
@@ -288,12 +288,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         try {
-            // If not enrolled, route to SetupActivity first
-            if (!credentialStore.isEnrolled()) {
-                val intent = Intent(this, SetupActivity::class.java)
-                startActivity(intent)
-                return
-            }
+            if (!::credentialStore.isInitialized || !::pairButton.isInitialized) return
             updateButtons()
             refreshStatus()
             loadDailyLimit()
