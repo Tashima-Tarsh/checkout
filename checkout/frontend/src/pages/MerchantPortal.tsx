@@ -24,10 +24,10 @@ export const MerchantPortal: React.FC = () => {
   }
 
   return (
-    <section className="prism-glass-strong" style="padding: 4rem 1rem;">
+    <section className="prism-glass-strong" style={{"padding":"4rem 1rem"}}>
       <div className="page-header">
-        <h1 style="font-size:clamp(2rem,4vw,3.75rem);line-height:1.15;letter-spacing:-0.035em;color:var(--disha-ink);margin-bottom:1rem;">Merchant Dashboard</h1>
-        <p style="font-size:clamp(1rem,1.2vw,1.125rem);line-height:1.75;color:var(--disha-muted);max-width:700px;">
+        <h1 style={{"fontSize":"clamp(2rem,4vw,3.75rem)","lineHeight":"1.15","letterSpacing":"-0.035em","color":"var(--disha-ink)","marginBottom":"1rem"}}>Merchant Dashboard</h1>
+        <p style={{"fontSize":"clamp(1rem,1.2vw,1.125rem)","lineHeight":"1.75","color":"var(--disha-muted)","maxWidth":"700px"}}>
           Your business dashboard - manage checkouts, verify payments, and track daily collection.
         </p>
       </div>
@@ -55,7 +55,7 @@ export const MerchantPortal: React.FC = () => {
         </div>
       </div>
 
-      <div className="table-wrap" style="margin-top: 2rem;">
+      <div className="table-wrap" style={{"marginTop":"2rem"}}>
         <div className="table">
           <thead>
             <tr>
@@ -70,7 +70,7 @@ export const MerchantPortal: React.FC = () => {
                 <td>{s.mode || 'P2P'}</td>
                 <td><span className="badge badge-success">{s.state || 'PENDING'}</span></td>
                 <td>{s.created ? new Date((s.created || Date.now()/1000)*1000).toLocaleTimeString('en-IN') : '—'}</td>
-                <td><button className="btn-secondary" style="padding:0.4rem 0.8rem;font-size:0.875rem;">View</button></td>
+                <td><button className="btn-secondary" style={{"padding":"0.4rem 0.8rem","fontSize":"0.875rem"}}>View</button></td>
               </tr>
             ))}
           </tbody>
