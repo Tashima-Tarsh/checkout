@@ -39,8 +39,6 @@ export default {
           400: '#D0B7EA',
           500: '#C7A8E3',
         },
-        pearlDark: '#23242D',
-        pearlDarkSecondary: '#5F6368',
       },
       fontFamily: {
         sans: ['"Manrope"', 'sans-serif'],
