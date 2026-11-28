@@ -1,5 +1,5 @@
 {
-  "name": "disha-8-2-frontend",
+  "name": "disha8-2-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -17,13 +17,11 @@
     "@react-three/fiber": "^8.15.0",
     "@react-three/drei": "^9.88.0",
     "gsap": "^3.12.2",
-    "lucide-react": "^2.93.0",
     "clsx": "^2.0.0",
     "tailwind-merge": "^2.0.0",
     "framer-motion": "^10.16.4",
-    "react-hook-form": "^7.48.2",
-    "zod": "^3.22.4",
-    "@hookform/resolvers": "^3.3.2"
+    "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.0.18"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

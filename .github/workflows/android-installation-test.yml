@@ -44,6 +44,8 @@ jobs:
           # Use a retail-style Google Play image; keep application root checks intact.
           target: google_apis_playstore
           arch: x86_64
+          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
+          emulator-boot-timeout: 600
           disable-animations: true
           script: bash recovery-agent/android/ci-startup.sh
       - name: Upload validated APK

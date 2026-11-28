@@ -1,17 +1,18 @@
 # DISHA 8.2 — AWS Infrastructure Architecture (ap-southeast-2)
 
-This document describes the AWS infrastructure for the DISHA Super Admin control plane.
+This document describes the proposed AWS architecture for the DISHA Super Admin control plane. The multi-account design and cost estimate below are planning inputs.
+
+The deployed Sydney environment uses the CloudFormation stacks documented in [the AWS runbook](infra/aws/README.md). The Terraform files in `infra/aws` contain provider settings and example variable values. They have no resource modules or environment root configurations capable of provisioning this design. Use the existing CloudFormation stack names for updates to resources they manage.
 
 **Project Region:** `ap-southeast-2` (Asia Pacific / Sydney)
 **Environments:** `development`, `uat`, `production`
-**Cloud Provider:** AWS only (no Azure, Railway, Google Cloud)
-**Canonical Domain:** `disha8-2.thenitishkr.in`
+**Provider:** AWS only (no Azure, Railway, Google Cloud)
 
 ---
 
 ## 1. Architecture Principles
 
-- **AWS-only**: All infrastructure deployed in AWS `ap-southeast-2`
+- **AWS-only**: All infrastructure provisioned in AWS ap-southeast-2
 - **Multi-account**: Separate AWS accounts for dev, uat, prod via AWS Organizations
 - **Zero-trust**: IAM Identity Center (SSO), least-privilege IAM roles, no long-lived credentials
 - **Private by default**: No public IPs on backend services; ALB only in public subnets
@@ -38,9 +39,12 @@ This document describes the AWS infrastructure for the DISHA Super Admin control
 
 ```
 VPC: 10.x.0.0/16 (x = 1 dev, 2 uat, 3 prod)
-├── Public Subnets (ALB, NAT Gateways)   - 10.x.1.0/24, 10.x.2.0/24, 10.x.3.0/24
-├── Private App Subnets (ECS Fargate)    - 10.x.10.0/24, 10.x.11.0/24, 10.x.12.0/24
-└── Private DB Subnets (RDS, Redis)      - 10.x.20.0/24, 10.x.21.0/24, 10.x.22.0/24
+├── Public Subnets (ALB, NAT Gateways)
+│   10.x.1.0/24, 10.x.2.0/24, 10.x.3.0/24
+├── Private App Subnets (ECS Fargate)
+│   10.x.10.0/24, 10.x.11.0/24, 10.x.12.0/24
+└── Private DB Subnets (RDS, Redis)
+    10.x.20.0/24, 10.x.21.0/24, 10.x.22.0/24
 ```
 
 Security Groups:
@@ -52,6 +56,21 @@ Security Groups:
 ---
 
 ## 4. Compute (ECS on Fargate)
+
+| Service | Task CPU | Task Memory | Min Tasks | Max Tasks |
+|---------|----------|-------------|-----------|-----------|
+| checkout-api (dev) | 0.25 vCPU | 0.5 GB | 1 | 2 |
+| checkout-api (uat) | 0.5 vCPU | 1 GB | 1 | 2 |
+| checkout-api (prod) | 1 vCPU | 2 GB | 2 | 6 |
+| agentic-pay (dev) | 0.25 vCPU | 0.5 GB | 1 | 2 |
+| agentic-pay (uat) | 0.5 vCPU | 1 GB | 1 | 2 |
+| agentic-pay (prod) | 1 vCPU | 2 GB | 2 | 6 |
+
+Auto-scaling based on CPU > 70% or memory > 80%.
+
+---
+
+## 5. Database (Amazon RDS PostgreSQL)
 
 | Environment | Instance Class | Storage | Multi-AZ | Backup |
 |-------------|---------------|---------|----------|--------|
@@ -77,8 +96,8 @@ Network: Private subnets only, VPC Endpoint
 ## 7. Load Balancing & DNS
 
 - **ALB**: Application Load Balancer in public subnets, HTTPS only via ACM certificate
-- **CloudFront**: CDN for static assets, origin from ALB
-- **Route 53**: Hosted zone for `disha8-2.thenitishkr.in` and subdomains
+- **CloudFront**: Optional CDN for static assets, origin from ALB
+- **Route 53**: Private hosted zone for internal service discovery; public zone for `disha8-2.thenitishkr.in`
 - **ACM**: Public SSL/TLS certificates, auto-renewed
 
 ---
@@ -87,7 +106,7 @@ Network: Private subnets only, VPC Endpoint
 
 | Secret Store | Usage |
 |--------------|-------|
-| AWS Secrets Manager | API keys, DB passwords, JWT signing keys, ADMIN_TOKEN |
+| AWS Secrets Manager | API keys, DB passwords, JWT signing keys, PDEP_ADMIN_TOKEN |
 | AWS KMS | CMK per environment for EBS, RDS, S3 encryption at rest |
 | AWS Certificate Manager | TLS certificates for ALB and CloudFront |
 
@@ -126,7 +145,7 @@ The Super Admin reads from AWS Cost Explorer API (read-only IAM role):
 
 ---
 
-## 11. Estimated Monthly Cost (ap-southeast-2)
+## 11. Estimated Monthly Cost (ap-southeast-2, Mumbai)
 
 | Component | Dev | UAT | Prod |
 |-----------|-----|-----|------|
@@ -157,11 +176,20 @@ The Super Admin reads from AWS Cost Explorer API (read-only IAM role):
 
 ---
 
-## 13. Terraform (IaC) Structure
+## 12. Terraform (IaC) Structure
 
 ```
-infra/aws/
-  providers.tf          # AWS provider config (ap-southeast-2)
+infrastructure/
+  modules/
+    vpc/
+    ecs/
+    rds/
+    elasticache/
+    alb/
+    waf/
+    secrets/
+    kms/
+    cloudwatch/
   environments/
     dev/
       main.tf
@@ -175,15 +203,15 @@ infra/aws/
       main.tf
       variables.tf
       terraform.tfvars
-  backend.tf            # S3 remote state
-  providers.tf          # AWS provider config (ap-southeast-2)
+  backend.tf          # S3 remote state
+  providers.tf        # AWS provider config (ap-southeast-2)
 ```
 
 **Never expose AWS access keys or SDK credentials to frontend code.** All workloads use IAM Roles for Tasks. Super Admin frontend calls backend API endpoints, which in turn call AWS SDK with temporary IAM role credentials.
 
 ---
 
-## 14. Production Provisioning Workflow
+## 13. Production Provisioning Workflow
 
 1. Merchant onboarding approved by Super Admin
 2. Merchant configuration validated (tenant isolation, UPI accounts)
@@ -216,12 +244,13 @@ Do not report a merchant as active until required checks pass.
 
 ---
 
-## 15. CI/CD and Deployment Integration
+## 14. CI/CD and Deployment Integration
 
-Integrate existing GitHub Actions and AWS deployment mechanisms:
+Integrate existing GitHub and AWS deployment mechanisms:
 
 | Product | Official URL |
 |---------|--------------|
+| GitHub REST API | https://docs.github.com/en/rest |
 | GitHub Actions | https://docs.github.com/en/actions |
 | AWS CodeBuild | https://aws.amazon.com/codebuild/ |
 | AWS CodePipeline | https://aws.amazon.com/codepipeline/ |
@@ -264,7 +293,7 @@ Provide deployment status, logs and failure explanations.
 
 ---
 
-## 16. Security Command Centre
+## 15. Security Command Centre
 
 Create a complete security operations view.
 
@@ -310,7 +339,7 @@ Use server-side access enforcement.
 
 ---
 
-## 17. AWS IAM and Secrets Management
+## 16. AWS IAM and Secrets Management
 
 Implement least-privilege AWS access.
 
@@ -343,7 +372,7 @@ Do not implement arbitrary IAM policy editing without a dedicated reviewed secur
 
 ---
 
-## 18. Incident Command Centre
+## 17. Incident Command Centre
 
 Create an incident management module.
 
@@ -388,7 +417,7 @@ Do not silently suppress critical security or availability incidents.
 
 ---
 
-## 19. Notification and Alert Centre
+## 18. Notification and Alert Centre
 
 Create portal-level configurable alerts.
 
@@ -405,7 +434,7 @@ Supported conditions:
 - Backup failure
 - Certificate expiration
 - Cloud expenditure threshold
-- AWS credits expiration
+- AWS credit expiration
 - Security incident
 - Resource quota threshold
 
@@ -422,7 +451,7 @@ Critical operational alerts must not be accidentally disabled by cosmetic config
 
 ---
 
-## 20. Backup and Disaster Recovery
+## 19. Backup and Disaster Recovery
 
 Implement backup intelligence using actual configured backup systems.
 
@@ -457,7 +486,7 @@ Do not claim disaster recovery readiness without successful restore testing.
 
 ---
 
-## 21. Automation Centre
+## 20. Automation Centre
 
 Monitor existing automation services and authorized AWS-native workflows.
 
@@ -486,7 +515,7 @@ Do not allow uncontrolled execution of arbitrary scripts from the portal.
 
 ---
 
-## 22. Global Settings and Portal-Level Configuration
+## 21. Global Settings and Portal-Level Configuration
 
 All supported application-level administrative configuration should be manageable through the Super Admin portal.
 
@@ -529,7 +558,7 @@ Infrastructure secrets and sensitive access policies must remain separately prot
 
 ---
 
-## 23. Super Admin Theme Studio
+## 22. Super Admin Theme Studio
 
 Build a visual configuration studio for the Super Admin interface.
 
@@ -565,7 +594,7 @@ Do not permit arbitrary JavaScript or unsafe HTML injection.
 
 ---
 
-## 24. Premium Animation System
+## 23. Premium Animation System
 
 Create centralized animation tokens.
 
@@ -616,7 +645,7 @@ Respect reduced-motion preferences.
 
 ---
 
-## 25. Live Data Synchronization
+## 24. Live Data Synchronization
 
 Create a secure data synchronization layer.
 
@@ -634,7 +663,7 @@ Suggested initial refresh policy:
 - Merchant health: 30–120 seconds
 - Infrastructure discovery: 5–15 minutes
 - AWS metrics: aligned with actual collection resolution
-- AWS billing: according to AWS billing-data availability
+- Billing: according to AWS billing-data availability
 - Historical reports: on demand
 
 Make refresh intervals configurable within safe limits.
@@ -657,7 +686,7 @@ Do not label historical AWS billing information as live.
 
 ---
 
-## 26. Suggested Backend Architecture
+## 25. Suggested Backend Architecture
 
 Adapt to existing backend codebase structure.
 
@@ -712,7 +741,7 @@ Do not introduce duplicate merchant or transaction sources of truth.
 
 ---
 
-## 27. Suggested Super Admin Frontend Architecture
+## 26. Suggested Super Admin Frontend Architecture
 
 ```text
 src/
@@ -791,7 +820,7 @@ Maintain strict separation between ordinary portal permissions and Super Admin p
 
 ---
 
-## 28. Suggested Super Admin API Modules
+## 27. Suggested Super Admin API Modules
 
 Adapt endpoint names to existing conventions.
 
@@ -841,7 +870,7 @@ Do not expose unrestricted AWS API proxy endpoints.
 
 ---
 
-## 29. Data and Financial Integrity
+## 28. Data and Financial Integrity
 
 Never display invented production metrics.
 
@@ -871,11 +900,11 @@ Do not fabricate successful credit-side or debit-side payment verification.
 
 ---
 
-## 30. Performance Requirements
+## 29. Performance Requirements
 
 Target:
 
-- LCI ≤ 2.5 seconds under representative conditions
+- LCP ≤ 2.5 seconds under representative conditions
 - INP ≤ 200 milliseconds
 - CLS ≤ 0.1
 - Target 60 FPS for supported simple animations
@@ -886,7 +915,6 @@ Target:
 - Fast initial dashboard loading
 
 Implement:
-
 - Route-level code splitting
 - Lazy-loaded charts
 - Lazy-loaded WebGL
@@ -906,7 +934,7 @@ Do not claim targets were achieved without benchmarks.
 
 ---
 
-## 31. Accessibility Requirements
+## 30. Accessibility Requirements
 
 Target WCAG 2.2 AA.
 
@@ -932,7 +960,7 @@ All important realistic 3D navigation images must retain clear text labels.
 
 ---
 
-## 32. Security Requirements
+## 31. Security Requirements
 
 Preserve and strengthen:
 
@@ -977,7 +1005,7 @@ Do not execute destructive operations merely to demonstrate functionality.
 
 ---
 
-## 33. Installation Candidates
+## 32. Installation Candidates
 
 Inspect existing dependencies before installation.
 
@@ -1035,7 +1063,7 @@ Respect the actual package manager, lockfiles, framework versions and existing p
 
 ---
 
-## 34. Automated Testing Matrix
+## 33. Automated Testing Matrix
 
 Test screen widths:
 
@@ -1105,7 +1133,7 @@ Capture screenshots of critical pages for desktop, tablet and mobile.
 
 ---
 
-## 35. Implementation Execution Phases
+## 34. Implementation Execution Phases
 
 ### Phase 1 — Existing system audit
 
@@ -1209,7 +1237,7 @@ Implement:
 - Global Theme Studio
 - Dashboard personalization
 - Health configuration
-- Notification profiles
+- Notification policies
 - Feature flags
 - Provisioning policies
 - Configuration history and rollback
@@ -1246,7 +1274,7 @@ Do not deploy production until CI and required release validation are complete.
 
 ---
 
-## 37. Autonomous Execution Instructions
+## 35. Autonomous Execution Instructions
 
 Do not stop after creating the dashboard homepage.
 

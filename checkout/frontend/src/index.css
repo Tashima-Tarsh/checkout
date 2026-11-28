@@ -3,13 +3,13 @@
    DISHA 8.2 — Agentic UPI Payment Verification Platform
    ========================================================================== */
 
+/* CSS Custom Properties — Prism Enterprise Tokens */
 :root {
   /* Pearl Palette */
   --pdp-pearl-50: #FFF7F0;
   --pdp-pearl-100: #FFFCF5;
   --pdp-pearl-200: '#FFF3E0';
   --pdp-pearl-300: '#FFE8C4';
-  --pdp-pearl-400: '#FFD8A8';
   --pdp-pearl-500: '#F4E5BD';
 
   /* Champagne Palette */
@@ -91,9 +91,7 @@
 }
 
 /* Reset & Base */
-*,
-*::before,
-*::after {
+* {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -198,25 +196,12 @@ a:hover {
   box-shadow: var(--pdp-shadow-2);
 }
 
-.stat-card {
-  background: var(--pdp-pearl-100);
-  border: 1px solid var(--pdp-border);
-  border-radius: var(--pdp-radius-lg);
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: var(--pdp-shadow-1);
-  transition: transform var(--pdp-transition), box-shadow var(--pdp-transition);
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--pdp-shadow-2);
-}
-
-.stat-card.primary {
-  border-top: 3px solid var(--pdp-emerald-500);
+.stat-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pdp-muted, var(--pdp-dark-muted));
 }
 
 .stat-value {
@@ -224,14 +209,6 @@ a:hover {
   font-weight: 800;
   color: var(--pdp-ink, var(--pdp-dark-text));
   letter-spacing: -0.03em;
-}
-
-.stat-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--pdp-muted, var(--pdp-dark-muted));
 }
 
 .stat-note {
@@ -263,7 +240,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   border-radius: var(--pdp-radius-md);
   font-weight: 600;
   font-size: 0.9375rem;
@@ -306,20 +283,13 @@ a:hover {
   transform: translateY(-1px);
 }
 
-.btn-ghost {
-  background: transparent;
-  color: var(--pdp-text-secondary, var(--pdp-dark-muted));
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-}
-
 .btn-icon {
   width: 40px;
   height: 40px;
   border-radius: 10px;
   display: grid;
   place-items: center;
-  color: var(--pdp-text-secondary, var(--pdp-dark-muted));
+  color: var(--pdp-muted, var(--pdp-dark-muted));
 }
 
 .btn-icon:hover {
@@ -436,7 +406,7 @@ a:hover {
   color: #f87171;
 }
 
-/* Stats Grid */
+/* Stat Grid */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
