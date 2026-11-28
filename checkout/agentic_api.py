@@ -73,8 +73,14 @@ def bearer(authorization):
     return token
 
 
-def device_bearer(request: Request, authorization: Token = None):
-    """Authenticate an enrolled device using its stored credential."""
+def device_bearer(request: Request, authorization: Token = None, *, allow_offline: bool = False):
+    """Authenticate an enrolled device using its stored credential.
+
+    By default the device must be ONLINE. Pass allow_offline=True for the
+    heartbeat endpoint so a device that fell OFFLINE (missed the 90s window)
+    can re-heartbeat and come back online instead of being locked out.
+    Revoked or expired credentials are still rejected.
+    """
     if authorization is None:
         raise HTTPException(401, "Device credentials required")
     token = bearer(authorization)
@@ -93,9 +99,36 @@ def device_bearer(request: Request, authorization: Token = None):
         raise HTTPException(401, "Device revoked")
     if row["expires"] is not None and row["expires"] <= now:
         raise HTTPException(401, "Device credential expired")
-    if row["state"] != DEVICE_STATE_ONLINE:
+    if row["state"] != DEVICE_STATE_ONLINE and not allow_offline:
         raise HTTPException(401, "Device not enrolled")
     return row
+
+
+def require_owner(request: Request, authorization: Token = None):
+    if authorization is None:
+        require_session(request)
+        return
+    token = bearer(authorization)
+    if not secrets.compare_digest(digest(token), request.app.state.owner_token_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+
+def merchant_id(request: Request, authorization: Token = None):
+    if authorization is None:
+        identity = require_session(request).merchant_id
+        with request.app.state.engine.connect() as conn:
+            if conn.scalar(select(merchants.c.id).where(merchants.c.id == identity)) is None:
+                raise HTTPException(401, "Merchant access unavailable")
+    else:
+        token_hash = digest(bearer(authorization))
+        with request.app.state.engine.connect() as conn:
+            identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))
+        if identity is None:
+            raise HTTPException(401, "Invalid credentials")
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        with request.app.state.engine.connect() as conn:
+            enforce_entitlement(conn, identity, now())
+    return identity
 
 
 Merchant = Annotated[str, Depends(merchant_id)]
