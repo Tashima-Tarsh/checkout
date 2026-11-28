@@ -109,6 +109,24 @@ def require_owner(request: Request, authorization: Token = None):
     return token
 
 
+def merchant_id(request: Request, authorization: Token = None):
+    if authorization is None:
+        identity = require_session(request).merchant_id
+        with request.app.state.engine.connect() as conn:
+            if conn.scalar(select(merchants.c.id).where(merchants.c.id == identity)) is None:
+                raise HTTPException(401, "Merchant access unavailable")
+    else:
+        token_hash = digest(bearer(authorization))
+        with request.app.state.engine.connect() as conn:
+            identity = conn.scalar(select(merchants.c.id).where(merchants.c.token_hash == token_hash))
+        if identity is None:
+            raise HTTPException(401, "Invalid credentials")
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        with request.app.state.engine.connect() as conn:
+            enforce_entitlement(conn, identity, now())
+    return identity
+
+
 Merchant = Annotated[str, Depends(merchant_id)]
 
 
