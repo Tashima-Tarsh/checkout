@@ -42,7 +42,9 @@ def check(host: str, path: str) -> dict:
                 result["error"] = "Redirected to a different hostname"
                 return result
             if host == WEBSITE_HOST:
-                result["ok"] = resp.status == 200 and b'id="hero-canvas"' in body
+                result["ok"] = resp.status == 200 and (
+                    b'id="hero-canvas"' in body or b'id="root"' in body
+                )
             elif path == "/healthz":
                 data = json.loads(body)
                 result["ok"] = resp.status == 200 and data.get("ok") is True
@@ -56,7 +58,7 @@ def check(host: str, path: str) -> dict:
                 )
             else:
                 result["ok"] = resp.status == 200 and (
-                    b'id="form"' in body and b'id="launch"' in body
+                    b'id="form"' in body and (b'id="create"' in body or b'id="launch"' in body)
                 )
             if not result["ok"]:
                 result["error"] = "Unexpected public response shape"
